@@ -156,6 +156,17 @@ class DaylineStore(context: Context) {
         prefs.edit().putString(KEY_FONT, font.name).apply()
     }
 
+    fun loadWidgetFontChoice(): WidgetFontChoice = runCatching {
+        WidgetFontChoice.valueOf(
+            prefs.getString(KEY_WIDGET_FONT, WidgetFontChoice.DOT_BOLD.name)
+                ?: WidgetFontChoice.DOT_BOLD.name
+        )
+    }.getOrDefault(WidgetFontChoice.DOT_BOLD)
+
+    fun saveWidgetFontChoice(font: WidgetFontChoice) {
+        prefs.edit().putString(KEY_WIDGET_FONT, font.name).apply()
+    }
+
     fun loadShowOrb(): Boolean = prefs.getBoolean(KEY_SHOW_ORB, true)
     fun saveShowOrb(show: Boolean) { prefs.edit().putBoolean(KEY_SHOW_ORB, show).apply() }
 
@@ -169,6 +180,7 @@ class DaylineStore(context: Context) {
         private const val KEY_SPACES = "spaces"
         private const val KEY_APPEARANCE = "appearance"
         private const val KEY_FONT = "font"
+        private const val KEY_WIDGET_FONT = "widget_font"
         private const val KEY_SHOW_ORB = "show_orb"
         private const val KEY_WEEK_STARTS_MONDAY = "week_starts_monday"
     }
@@ -176,3 +188,5 @@ class DaylineStore(context: Context) {
 
 enum class Appearance { SYSTEM, LIGHT, DARK }
 enum class FontChoice { PIXELIFY, GEIST, GEIST_PIXEL, SYSTEM }
+
+enum class WidgetFontChoice { DOT_BOLD, DOT_FINE, MONO }

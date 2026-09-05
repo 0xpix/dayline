@@ -1,13 +1,27 @@
-# Dayline — v0.8.5
+# Dayline — v0.8.6
 
-Compile repair for the v0.8.4 dot-matrix widget update.
+Widget readability + widget typography settings.
 
-Fixed:
-- `GlanceTheme.colors.outlineVariant` was not available in the current Glance API; the transparent 3×1 divider now uses `onSurfaceVariant`.
-- `SystemPill` had its composable `content` parameter first, which made all trailing-lambda calls invalid Kotlin. `content` is now the final parameter.
+## Fixed light/dark readability
+The dot-matrix text bitmap is now rendered as a neutral white mask and tinted by Glance with the actual Material You `ColorProvider`.
 
-No widget design was changed:
-- Pulse 3×1 remains transparent.
-- Its pills continue to use Android / Nothing Material You system containers.
-- Dot-matrix widget typography remains enabled.
-- Orbit 2×2 keeps the system-colored background.
+That means the same widget text automatically receives:
+- dark text on light system surfaces
+- light text on dark system surfaces
+- matching text colors inside primary/secondary system pills
+
+This fixes the stale white-on-light problem visible after switching Nothing OS between light and dark mode.
+
+## Widget font setting
+Settings → Typography now includes a separate **Widget typography** section:
+
+- **Nothing dots · Bold** — new default; thicker square-ish dots for home-screen readability.
+- **Nothing dots · Fine** — the thinner style used previously.
+- **Monospace · Bold** — native Glance monospace text for maximum legibility.
+
+Changing the widget font refreshes all Dayline widgets immediately.
+
+## Widget colors
+The 3×1 remains transparent.
+Its date/status/event/`YOUR DAY IS CLEAR` pills continue to use the Android / Nothing Material You system container colors.
+The 2×2 continues to use the system widget background.

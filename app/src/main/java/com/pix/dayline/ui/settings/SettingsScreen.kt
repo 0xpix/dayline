@@ -23,16 +23,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.pix.dayline.data.Appearance
 import com.pix.dayline.data.FontChoice
+import com.pix.dayline.data.WidgetFontChoice
 import com.pix.dayline.ui.components.FloatingControls
 
 @Composable
 fun SettingsScreen(
     appearance: Appearance,
     fontChoice: FontChoice,
+    widgetFontChoice: WidgetFontChoice,
     showOrb: Boolean,
     weekStartsMonday: Boolean,
     onAppearance: (Appearance) -> Unit,
     onFontChoice: (FontChoice) -> Unit,
+    onWidgetFontChoice: (WidgetFontChoice) -> Unit,
     onShowOrb: (Boolean) -> Unit,
     onWeekStart: (Boolean) -> Unit,
     onMenu: () -> Unit,
@@ -71,6 +74,27 @@ fun SettingsScreen(
             ChoiceRow("Geist · Nothing OS 5", fontChoice == FontChoice.GEIST) { onFontChoice(FontChoice.GEIST) }
             ChoiceRow("Geist Pixel", fontChoice == FontChoice.GEIST_PIXEL) { onFontChoice(FontChoice.GEIST_PIXEL) }
             ChoiceRow("System", fontChoice == FontChoice.SYSTEM) { onFontChoice(FontChoice.SYSTEM) }
+
+            Spacer(Modifier.height(24.dp))
+            SectionLabel("Widget typography")
+            Spacer(Modifier.height(10.dp))
+            ChoiceRow(
+                "Nothing dots · Bold",
+                widgetFontChoice == WidgetFontChoice.DOT_BOLD
+            ) { onWidgetFontChoice(WidgetFontChoice.DOT_BOLD) }
+            ChoiceRow(
+                "Nothing dots · Fine",
+                widgetFontChoice == WidgetFontChoice.DOT_FINE
+            ) { onWidgetFontChoice(WidgetFontChoice.DOT_FINE) }
+            ChoiceRow(
+                "Monospace · Bold",
+                widgetFontChoice == WidgetFontChoice.MONO
+            ) { onWidgetFontChoice(WidgetFontChoice.MONO) }
+            Text(
+                "Bold dots is the default and is designed for better contrast on the home screen.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             Spacer(Modifier.height(28.dp))
             SectionLabel("Today")
@@ -116,7 +140,7 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(34.dp))
             Text(
-                "Dayline 0.8.5",
+                "Dayline 0.8.6",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

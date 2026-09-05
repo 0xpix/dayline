@@ -5,6 +5,7 @@ import android.content.res.Configuration
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -35,6 +36,7 @@ import androidx.glance.layout.width
 import com.pix.dayline.MainActivity
 import com.pix.dayline.R
 import com.pix.dayline.data.DaylineStore
+import com.pix.dayline.data.WidgetFontChoice
 import com.pix.dayline.model.AgendaKind
 import com.pix.dayline.model.DaylineItem
 import com.pix.dayline.model.occursOn
@@ -129,28 +131,32 @@ private fun isHourBusy(items: List<DaylineItem>, date: LocalDate, hour: Int): Bo
     }
 }
 
-private fun isNight(context: Context): Boolean =
-    context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
-        Configuration.UI_MODE_NIGHT_YES
-
-private fun dotForeground(context: Context): Int =
-    if (isNight(context)) 0xFFF5F0EC.toInt() else 0xFF302E2D.toInt()
-
-private fun dotOnSystemPill(context: Context): Int =
-    if (isNight(context)) 0xFFF9F4EE.toInt() else 0xFF2E2926.toInt()
-
 @Composable
-private fun DotText(
+private fun WidgetText(
     text: String,
+    fontChoice: WidgetFontChoice,
     scale: Float = 1f,
-    onSystemPill: Boolean = false,
+    color: androidx.glance.unit.ColorProvider,
     maxChars: Int = 24
 ) {
+    if (fontChoice == WidgetFontChoice.MONO) {
+        Text(
+            text = text,
+            style = TextStyle(
+                color = color,
+                fontSize = (10f * scale).sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+        )
+        return
+    }
+
     val context = LocalContext.current
     val rendered = DotMatrixRenderer.render(
         context = context,
         rawText = text,
-        color = if (onSystemPill) dotOnSystemPill(context) else dotForeground(context),
+        style = fontChoice,
         scale = scale,
         maxChars = maxChars
     )
@@ -161,9 +167,11 @@ private fun DotText(
         modifier = GlanceModifier
             .width(rendered.widthDp.dp)
             .height(rendered.heightDp.dp),
-        contentScale = ContentScale.Fit
+        contentScale = ContentScale.Fit,
+        colorFilter = ColorFilter.tint(color)
     )
 }
+
 
 @Composable
 private fun TransparentPulseSurface(content: @Composable () -> Unit) {
@@ -277,6 +285,7 @@ private fun DayTrack(
 private fun SystemEventPill(
     item: DaylineItem,
     strong: Boolean,
+    fontChoice: WidgetFontChoice,
     width: Int? = null
 ) {
     val base = GlanceModifier
@@ -293,14 +302,17 @@ private fun SystemEventPill(
         modifier = modifier,
         contentAlignment = Alignment.CenterStart
     ) {
-        DotText(
+        WidgetText(
             text = "${if (item.kind == AgendaKind.TASK) "+" else ">"} ${compactTitle(item.title, 11)} ${itemLead(item)}",
+            fontChoice = fontChoice,
             scale = 0.82f,
-            onSystemPill = true,
+            color = if (strong) GlanceTheme.colors.onPrimaryContainer
+            else GlanceTheme.colors.onSecondaryContainer,
             maxChars = 20
         )
     }
 }
+
 
 /**
  * Pulse 3×1
@@ -312,6 +324,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
         val now = LocalDateTime.now()
         val today = now.toLocalDate()
         val next = nextOccurrence(items, now)
+        val widgetFont = DaylineStore(context).loadWidgetFontChoice()
 
         provideContent {
             TransparentPulseSurface {
@@ -325,7 +338,12 @@ class DaylineCompactWidget : GlanceAppWidget() {
                     ) {
                         OrbitMark(34)
                         Spacer(GlanceModifier.height(2.dp))
-                        DotText("DAYLINE", scale = 0.48f)
+                        WidgetText(
+                            "DAYLINE",
+                            widgetFont,
+                            scale = 0.48f,
+                            color = GlanceTheme.colors.onSurface
+                        )
                     }
 
                     Spacer(GlanceModifier.width(6.dp))
@@ -341,42 +359,47 @@ class DaylineCompactWidget : GlanceAppWidget() {
 
                     Column {
                         Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
-                            DotText(
+                            WidgetText(
                                 today.dayOfWeek
                                     .getDisplayName(JavaTextStyle.SHORT, Locale.getDefault())
                                     .uppercase(),
-                                scale = 0.72f
+                                widgetFont,
+                                scale = 0.72f,
+                                color = GlanceTheme.colors.onSurface
                             )
 
                             Spacer(GlanceModifier.width(5.dp))
 
                             SystemPill(strong = true, horizontalPadding = 6, verticalPadding = 2) {
-                                DotText(
+                                WidgetText(
                                     today.dayOfMonth.toString(),
+                                    widgetFont,
                                     scale = 0.64f,
-                                    onSystemPill = true
+                                    color = GlanceTheme.colors.onPrimaryContainer
                                 )
                             }
 
                             Spacer(GlanceModifier.width(4.dp))
 
                             SystemPill(horizontalPadding = 6, verticalPadding = 2) {
-                                DotText(
+                                WidgetText(
                                     today.month
                                         .getDisplayName(JavaTextStyle.SHORT, Locale.getDefault())
                                         .uppercase(),
+                                    widgetFont,
                                     scale = 0.58f,
-                                    onSystemPill = true
+                                    color = GlanceTheme.colors.onSecondaryContainer
                                 )
                             }
 
                             Spacer(GlanceModifier.width(4.dp))
 
                             SystemPill(strong = true, horizontalPadding = 6, verticalPadding = 2) {
-                                DotText(
+                                WidgetText(
                                     nextStatus(next, now),
+                                    widgetFont,
                                     scale = 0.56f,
-                                    onSystemPill = true
+                                    color = GlanceTheme.colors.onPrimaryContainer
                                 )
                             }
                         }
@@ -386,10 +409,11 @@ class DaylineCompactWidget : GlanceAppWidget() {
                         Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
                             if (next == null) {
                                 SystemPill(strong = true, horizontalPadding = 8, verticalPadding = 4) {
-                                    DotText(
+                                    WidgetText(
                                         "YOUR DAY IS CLEAR",
+                                        widgetFont,
                                         scale = 0.69f,
-                                        onSystemPill = true,
+                                        color = GlanceTheme.colors.onPrimaryContainer,
                                         maxChars = 20
                                     )
                                 }
@@ -397,13 +421,24 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                 SystemEventPill(
                                     item = next.item,
                                     strong = true,
+                                    fontChoice = widgetFont,
                                     width = 137
                                 )
                                 Spacer(GlanceModifier.width(5.dp))
                                 Column {
-                                    DotText("NEXT", scale = 0.44f)
+                                    WidgetText(
+                                        "NEXT",
+                                        widgetFont,
+                                        scale = 0.44f,
+                                        color = GlanceTheme.colors.onSurface
+                                    )
                                     Spacer(GlanceModifier.height(1.dp))
-                                    DotText("UP", scale = 0.44f)
+                                    WidgetText(
+                                        "UP",
+                                        widgetFont,
+                                        scale = 0.44f,
+                                        color = GlanceTheme.colors.onSurface
+                                    )
                                 }
                             }
                         }
@@ -411,11 +446,21 @@ class DaylineCompactWidget : GlanceAppWidget() {
                         Spacer(GlanceModifier.height(4.dp))
 
                         Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
-                            DotText("AM", scale = 0.48f)
+                            WidgetText(
+                                "AM",
+                                widgetFont,
+                                scale = 0.48f,
+                                color = GlanceTheme.colors.onSurface
+                            )
                             Spacer(GlanceModifier.width(4.dp))
                             DayTrack(items = items, date = today)
                             Spacer(GlanceModifier.width(4.dp))
-                            DotText("PM", scale = 0.48f)
+                            WidgetText(
+                                "PM",
+                                widgetFont,
+                                scale = 0.48f,
+                                color = GlanceTheme.colors.onSurface
+                            )
                         }
                     }
                 }
@@ -439,6 +484,7 @@ class DaylineSquareWidget : GlanceAppWidget() {
         val agenda = todayItems(items, today).take(2)
         val busyHours = (0..23).count { isHourBusy(items, today, it) }
         val freeHours = 24 - busyHours
+        val widgetFont = DaylineStore(context).loadWidgetFontChoice()
 
         provideContent {
             SystemSquareSurface {
@@ -447,33 +493,44 @@ class DaylineSquareWidget : GlanceAppWidget() {
                         modifier = GlanceModifier.fillMaxWidth(),
                         verticalAlignment = Alignment.Vertical.CenterVertically
                     ) {
-                        DotText(today.dayOfMonth.toString(), scale = 1.15f)
+                        WidgetText(
+                            today.dayOfMonth.toString(),
+                            widgetFont,
+                            scale = 1.15f,
+                            color = GlanceTheme.colors.onSurface
+                        )
 
                         Spacer(GlanceModifier.width(8.dp))
 
                         Column {
-                            DotText(
+                            WidgetText(
                                 today.dayOfWeek
                                     .getDisplayName(JavaTextStyle.SHORT, Locale.getDefault())
                                     .uppercase(),
-                                scale = 0.60f
+                                widgetFont,
+                                scale = 0.60f,
+                                color = GlanceTheme.colors.onSurface
                             )
                             Spacer(GlanceModifier.height(2.dp))
-                            DotText(
+                            WidgetText(
                                 today.month
                                     .getDisplayName(JavaTextStyle.SHORT, Locale.getDefault())
                                     .uppercase(),
-                                scale = 0.52f
+                                widgetFont,
+                                scale = 0.52f,
+                                color = GlanceTheme.colors.onSurfaceVariant
                             )
                         }
 
                         Spacer(GlanceModifier.width(7.dp))
 
                         SystemPill(strong = busyHours > 0) {
-                            DotText(
+                            WidgetText(
                                 "$freeHours H FREE",
+                                widgetFont,
                                 scale = 0.50f,
-                                onSystemPill = true
+                                color = if (busyHours > 0) GlanceTheme.colors.onPrimaryContainer
+                                else GlanceTheme.colors.onSecondaryContainer
                             )
                         }
                     }
@@ -481,36 +538,52 @@ class DaylineSquareWidget : GlanceAppWidget() {
                     Spacer(GlanceModifier.height(9.dp))
 
                     Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
-                        DotText("AM", scale = 0.45f)
+                        WidgetText(
+                            "AM",
+                            widgetFont,
+                            scale = 0.45f,
+                            color = GlanceTheme.colors.onSurfaceVariant
+                        )
                         Spacer(GlanceModifier.width(4.dp))
                         DayTrack(items, today)
                         Spacer(GlanceModifier.width(4.dp))
-                        DotText("PM", scale = 0.45f)
+                        WidgetText(
+                            "PM",
+                            widgetFont,
+                            scale = 0.45f,
+                            color = GlanceTheme.colors.onSurfaceVariant
+                        )
                     }
 
                     Spacer(GlanceModifier.height(9.dp))
 
                     if (agenda.isEmpty()) {
                         SystemPill(strong = true) {
-                            DotText(
+                            WidgetText(
                                 "YOUR DAY IS WIDE OPEN",
+                                widgetFont,
                                 scale = 0.58f,
-                                onSystemPill = true,
+                                color = GlanceTheme.colors.onPrimaryContainer,
                                 maxChars = 22
                             )
                         }
                         Spacer(GlanceModifier.height(7.dp))
                         SystemPill {
-                            DotText(
+                            WidgetText(
                                 "TAP TO PLAN",
+                                widgetFont,
                                 scale = 0.58f,
-                                onSystemPill = true
+                                color = GlanceTheme.colors.onSecondaryContainer
                             )
                         }
                     } else {
                         agenda.forEachIndexed { index, item ->
                             Column {
-                                SystemEventPill(item = item, strong = index == 0)
+                                SystemEventPill(
+                                    item = item,
+                                    strong = index == 0,
+                                    fontChoice = widgetFont
+                                )
                                 if (index != agenda.lastIndex) {
                                     Spacer(GlanceModifier.height(6.dp))
                                 }

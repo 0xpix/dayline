@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
+import com.pix.dayline.data.WidgetFontChoice
 import kotlin.math.ceil
 import kotlin.math.max
 
@@ -69,7 +70,7 @@ object DotMatrixRenderer {
     fun render(
         context: Context,
         rawText: String,
-        color: Int,
+        style: WidgetFontChoice,
         scale: Float = 1f,
         maxChars: Int = 24
     ): DotMatrixImage {
@@ -78,9 +79,11 @@ object DotMatrixRenderer {
             .replace('↗', '>')
             .take(maxChars)
 
-        val dotDp = 1.15f * scale
-        val stepDp = 2.15f * scale
-        val charGapDp = 1.8f * scale
+        val bold = style == WidgetFontChoice.DOT_BOLD
+
+        val dotDp = (if (bold) 1.72f else 1.08f) * scale
+        val stepDp = (if (bold) 2.18f else 2.12f) * scale
+        val charGapDp = (if (bold) 1.45f else 1.80f) * scale
         val glyphWidthDp = stepDp * 4 + dotDp
         val glyphHeightDp = stepDp * 6 + dotDp
 
@@ -95,18 +98,23 @@ object DotMatrixRenderer {
 
         val bitmapWidth = max(1, ceil(widthDp * density).toInt())
         val bitmapHeight = max(1, ceil(heightDp * density).toInt())
-        val bitmap = Bitmap.createBitmap(bitmapWidth, bitmapHeight, Bitmap.Config.ARGB_8888)
+        val bitmap = Bitmap.createBitmap(
+            bitmapWidth,
+            bitmapHeight,
+            Bitmap.Config.ARGB_8888
+        )
         val canvas = Canvas(bitmap)
 
+        // Always draw opaque white. Glance applies a ColorProvider tint later,
+        // so the same bitmap automatically remains readable in light/dark mode.
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            this.color = color
+            color = android.graphics.Color.WHITE
             style = Paint.Style.FILL
         }
 
         val dotPx = dotDp * density
         val stepPx = stepDp * density
         val gapPx = charGapDp * density
-        val radius = dotPx / 2f
 
         var cursorX = 0f
         text.forEach { char ->
@@ -116,10 +124,20 @@ object DotMatrixRenderer {
                     if (bit == '1') {
                         val left = cursorX + col * stepPx
                         val top = row * stepPx
-                        canvas.drawOval(
-                            RectF(left, top, left + dotPx, top + dotPx),
-                            paint
-                        )
+
+                        if (bold) {
+                            canvas.drawRoundRect(
+                                RectF(left, top, left + dotPx, top + dotPx),
+                                dotPx * 0.28f,
+                                dotPx * 0.28f,
+                                paint
+                            )
+                        } else {
+                            canvas.drawOval(
+                                RectF(left, top, left + dotPx, top + dotPx),
+                                paint
+                            )
+                        }
                     }
                 }
             }

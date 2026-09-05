@@ -209,10 +209,10 @@ private fun OrbitMark(size: Int) {
 
 @Composable
 private fun SystemPill(
-    content: @Composable () -> Unit,
     strong: Boolean = false,
     horizontalPadding: Int = 7,
-    verticalPadding: Int = 3
+    verticalPadding: Int = 3,
+    content: @Composable () -> Unit
 ) {
     Box(
         modifier = GlanceModifier
@@ -334,7 +334,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
                         modifier = GlanceModifier
                             .width(1.dp)
                             .height(48.dp)
-                            .background(GlanceTheme.colors.outlineVariant)
+                            .background(GlanceTheme.colors.onSurfaceVariant)
                     ) { }
 
                     Spacer(GlanceModifier.width(7.dp))

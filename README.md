@@ -1,22 +1,13 @@
-# Dayline — v0.8.4
+# Dayline — v0.8.5
 
-Dot-matrix widget typography + system pills.
+Compile repair for the v0.8.4 dot-matrix widget update.
 
-## Typography
-Glance app widgets do not support app-bundled custom fonts. To get much closer to the Nothing dot-matrix reference without shipping a font file, Dayline now renders widget labels with its own 5×7 dot-matrix bitmap renderer.
+Fixed:
+- `GlanceTheme.colors.outlineVariant` was not available in the current Glance API; the transparent 3×1 divider now uses `onSurfaceVariant`.
+- `SystemPill` had its composable `content` parameter first, which made all trailing-lambda calls invalid Kotlin. `content` is now the final parameter.
 
-This applies to the visible typography in both widgets:
-- weekday / date / month
-- DAYLINE label
-- next event
-- `YOUR DAY IS CLEAR`
-- AM / PM
-- 2×2 date, free-hours badge and agenda text
-
-## Pulse · 3×1
-The widget body remains transparent.
-
-The rounded pills now use the Android / Nothing Material You system containers rather than the old Frost fill. This includes `YOUR DAY IS CLEAR`, event pills, date pills, and status pills.
-
-## Orbit · 2×2
-Keeps the Android / Nothing system background and now uses the same custom dot-matrix typography for a consistent widget family.
+No widget design was changed:
+- Pulse 3×1 remains transparent.
+- Its pills continue to use Android / Nothing Material You system containers.
+- Dot-matrix widget typography remains enabled.
+- Orbit 2×2 keeps the system-colored background.

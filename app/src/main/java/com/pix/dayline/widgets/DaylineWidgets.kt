@@ -24,10 +24,10 @@ import androidx.glance.action.clickable
 import androidx.glance.appwidget.AndroidRemoteViews
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
+import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.appWidgetBackground
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
-import androidx.glance.appwidget.updateAll
 import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
@@ -425,10 +425,15 @@ private fun SystemEventPill(
     autoSlide: Boolean,
     width: Int? = null
 ) {
+    val isTask = item.kind == AgendaKind.TASK
+
     val base = GlanceModifier
         .background(
-            if (strong) GlanceTheme.colors.primaryContainer
-            else GlanceTheme.colors.secondaryContainer
+            when {
+                isTask -> GlanceTheme.colors.secondaryContainer
+                strong -> GlanceTheme.colors.primaryContainer
+                else -> GlanceTheme.colors.secondaryContainer
+            }
         )
         .cornerRadius(30.dp)
         .padding(horizontal = 8.dp, vertical = 4.dp)
@@ -441,7 +446,7 @@ private fun SystemEventPill(
     ) {
         val complete = "${if (item.kind == AgendaKind.TASK) "+" else ">"} ${item.title} ${itemLead(item)}"
 
-        if (autoSlide && complete.length > 18 && strong) {
+        if (autoSlide && complete.length > 18 && strong && !isTask) {
             AnimatedEventText(
                 fullText = complete,
                 fontChoice = fontChoice,
@@ -452,8 +457,11 @@ private fun SystemEventPill(
                 text = "${if (item.kind == AgendaKind.TASK) "+" else ">"} ${compactTitle(item.title, 11)} ${itemLead(item)}",
                 fontChoice = fontChoice,
                 scale = 0.82f,
-                color = if (strong) GlanceTheme.colors.onPrimaryContainer
-                else GlanceTheme.colors.onSecondaryContainer,
+                color = when {
+                    isTask -> GlanceTheme.colors.onSecondaryContainer
+                    strong -> GlanceTheme.colors.onPrimaryContainer
+                    else -> GlanceTheme.colors.onSecondaryContainer
+                },
                 maxChars = 20
             )
         }
@@ -467,15 +475,16 @@ private fun SystemEventPill(
  */
 class DaylineCompactWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val items = DaylineStore(context).loadItems()
-        val now = LocalDateTime.now()
-        val today = now.toLocalDate()
-        val next = nextOccurrence(items, now)
-        val widgetFont = DaylineStore(context).loadWidgetFontChoice()
-        val widgetEmoji = DaylineStore(context).loadWidgetEmojiChoice()
-        val widgetAutoSlide = DaylineStore(context).loadWidgetAutoSlide()
-
         provideContent {
+            val store = DaylineStore(context)
+            val items = store.loadItems()
+            val now = LocalDateTime.now()
+            val today = now.toLocalDate()
+            val next = nextOccurrence(items, now)
+            val widgetFont = store.loadWidgetFontChoice()
+            val widgetEmoji = store.loadWidgetEmojiChoice()
+            val widgetAutoSlide = store.loadWidgetAutoSlide()
+
             TransparentPulseSurface {
                 Row(
                     modifier = GlanceModifier.fillMaxSize(),
@@ -629,15 +638,16 @@ class DaylineCompactWidgetReceiver : GlanceAppWidgetReceiver() {
  */
 class DaylineSquareWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val items = DaylineStore(context).loadItems()
-        val today = LocalDate.now()
-        val agenda = todayItems(items, today).take(2)
-        val busyHours = (0..23).count { isHourBusy(items, today, it) }
-        val freeHours = 24 - busyHours
-        val widgetFont = DaylineStore(context).loadWidgetFontChoice()
-        val widgetAutoSlide = DaylineStore(context).loadWidgetAutoSlide()
-
         provideContent {
+            val store = DaylineStore(context)
+            val items = store.loadItems()
+            val today = LocalDate.now()
+            val agenda = todayItems(items, today).take(2)
+            val busyHours = (0..23).count { isHourBusy(items, today, it) }
+            val freeHours = 24 - busyHours
+            val widgetFont = store.loadWidgetFontChoice()
+            val widgetAutoSlide = store.loadWidgetAutoSlide()
+
             SystemSquareSurface {
                 Column(GlanceModifier.fillMaxSize()) {
                     Row(
@@ -754,14 +764,14 @@ class DaylineSquareWidgetReceiver : GlanceAppWidgetReceiver() {
 
 class DaylineLockWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val store = DaylineStore(context)
-        val items = store.loadItems()
-        val now = LocalDateTime.now()
-        val next = nextOccurrence(items, now)
-        val widgetFont = store.loadWidgetFontChoice()
-        val widgetEmoji = store.loadWidgetEmojiChoice()
-
         provideContent {
+            val store = DaylineStore(context)
+            val items = store.loadItems()
+            val now = LocalDateTime.now()
+            val next = nextOccurrence(items, now)
+            val widgetFont = store.loadWidgetFontChoice()
+            val widgetEmoji = store.loadWidgetEmojiChoice()
+
             GlanceTheme {
                 Row(
                     modifier = GlanceModifier
@@ -831,8 +841,21 @@ class DaylineLockWidgetReceiver : GlanceAppWidgetReceiver() {
 
 object DaylineWidgetUpdater {
     suspend fun updateAll(context: Context) {
-        DaylineCompactWidget().updateAll(context)
-        DaylineSquareWidget().updateAll(context)
-        DaylineLockWidget().updateAll(context)
+        val manager = GlanceAppWidgetManager(context)
+
+        val compact = DaylineCompactWidget()
+        manager.getGlanceIds(DaylineCompactWidget::class.java).forEach { id ->
+            compact.update(context, id)
+        }
+
+        val square = DaylineSquareWidget()
+        manager.getGlanceIds(DaylineSquareWidget::class.java).forEach { id ->
+            square.update(context, id)
+        }
+
+        val lock = DaylineLockWidget()
+        manager.getGlanceIds(DaylineLockWidget::class.java).forEach { id ->
+            lock.update(context, id)
+        }
     }
 }

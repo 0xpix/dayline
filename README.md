@@ -1,32 +1,34 @@
-# Dayline — v0.10.0
+# Dayline — v0.10.1
 
-Three interaction/system features.
+Live widget refresh + Today visual refinement.
 
-## Drag to reschedule
-On Today, long-press a timed event/task and drag vertically.
+## Today
+The large 24-segment circle is replaced by a much smaller **Day signal**:
+- 12 dots represent two-hour blocks
+- scheduled blocks become solid
+- the current block gets a small Material You ring
+- one faint rail connects the day
+- substantially less visual weight above the greeting
 
-- 15-minute snapping
-- duration is preserved
-- start/end times preview while dragging
-- release saves immediately
-- recurring items move the whole series with the current data model
+## Widget light-mode task contrast
+Tasks now use the Material You secondary container with its matching
+`onSecondaryContainer` foreground. Long task titles stay in the native Glance
+path instead of the bitmap animation path so their light/dark contrast stays exact.
 
-## Now activity
-Timed items with a valid start and end time can show a persistent notification while active.
+## Live widget changes
+The Glance widget data is now read *inside* `provideContent`, rather than captured
+before the composition starts.
 
-- countdown chronometer to the event end
-- auto-clears at the end
-- survives rescheduling and reboot
-- requests Android 16 promoted ongoing / Live Update treatment where supported
-- toggle in Settings → Reminders → Now activity
+Dayline also refreshes each placed Glance id directly through
+`GlanceAppWidgetManager`.
 
-## Lock-screen widget
-Adds **Dayline · Lock 2×1** with keyguard widget metadata.
+As a result:
+- changing the widget emoji refreshes placed widgets immediately
+- adding/editing/deleting an event refreshes placed widgets immediately
+- changing widget font refreshes immediately
+- lock-screen widget refreshes with the same path
 
-It shows:
-- selected monochrome widget emoji
-- day/date
-- `NOW` for an active timed event
-- otherwise the next item and its time
-
-Whether it appears in the lock-screen picker depends on the device/OEM widget host.
+## Emoji picker
+Choosing an icon no longer closes the emoji sheet.
+The live preview remains visible while trying different icons.
+Swipe the sheet down or use Back when finished.

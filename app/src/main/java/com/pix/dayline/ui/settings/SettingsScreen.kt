@@ -127,7 +127,7 @@ fun SettingsScreen(
 
             SettingsGroup("Today") {
                 ToggleSettingRow(
-                    title = "24-hour day dial",
+                    title = "Day signal",
                     checked = showOrb,
                     onChecked = onShowOrb
                 )
@@ -190,7 +190,7 @@ fun SettingsScreen(
             Spacer(Modifier.height(34.dp))
 
             Text(
-                "Dayline 0.10.0",
+                "Dayline 0.10.1",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -250,8 +250,9 @@ fun SettingsScreen(
         SettingsSheet.WIDGET_EMOJI -> EmojiSheet(
             selected = widgetEmojiChoice,
             onSelect = {
+                // Keep the picker open so the preview and placed widget
+                // can update while the user tries different icons.
                 onWidgetEmojiChoice(it)
-                openSheet = null
             },
             onDismiss = { openSheet = null }
         )

@@ -11,8 +11,8 @@ android {
         applicationId = "com.pix.dayline"
         minSdk = 26
         targetSdk = 36
-        versionCode = 24
-        versionName = "0.10.0"
+        versionCode = 25
+        versionName = "0.10.1"
     }
 
     buildFeatures {

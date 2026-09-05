@@ -1,31 +1,16 @@
-# Dayline — v0.8.0
+# Dayline — v0.8.1
 
-Nothing-inspired widget redesign.
+## Pulse 3×1 redesign
 
-## Widget family
+The compact widget is now a true **3 columns × 1 row** strip inspired by the approved Nothing OS concept:
 
-### Pulse · 2×1
-A compact horizontal widget inspired by the Nothing OS 5 lock-screen language:
-- Dayline brand puck
-- weekday / date / month pills
-- highlighted next-up event
-- tiny six-step day-progress track
+- playful Dayline orbit puck on the left
+- `TUE / 5 / SEP` style date pills
+- small plan-count status pill
+- highlighted next event capsule
+- tiny stacked `NEXT / UP` label
+- compact AM → PM dot track underneath
 
-### Orbit · 2×2
-A playful square composition:
-- brand puck
-- date pills
-- dynamic day mood (`WIDE OPEN`, `IN MOTION`, etc.)
-- AM → PM orbit track
-- up to two rounded agenda capsules
+No weather value is fabricated; the right-hand status pill shows the number of Dayline items scheduled today instead.
 
-### Board · 3×2
-A wider modular board:
-- vertical Dayline identity rail
-- date pills
-- 12-step AM → PM track
-- up to three agenda capsules
-- first event gets stronger visual emphasis
-
-All widgets follow Glance / Material You colors so they adapt to the Nothing system palette.
-They open Dayline when tapped and refresh when Dayline data changes.
+The existing **Orbit 2×2** and **Board 3×2** widgets remain available.

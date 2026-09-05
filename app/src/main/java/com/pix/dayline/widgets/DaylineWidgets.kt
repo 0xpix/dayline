@@ -306,10 +306,11 @@ private fun EventCapsule(
 }
 
 /**
- * Dayline Pulse — 2 columns x 1 row
+ * Dayline Pulse — 3 columns x 1 row
  *
- * Inspired by the Nothing OS 5 visual language:
- * brand puck + date pills + next-up capsule + tiny 6-step day track.
+ * Wide Nothing-inspired strip:
+ * orbit brand mark + weekday/date pills + highlighted next event
+ * + tiny NEXT UP label + AM→PM day track.
  */
 class DaylineCompactWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -317,6 +318,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
         val now = LocalDateTime.now()
         val today = now.toLocalDate()
         val next = nextOccurrence(items, now)
+        val todayCount = todayItems(items, today).size
 
         provideContent {
             WidgetSurface {
@@ -324,9 +326,43 @@ class DaylineCompactWidget : GlanceAppWidget() {
                     modifier = GlanceModifier.fillMaxSize(),
                     verticalAlignment = Alignment.Vertical.CenterVertically
                 ) {
-                    BrandMark(compact = true)
+                    // Left: playful Dayline orbit puck.
+                    Column(
+                        modifier = GlanceModifier.width(54.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = GlanceModifier
+                                .size(42.dp)
+                                .background(GlanceTheme.colors.primaryContainer)
+                                .cornerRadius(24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "◔",
+                                style = TextStyle(
+                                    color = GlanceTheme.colors.onPrimaryContainer,
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                        }
+
+                        Spacer(GlanceModifier.height(3.dp))
+
+                        Text(
+                            "DAYLINE",
+                            style = TextStyle(
+                                color = GlanceTheme.colors.onSurfaceVariant,
+                                fontSize = 7.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                    }
+
                     Spacer(GlanceModifier.width(8.dp))
 
+                    // Main strip.
                     Column {
                         Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
                             Text(
@@ -335,10 +371,11 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                     .uppercase(),
                                 style = TextStyle(
                                     color = GlanceTheme.colors.onSurface,
-                                    fontSize = 10.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             )
+
                             Spacer(GlanceModifier.width(5.dp))
                             Pill(today.dayOfMonth.toString(), emphasized = true, small = true)
                             Spacer(GlanceModifier.width(4.dp))
@@ -348,22 +385,69 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                     .uppercase(),
                                 small = true
                             )
-                        }
-
-                        Spacer(GlanceModifier.height(5.dp))
-
-                        if (next == null) {
-                            Pill("CLEAR DAY", emphasized = true)
-                        } else {
-                            EventCapsule(
-                                item = next.item,
-                                highlight = true,
-                                width = 126
+                            Spacer(GlanceModifier.width(5.dp))
+                            Pill(
+                                if (todayCount == 1) "1 PLAN" else "$todayCount PLANS",
+                                small = true
                             )
                         }
 
                         Spacer(GlanceModifier.height(5.dp))
-                        MiniDayTrack(items = items, date = today, dots = 6)
+
+                        Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
+                            if (next == null) {
+                                Pill("↗  YOUR DAY IS CLEAR", emphasized = true)
+                            } else {
+                                EventCapsule(
+                                    item = next.item,
+                                    highlight = true,
+                                    width = 142
+                                )
+                                Spacer(GlanceModifier.width(7.dp))
+                                Column {
+                                    Text(
+                                        "NEXT",
+                                        style = TextStyle(
+                                            color = GlanceTheme.colors.onSurfaceVariant,
+                                            fontSize = 7.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    )
+                                    Text(
+                                        "UP",
+                                        style = TextStyle(
+                                            color = GlanceTheme.colors.onSurfaceVariant,
+                                            fontSize = 7.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(GlanceModifier.height(5.dp))
+
+                        Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
+                            Text(
+                                "AM",
+                                style = TextStyle(
+                                    color = GlanceTheme.colors.onSurfaceVariant,
+                                    fontSize = 7.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                            Spacer(GlanceModifier.width(5.dp))
+                            MiniDayTrack(items = items, date = today, dots = 8)
+                            Spacer(GlanceModifier.width(5.dp))
+                            Text(
+                                "PM",
+                                style = TextStyle(
+                                    color = GlanceTheme.colors.onSurfaceVariant,
+                                    fontSize = 7.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                        }
                     }
                 }
             }

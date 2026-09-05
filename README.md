@@ -1,30 +1,21 @@
-# Dayline — v0.8.2
+# Dayline — v0.8.3
 
-Widget visual correction.
-
-The previous widgets inherited Material You colors, which is why a brown/orange wallpaper produced brown widgets. That was technically system-matched, but it did not match the approved Dayline concept.
-
-v0.8.2 deliberately separates the widget visual identity from the app's System theme.
-
-## Frost widget palette
-- cool blue-gray → lavender gradient background
-- white / pale-gray typography
-- near-white rounded event/date pills
-- blue-gray text inside the strong pills
-- monospaced widget typography
-- custom Dayline orbit mark instead of the clock-like unicode symbol
+Widget cleanup.
 
 ## Pulse · 3×1
-The compact widget now follows the approved composition closely:
-- orbit mark + DAYLINE
-- vertical separator
-- weekday / date / month pills
-- useful status pill (`NOW`, `24M`, `2H`, `OPEN`, etc.)
-- highlighted next-event capsule
-- stacked `NEXT / UP`
-- AM → PM dot track with a ring for the current segment
+- background is now transparent
+- keeps the cool Frost typography/pills/orbit mark
+- only the pills provide local contrast over the wallpaper
+- no large rounded rectangle behind the widget
 
-## Other widgets
-Orbit 2×2 and Board 3×2 now use the same Frost visual system for consistency.
+## Orbit · 2×2
+- background now follows Android / Nothing Material You system colors
+- redesigned to use the full 2×2 area
+- large day number + weekday/month
+- free-hours badge
+- full AM → PM day track
+- two event rows
+- if the day is empty, it uses the lower area for `YOUR DAY IS WIDE OPEN` + `TAP TO PLAN SOMETHING` instead of leaving dead space
 
-The Android app's **System** appearance still uses Material You. Only the Dayline widgets use the dedicated Frost palette.
+## Removed
+- the 3×2 Dayline widget has been removed from the widget picker and app manifest.

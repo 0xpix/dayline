@@ -3,7 +3,5 @@
     <string name="widget_compact_name">Dayline · Pulse 3×1</string>
     <string name="widget_compact_description">A cool Frost 3×1 strip matching the Dayline concept: orbit mark, date pills, next-up capsule and day track.</string>
     <string name="widget_square_name">Dayline · Orbit 2×2</string>
-    <string name="widget_square_description">A Frost 2×2 orbit layout with date pills, day track and two agenda capsules.</string>
-    <string name="widget_agenda_name">Dayline · Board 3×2</string>
-    <string name="widget_agenda_description">A Frost 3×2 board extending the same Dayline concept.</string>
+    <string name="widget_square_description">A dense 2×2 Dayline widget using the Android / Nothing system palette.</string>
 </resources>

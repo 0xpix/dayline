@@ -2,12 +2,11 @@ package com.pix.dayline.widgets
 
 import android.content.Context
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
-import androidx.glance.LocalContext
+import androidx.glance.GlanceTheme
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -23,10 +22,12 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
+import androidx.glance.layout.defaultWeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
+import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
@@ -43,22 +44,11 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
 
-private val widgetBackgroundDay = Color(0xFFFBFAF8)
-private val widgetBackgroundNight = Color(0xFF050505)
-private val widgetTextDay = Color(0xFF1A1A1A)
-private val widgetTextNight = Color(0xFFF5F4F1)
-private val widgetMutedDay = Color(0xFF77736F)
-private val widgetMutedNight = Color(0xFFA5A5A1)
-
-private val textColor = ColorProvider(widgetTextDay, widgetTextNight)
-private val mutedColor = ColorProvider(widgetMutedDay, widgetMutedNight)
-
 private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
 private data class Occurrence(
     val item: DaylineItem,
-    val date: LocalDate,
-    val time: LocalTime?
+    val date: LocalDate
 )
 
 private fun todayItems(items: List<DaylineItem>, date: LocalDate): List<DaylineItem> =
@@ -71,20 +61,21 @@ private fun nextOccurrence(items: List<DaylineItem>, now: LocalDateTime): Occurr
         val date = now.toLocalDate().plusDays(offset)
         val candidates = todayItems(items, date)
 
-        val activeOrFuture = candidates.firstOrNull { item ->
-            val start = item.startTime
-            val end = item.endTime
-            when {
-                date.isAfter(now.toLocalDate()) -> true
-                start == null -> true
-                end != null && end.isAfter(now.toLocalTime()) -> true
-                else -> !start.isBefore(now.toLocalTime())
+        val candidate = candidates.firstOrNull { item ->
+            if (date.isAfter(now.toLocalDate())) {
+                true
+            } else {
+                val start = item.startTime
+                val end = item.endTime
+                when {
+                    start == null -> true
+                    end != null && end.isAfter(now.toLocalTime()) -> true
+                    else -> !start.isBefore(now.toLocalTime())
+                }
             }
         }
 
-        if (activeOrFuture != null) {
-            return Occurrence(activeOrFuture, date, activeOrFuture.startTime)
-        }
+        if (candidate != null) return Occurrence(candidate, date)
     }
     return null
 }
@@ -96,56 +87,221 @@ private fun itemLead(item: DaylineItem): String =
         else -> "ALL"
     }
 
-@Composable
-private fun WidgetSurface(content: @Composable () -> Unit) {
-    Box(
-        modifier = GlanceModifier
-            .fillMaxSize()
-            .appWidgetBackground()
-            .background(widgetBackgroundDay, widgetBackgroundNight)
-            .cornerRadius(android.R.dimen.system_app_widget_background_radius)
-            .clickable(actionStartActivity<MainActivity>())
-            .padding(14.dp)
-    ) {
-        content()
+private fun isHourBusy(items: List<DaylineItem>, date: LocalDate, hour: Int): Boolean {
+    val hourStart = hour * 60
+    val hourEnd = hourStart + 60
+
+    return items.any { item ->
+        if (!item.occursOn(date) || item.startTime == null) return@any false
+
+        val start = item.startTime.hour * 60 + item.startTime.minute
+        val endTime = item.endTime
+        val end = if (endTime != null && endTime.isAfter(item.startTime)) {
+            endTime.hour * 60 + endTime.minute
+        } else {
+            start + 60
+        }
+
+        start < hourEnd && end > hourStart
     }
 }
 
+@Composable
+private fun WidgetSurface(content: @Composable () -> Unit) {
+    GlanceTheme {
+        Box(
+            modifier = GlanceModifier
+                .fillMaxSize()
+                .appWidgetBackground()
+                .background(GlanceTheme.colors.widgetBackground)
+                .cornerRadius(android.R.dimen.system_app_widget_background_radius)
+                .clickable(actionStartActivity<MainActivity>())
+                .padding(14.dp)
+        ) {
+            content()
+        }
+    }
+}
+
+@Composable
+private fun Dot(
+    color: ColorProvider,
+    size: Int = 7
+) {
+    Box(
+        modifier = GlanceModifier
+            .size(15.dp)
+            .padding(4.dp)
+    ) {
+        Box(
+            modifier = GlanceModifier
+                .size(size.dp)
+                .background(color)
+                .cornerRadius(20.dp)
+        ) { }
+    }
+}
+
+@Composable
+private fun HourMap(
+    items: List<DaylineItem>,
+    date: LocalDate,
+    compact: Boolean
+) {
+    val now = LocalDateTime.now()
+    val hours = if (compact) {
+        listOf(0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22)
+    } else {
+        (0..23).toList()
+    }
+
+    val rows = hours.chunked(6)
+
+    Column {
+        rows.forEach { rowHours ->
+            Row {
+                rowHours.forEach { hour ->
+                    val current = date == now.toLocalDate() &&
+                        if (compact) now.hour / 2 * 2 == hour else now.hour == hour
+                    val busy = if (compact) {
+                        isHourBusy(items, date, hour) || isHourBusy(items, date, (hour + 1).coerceAtMost(23))
+                    } else {
+                        isHourBusy(items, date, hour)
+                    }
+
+                    val color = when {
+                        current -> GlanceTheme.colors.tertiary
+                        busy -> GlanceTheme.colors.primary
+                        else -> GlanceTheme.colors.surfaceVariant
+                    }
+
+                    Dot(color = color, size = if (current) 8 else 7)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DateBubble(date: LocalDate) {
+    Box(
+        modifier = GlanceModifier
+            .size(48.dp)
+            .background(GlanceTheme.colors.primaryContainer)
+            .cornerRadius(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            date.dayOfMonth.toString(),
+            style = TextStyle(
+                color = GlanceTheme.colors.onPrimaryContainer,
+                fontSize = 25.sp,
+                fontWeight = FontWeight.Bold
+            )
+        )
+    }
+}
+
+@Composable
+private fun TinyAgendaRow(item: DaylineItem) {
+    Row(
+        modifier = GlanceModifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Vertical.CenterVertically
+    ) {
+        Text(
+            itemLead(item),
+            modifier = GlanceModifier.width(42.dp),
+            style = TextStyle(
+                color = GlanceTheme.colors.primary,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold
+            )
+        )
+        Text(
+            item.title,
+            modifier = GlanceModifier.defaultWeight(),
+            style = TextStyle(
+                color = GlanceTheme.colors.onSurface,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
+        )
+    }
+}
+
+/**
+ * 2 columns x 1 row
+ * A playful "day pulse": date bubble + 12-dot two-hour map + next item.
+ */
 class DaylineCompactWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val items = DaylineStore(context).loadItems()
         val now = LocalDateTime.now()
+        val today = now.toLocalDate()
         val next = nextOccurrence(items, now)
 
         provideContent {
             WidgetSurface {
-                Column(
+                Row(
                     modifier = GlanceModifier.fillMaxSize(),
                     verticalAlignment = Alignment.Vertical.CenterVertically
                 ) {
-                    Text(
-                        text = now.dayOfMonth.toString(),
-                        style = TextStyle(
-                            color = textColor,
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    )
-                    Text(
-                        text = now.dayOfWeek.getDisplayName(JavaTextStyle.SHORT, Locale.getDefault()).uppercase(),
-                        style = TextStyle(color = mutedColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    )
-                    Spacer(GlanceModifier.height(12.dp))
+                    DateBubble(today)
+                    Spacer(GlanceModifier.width(10.dp))
 
-                    if (next == null) {
-                        Text("CLEAR", style = TextStyle(color = mutedColor, fontSize = 10.sp, fontWeight = FontWeight.Bold))
-                        Text("No plans", style = TextStyle(color = textColor, fontSize = 12.sp))
-                    } else {
-                        Text(
-                            if (next.date == now.toLocalDate()) itemLead(next.item) else next.date.dayOfWeek.getDisplayName(JavaTextStyle.SHORT, Locale.getDefault()).uppercase(),
-                            style = TextStyle(color = mutedColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        )
-                        Text(next.item.title, style = TextStyle(color = textColor, fontSize = 12.sp, fontWeight = FontWeight.Bold))
+                    Column(
+                        modifier = GlanceModifier.defaultWeight(),
+                        verticalAlignment = Alignment.Vertical.CenterVertically
+                    ) {
+                        Row(
+                            modifier = GlanceModifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.Vertical.CenterVertically
+                        ) {
+                            Text(
+                                "DAY MAP",
+                                modifier = GlanceModifier.defaultWeight(),
+                                style = TextStyle(
+                                    color = GlanceTheme.colors.onSurfaceVariant,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+
+                            Text(
+                                today.dayOfWeek
+                                    .getDisplayName(JavaTextStyle.SHORT, Locale.getDefault())
+                                    .uppercase(),
+                                style = TextStyle(
+                                    color = GlanceTheme.colors.onSurfaceVariant,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                        }
+
+                        Spacer(GlanceModifier.height(3.dp))
+                        HourMap(items = items, date = today, compact = true)
+                        Spacer(GlanceModifier.height(3.dp))
+
+                        if (next == null) {
+                            Text(
+                                "Clear day",
+                                style = TextStyle(
+                                    color = GlanceTheme.colors.onSurface,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                        } else {
+                            Text(
+                                "${if (next.date == today) itemLead(next.item) else next.date.dayOfWeek.getDisplayName(JavaTextStyle.SHORT, Locale.getDefault()).uppercase()}  ${next.item.title}",
+                                style = TextStyle(
+                                    color = GlanceTheme.colors.onSurface,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                        }
                     }
                 }
             }
@@ -157,11 +313,15 @@ class DaylineCompactWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = DaylineCompactWidget()
 }
 
+/**
+ * 2 columns x 3 rows
+ * A compact visual schedule: full 24-dot map with today's first items.
+ */
 class DaylineSquareWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val items = DaylineStore(context).loadItems()
         val today = LocalDate.now()
-        val todayItems = todayItems(items, today).take(3)
+        val agenda = todayItems(items, today).take(3)
 
         provideContent {
             WidgetSurface {
@@ -170,31 +330,57 @@ class DaylineSquareWidget : GlanceAppWidget() {
                         modifier = GlanceModifier.fillMaxWidth(),
                         verticalAlignment = Alignment.Vertical.CenterVertically
                     ) {
-                        Text(
-                            today.dayOfMonth.toString(),
-                            style = TextStyle(color = textColor, fontSize = 32.sp, fontWeight = FontWeight.Bold)
-                        )
+                        DateBubble(today)
                         Spacer(GlanceModifier.width(10.dp))
                         Column {
                             Text(
                                 today.dayOfWeek.getDisplayName(JavaTextStyle.FULL, Locale.getDefault()),
-                                style = TextStyle(color = textColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                style = TextStyle(
+                                    color = GlanceTheme.colors.onSurface,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             )
                             Text(
                                 today.month.getDisplayName(JavaTextStyle.SHORT, Locale.getDefault()),
-                                style = TextStyle(color = mutedColor, fontSize = 11.sp)
+                                style = TextStyle(
+                                    color = GlanceTheme.colors.onSurfaceVariant,
+                                    fontSize = 11.sp
+                                )
                             )
                         }
                     }
 
                     Spacer(GlanceModifier.height(12.dp))
 
-                    if (todayItems.isEmpty()) {
-                        Text("Your day is clear.", style = TextStyle(color = mutedColor, fontSize = 12.sp))
+                    Text(
+                        "24 HOURS",
+                        style = TextStyle(
+                            color = GlanceTheme.colors.onSurfaceVariant,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                    Spacer(GlanceModifier.height(4.dp))
+                    HourMap(items = items, date = today, compact = false)
+
+                    Spacer(GlanceModifier.height(10.dp))
+
+                    if (agenda.isEmpty()) {
+                        Text(
+                            "Nothing planned — enjoy the gaps.",
+                            style = TextStyle(
+                                color = GlanceTheme.colors.onSurface,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
                     } else {
-                        todayItems.forEach { item ->
-                            AgendaRow(item)
-                            Spacer(GlanceModifier.height(6.dp))
+                        agenda.forEach { item ->
+                            Column {
+                                TinyAgendaRow(item)
+                                Spacer(GlanceModifier.height(6.dp))
+                            }
                         }
                     }
                 }
@@ -207,44 +393,119 @@ class DaylineSquareWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = DaylineSquareWidget()
 }
 
+/**
+ * 3 columns x 3 rows
+ * Day board: date, 24-hour dot matrix, free/busy summary and up to four items.
+ */
 class DaylineAgendaWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val items = DaylineStore(context).loadItems()
         val today = LocalDate.now()
-        val todayItems = todayItems(items, today).take(6)
-        val next = nextOccurrence(items, LocalDateTime.now())
+        val agenda = todayItems(items, today).take(4)
+        val busyHours = (0..23).count { isHourBusy(items, today, it) }
+        val freeHours = 24 - busyHours
 
         provideContent {
             WidgetSurface {
                 Column(GlanceModifier.fillMaxSize()) {
-                    Text(
-                        "TODAY",
-                        style = TextStyle(color = mutedColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    )
-                    Text(
-                        "${today.dayOfWeek.getDisplayName(JavaTextStyle.FULL, Locale.getDefault())} ${today.dayOfMonth}",
-                        style = TextStyle(color = textColor, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    )
+                    Row(
+                        modifier = GlanceModifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Vertical.CenterVertically
+                    ) {
+                        Text(
+                            today.dayOfMonth.toString(),
+                            style = TextStyle(
+                                color = GlanceTheme.colors.onSurface,
+                                fontSize = 38.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
 
-                    Spacer(GlanceModifier.height(14.dp))
+                        Spacer(GlanceModifier.width(10.dp))
 
-                    if (todayItems.isNotEmpty()) {
-                        todayItems.forEach { item ->
-                            Column {
-                                AgendaRow(item)
-                                Spacer(GlanceModifier.height(8.dp))
+                        Column(modifier = GlanceModifier.defaultWeight()) {
+                            Text(
+                                today.dayOfWeek.getDisplayName(JavaTextStyle.FULL, Locale.getDefault()),
+                                style = TextStyle(
+                                    color = GlanceTheme.colors.onSurface,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                            Text(
+                                today.month.getDisplayName(JavaTextStyle.FULL, Locale.getDefault()),
+                                style = TextStyle(
+                                    color = GlanceTheme.colors.onSurfaceVariant,
+                                    fontSize = 11.sp
+                                )
+                            )
+                        }
+
+                        Box(
+                            modifier = GlanceModifier
+                                .background(GlanceTheme.colors.secondaryContainer)
+                                .cornerRadius(18.dp)
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                "$freeHours free",
+                                style = TextStyle(
+                                    color = GlanceTheme.colors.onSecondaryContainer,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(GlanceModifier.height(13.dp))
+
+                    Row(
+                        modifier = GlanceModifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Vertical.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                "YOUR DAY",
+                                style = TextStyle(
+                                    color = GlanceTheme.colors.onSurfaceVariant,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                            Spacer(GlanceModifier.height(4.dp))
+                            HourMap(items = items, date = today, compact = false)
+                        }
+
+                        Spacer(GlanceModifier.width(12.dp))
+
+                        Column(modifier = GlanceModifier.defaultWeight()) {
+                            if (agenda.isEmpty()) {
+                                Text(
+                                    "No blocks today.",
+                                    style = TextStyle(
+                                        color = GlanceTheme.colors.onSurface,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                )
+                                Spacer(GlanceModifier.height(4.dp))
+                                Text(
+                                    "A little room to improvise.",
+                                    style = TextStyle(
+                                        color = GlanceTheme.colors.onSurfaceVariant,
+                                        fontSize = 11.sp
+                                    )
+                                )
+                            } else {
+                                agenda.forEach { item ->
+                                    Column {
+                                        TinyAgendaRow(item)
+                                        Spacer(GlanceModifier.height(8.dp))
+                                    }
+                                }
                             }
                         }
-                    } else if (next != null) {
-                        Text("Nothing else today", style = TextStyle(color = mutedColor, fontSize = 12.sp))
-                        Spacer(GlanceModifier.height(12.dp))
-                        Text(
-                            "NEXT · ${next.date.dayOfWeek.getDisplayName(JavaTextStyle.SHORT, Locale.getDefault()).uppercase()}",
-                            style = TextStyle(color = mutedColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        )
-                        Text(next.item.title, style = TextStyle(color = textColor, fontSize = 14.sp, fontWeight = FontWeight.Bold))
-                    } else {
-                        Text("Your schedule is clear.", style = TextStyle(color = mutedColor, fontSize = 12.sp))
                     }
                 }
             }
@@ -254,24 +515,6 @@ class DaylineAgendaWidget : GlanceAppWidget() {
 
 class DaylineAgendaWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = DaylineAgendaWidget()
-}
-
-@Composable
-private fun AgendaRow(item: DaylineItem) {
-    Row(
-        modifier = GlanceModifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Vertical.CenterVertically
-    ) {
-        Text(
-            itemLead(item),
-            modifier = GlanceModifier.width(48.dp),
-            style = TextStyle(color = mutedColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-        )
-        Text(
-            item.title,
-            style = TextStyle(color = textColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-        )
-    }
 }
 
 object DaylineWidgetUpdater {

@@ -6,13 +6,16 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import com.pix.dayline.data.FontChoice
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.pix.dayline.data.FontChoice
 
 private val LightColors = lightColorScheme(
     primary = DaylineLightForeground,
@@ -42,11 +45,21 @@ private val DarkColors = darkColorScheme(
 fun DaylineTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     fontChoice: FontChoice = FontChoice.PIXELIFY,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColors else LightColors
-    val view = LocalView.current
+    val context = LocalContext.current
 
+    val colorScheme = when {
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && darkTheme ->
+            dynamicDarkColorScheme(context)
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !darkTheme ->
+            dynamicLightColorScheme(context)
+        darkTheme -> DarkColors
+        else -> LightColors
+    }
+
+    val view = LocalView.current
     if (!view.isInEditMode) {
         val window = (view.context as Activity).window
         WindowCompat.getInsetsController(window, view).apply {

@@ -59,7 +59,11 @@ fun DaylineApp() {
         Appearance.DARK -> true
     }
 
-    DaylineTheme(darkTheme = dark, fontChoice = fontChoice) {
+    DaylineTheme(
+        darkTheme = dark,
+        fontChoice = fontChoice,
+        dynamicColor = appearance == Appearance.SYSTEM
+    ) {
         var screen by remember { mutableStateOf(DaylineScreen.TODAY) }
         var history by remember { mutableStateOf(emptyList<DaylineScreen>()) }
         var menuOpen by remember { mutableStateOf(false) }

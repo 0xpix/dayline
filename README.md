@@ -1,18 +1,22 @@
-# Dayline — v0.6.0
+# Dayline — v0.7.0
 
-Dark-mode + launcher icon + widgets release.
+System-theme + playful widgets update.
 
-## Fixed
-- Dark mode now provides the correct foreground content color globally, so labels and settings remain readable.
-- The launcher/adaptive/themed icon no longer depends on stroked arc paths. It uses solid geometry so Nothing Launcher should render the complete mark instead of only the center `!`-like part.
-- “Show day glyph” is renamed to **24-hour day dial** and explained in Settings.
+## System theme
+When Appearance is set to **System**, Dayline now uses Android Material You dynamic colors derived from the phone wallpaper/system palette on Android 12+. Light and OLED dark remain explicit Dayline themes.
 
 ## Widgets
-Three separate Glance widgets are included:
-- **Dayline · Next 1×2** — date + next event/task.
-- **Dayline · Today 2×2** — date + first three items today.
-- **Dayline · Agenda 2×3** — taller Today list with up to six items.
+The widget set is now:
 
-Widgets open Dayline when tapped, refresh when Dayline data changes, and request a periodic refresh every 30 minutes.
+- **Pulse 2×1** — date bubble + 12-dot two-hour day map + next item.
+- **Day Map 2×3** — full 24-hour dot matrix + up to three items.
+- **Day Board 3×3** — full visual day map, free-hour badge and up to four items.
 
-Uses stable AndroidX Glance 1.2.0.
+The widgets use GlanceTheme so their colors follow the Android system/widget dynamic palette instead of staying black/white.
+
+Dot semantics:
+- primary-colored dot = scheduled hour
+- tertiary-colored dot = current hour
+- muted dot = open hour
+
+The widgets request hourly framework refreshes and are also refreshed when Dayline data changes.

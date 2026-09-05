@@ -36,6 +36,7 @@ import com.pix.dayline.model.DaylineItem
 import com.pix.dayline.model.occursOn
 import com.pix.dayline.ui.components.AgendaList
 import com.pix.dayline.ui.components.FloatingControls
+import com.pix.dayline.ui.theme.composeColor
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -118,7 +119,7 @@ fun CalendarScreen(
 
             val selectedItems = items
                 .filter { it.occursOn(selected) }
-                .sortedWith(compareBy<DaylineItem> { it.time == null }.thenBy { it.time })
+                .sortedWith(compareBy<DaylineItem> { it.startTime == null }.thenBy { it.startTime })
 
             AgendaList(
                 items = selectedItems,
@@ -207,7 +208,8 @@ private fun MonthGrid(
                     ) {
                         if (date != null) {
                             val active = date == selected
-                            val hasItems = items.any { it.occursOn(date) }
+                            val firstItem = items.firstOrNull { it.occursOn(date) }
+                            val hasItems = firstItem != null
 
                             Surface(
                                 modifier = Modifier
@@ -235,7 +237,7 @@ private fun MonthGrid(
                                                 .padding(bottom = 3.dp)
                                                 .size(3.dp)
                                                 .background(
-                                                    if (active) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    if (active) MaterialTheme.colorScheme.background else firstItem?.color?.composeColor() ?: MaterialTheme.colorScheme.onSurfaceVariant,
                                                     CircleShape
                                                 )
                                         )

@@ -1,6 +1,5 @@
 package com.pix.dayline.ui.today
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -21,16 +19,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
 import com.pix.dayline.model.DaylineItem
 import com.pix.dayline.model.occursOn
-import com.pix.dayline.ui.components.AgendaList
+import com.pix.dayline.ui.components.DayGlyph
+import com.pix.dayline.ui.components.DayTimeline
 import com.pix.dayline.ui.components.FloatingControls
-import com.pix.dayline.ui.theme.OrbBlue
-import com.pix.dayline.ui.theme.OrbLavender
-import com.pix.dayline.ui.theme.OrbPink
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.TextStyle
@@ -49,7 +43,7 @@ fun TodayScreen(
     val today = remember { LocalDate.now() }
     val todaysItems = items
         .filter { it.occursOn(today) }
-        .sortedWith(compareBy<DaylineItem> { it.time == null }.thenBy { it.time })
+        .sortedWith(compareBy<DaylineItem> { it.startTime == null }.thenBy { it.startTime })
 
     Box(
         modifier = Modifier
@@ -64,11 +58,11 @@ fun TodayScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 42.dp, end = 84.dp, top = 72.dp, bottom = 130.dp)
+                .padding(start = 34.dp, end = 78.dp, top = 58.dp, bottom = 130.dp)
         ) {
             if (showOrb) {
-                DawnOrb()
-                Spacer(Modifier.height(34.dp))
+                DayGlyph(items = todaysItems, date = today)
+                Spacer(Modifier.height(28.dp))
             }
 
             Text(
@@ -77,9 +71,9 @@ fun TodayScreen(
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(34.dp))
 
-            AgendaList(
+            DayTimeline(
                 items = todaysItems,
                 date = today,
                 emptyText = "Your day is clear.",
@@ -95,19 +89,6 @@ fun TodayScreen(
             onMenu = onMenu,
             onToday = {},
             onAdd = { onAdd(today) }
-        )
-    }
-}
-
-@Composable
-private fun DawnOrb() {
-    Canvas(modifier = Modifier.size(74.dp)) {
-        drawCircle(
-            brush = Brush.linearGradient(
-                colors = listOf(OrbLavender, OrbPink, OrbBlue),
-                start = Offset(0f, size.height),
-                end = Offset(size.width, 0f)
-            )
         )
     }
 }

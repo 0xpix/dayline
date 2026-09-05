@@ -1,7 +1,9 @@
-# Dayline — v0.4.0
+# Dayline — v0.4.1
 
-- Dawn-style upcoming date stream
-- task detail/checklist screen
-- Spaces with per-space colors and assignment
-- Pixelify Sans via Android downloadable Google Fonts (no font binary bundled)
-- keeps timeline, recurrence, reminders and event colors
+Repair build for v0.4.x.
+
+- includes the notification scheduler/receivers from v0.3
+- includes ItemColors.kt used by event/task/space colors
+- fixes the Spaces screen escape sequence
+- keeps Spaces, redesigned Upcoming, task checklist details, reminders and timeline
+- uses Pixelify Sans through Compose 1.12 downloadable Google Fonts

@@ -1,12 +1,16 @@
 package com.pix.dayline.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,6 +23,7 @@ import com.pix.dayline.model.AgendaKind
 import com.pix.dayline.model.DaylineItem
 import com.pix.dayline.model.Recurrence
 import com.pix.dayline.model.isCompletedOn
+import com.pix.dayline.ui.theme.composeColor
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -59,12 +64,19 @@ fun AgendaList(
                 Text(
                     text = when (item.kind) {
                         AgendaKind.TASK -> if (completed) "DONE" else "TODO"
-                        AgendaKind.EVENT -> item.time?.format(DateTimeFormatter.ofPattern("HH:mm")) ?: "ALL DAY"
+                        AgendaKind.EVENT -> timeRange(item)
                     },
-                    modifier = Modifier.width(70.dp),
+                    modifier = Modifier.width(88.dp),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                Box(
+                    modifier = Modifier
+                        .size(5.dp)
+                        .background(item.color.composeColor(), CircleShape)
+                )
+                Spacer(Modifier.width(10.dp))
 
                 Text(
                     text = item.title,
@@ -102,4 +114,11 @@ fun AgendaList(
             }
         }
     }
+}
+
+private fun timeRange(item: DaylineItem): String {
+    val start = item.startTime ?: return "ALL DAY"
+    val fmt = DateTimeFormatter.ofPattern("HH:mm")
+    val end = item.endTime?.takeIf { it.isAfter(start) }
+    return if (end != null) "${start.format(fmt)}–${end.format(fmt)}" else start.format(fmt)
 }

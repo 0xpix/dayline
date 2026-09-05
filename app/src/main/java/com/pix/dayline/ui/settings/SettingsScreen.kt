@@ -9,19 +9,9 @@ import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -32,14 +22,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.pix.dayline.data.Appearance
+import com.pix.dayline.data.FontChoice
 import com.pix.dayline.ui.components.FloatingControls
 
 @Composable
 fun SettingsScreen(
     appearance: Appearance,
+    fontChoice: FontChoice,
     showOrb: Boolean,
     weekStartsMonday: Boolean,
     onAppearance: (Appearance) -> Unit,
+    onFontChoice: (FontChoice) -> Unit,
     onShowOrb: (Boolean) -> Unit,
     onWeekStart: (Boolean) -> Unit,
     onMenu: () -> Unit,
@@ -59,13 +52,10 @@ fun SettingsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = 32.dp, end = 82.dp, top = 38.dp, bottom = 120.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(start = 30.dp, end = 30.dp, top = 56.dp, bottom = 138.dp)
         ) {
-            Text(
-                text = "Settings",
-                style = MaterialTheme.typography.displayMedium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
+            Text("Settings", style = MaterialTheme.typography.displayMedium)
 
             Spacer(Modifier.height(34.dp))
             SectionLabel("Appearance")
@@ -73,6 +63,14 @@ fun SettingsScreen(
             ChoiceRow("System", appearance == Appearance.SYSTEM) { onAppearance(Appearance.SYSTEM) }
             ChoiceRow("Light", appearance == Appearance.LIGHT) { onAppearance(Appearance.LIGHT) }
             ChoiceRow("OLED dark", appearance == Appearance.DARK) { onAppearance(Appearance.DARK) }
+
+            Spacer(Modifier.height(28.dp))
+            SectionLabel("Typography")
+            Spacer(Modifier.height(10.dp))
+            ChoiceRow("Pixelify Sans", fontChoice == FontChoice.PIXELIFY) { onFontChoice(FontChoice.PIXELIFY) }
+            ChoiceRow("Geist · Nothing OS 5", fontChoice == FontChoice.GEIST) { onFontChoice(FontChoice.GEIST) }
+            ChoiceRow("Geist Pixel", fontChoice == FontChoice.GEIST_PIXEL) { onFontChoice(FontChoice.GEIST_PIXEL) }
+            ChoiceRow("System", fontChoice == FontChoice.SYSTEM) { onFontChoice(FontChoice.SYSTEM) }
 
             Spacer(Modifier.height(28.dp))
             SectionLabel("Today")
@@ -101,7 +99,7 @@ fun SettingsScreen(
                 }
             }
             Text(
-                text = "Enable precise timing so 5, 10 and 15 minute reminders arrive at the requested minute.",
+                "Enable precise timing so 5, 10 and 15 minute reminders arrive at the requested minute.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -113,7 +111,7 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(34.dp))
             Text(
-                text = "Dayline 0.4.1",
+                "Dayline 0.5.0",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -122,7 +120,7 @@ fun SettingsScreen(
         FloatingControls(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 24.dp, bottom = 24.dp),
+                .padding(end = 20.dp, bottom = 28.dp),
             showAdd = false,
             onMenu = onMenu,
             onToday = onToday
@@ -138,11 +136,7 @@ private fun preciseStatus(context: Context): String {
 
 @Composable
 private fun SectionLabel(label: String) {
-    Text(
-        text = label,
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
+    Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable
@@ -159,9 +153,9 @@ private fun ChoiceRow(label: String, selected: Boolean, onClick: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onBackground)
+        Text(label, style = MaterialTheme.typography.bodyLarge)
         Text(
-            text = if (selected) "●" else "○",
+            if (selected) "●" else "○",
             style = MaterialTheme.typography.bodyMedium,
             color = if (selected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -175,7 +169,7 @@ private fun ToggleRow(label: String, checked: Boolean, onChecked: (Boolean) -> U
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onBackground)
+        Text(label, style = MaterialTheme.typography.bodyLarge)
         Switch(checked = checked, onCheckedChange = onChecked)
     }
 }
@@ -194,7 +188,7 @@ private fun ActionRow(label: String, value: String, onClick: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onBackground)
+        Text(label, style = MaterialTheme.typography.bodyLarge)
         Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

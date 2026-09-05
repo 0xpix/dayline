@@ -69,7 +69,7 @@ fun CalendarScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 28.dp, end = 80.dp, top = 34.dp, bottom = 130.dp)
+                .padding(start = 30.dp, end = 30.dp, top = 56.dp, bottom = 138.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -133,7 +133,7 @@ fun CalendarScreen(
         FloatingControls(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 24.dp, bottom = 24.dp),
+                .padding(end = 20.dp, bottom = 28.dp),
             onMenu = onMenu,
             onToday = onToday,
             onAdd = { onAdd(selected) }

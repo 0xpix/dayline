@@ -25,12 +25,12 @@ import java.util.Locale
 fun UpcomingScreen(items: List<DaylineItem>, spaces: List<DaylineSpace>, onMenu: () -> Unit, onToday: () -> Unit, onAdd: (LocalDate) -> Unit, onEdit: (DaylineItem) -> Unit, onToggleTask: (DaylineItem, LocalDate) -> Unit) {
     val today=remember{LocalDate.now()}; val dates=remember(items,today){(0L..60L).map{today.plusDays(it)}.filter{d->items.any{it.occursOn(d)}}}
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(top=WindowInsets.statusBars.asPaddingValues().calculateTopPadding(),bottom=WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())){
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start=28.dp,end=80.dp,top=32.dp,bottom=130.dp)){
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start=30.dp,end=30.dp,top=56.dp,bottom=138.dp)){
             Text("Upcoming",style=MaterialTheme.typography.displayMedium); Spacer(Modifier.height(28.dp))
             if(dates.isEmpty()) Text("Nothing upcoming.",style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
             dates.forEach{date-> val dayItems=items.filter{it.occursOn(date)}.sortedWith(compareBy<DaylineItem>{it.startTime==null}.thenBy{it.startTime}); UpcomingDay(date,today,dayItems,spaces,onEdit,onToggleTask)}
         }
-        FloatingControls(Modifier.align(Alignment.BottomEnd).padding(end=24.dp,bottom=24.dp),onMenu=onMenu,onToday=onToday,onAdd={onAdd(today)})
+        FloatingControls(Modifier.align(Alignment.BottomEnd).padding(end=20.dp,bottom=28.dp),onMenu=onMenu,onToday=onToday,onAdd={onAdd(today)})
     }
 }
 

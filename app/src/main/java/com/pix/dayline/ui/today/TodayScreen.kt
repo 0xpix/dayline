@@ -58,7 +58,7 @@ fun TodayScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 34.dp, end = 78.dp, top = 58.dp, bottom = 130.dp)
+                .padding(start = 32.dp, end = 32.dp, top = 68.dp, bottom = 138.dp)
         ) {
             if (showOrb) {
                 DayGlyph(items = todaysItems, date = today)
@@ -85,7 +85,7 @@ fun TodayScreen(
         FloatingControls(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 24.dp, bottom = 24.dp),
+                .padding(end = 20.dp, bottom = 28.dp),
             onMenu = onMenu,
             onToday = {},
             onAdd = { onAdd(today) }

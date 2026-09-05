@@ -6,23 +6,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.background
 import androidx.glance.GlanceTheme
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.appWidgetBackground
-import androidx.glance.appwidget.background
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.updateAll
-import androidx.glance.color.ColorProvider
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
-import androidx.glance.layout.defaultWeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
@@ -32,6 +30,7 @@ import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import androidx.glance.unit.ColorProvider
 import com.pix.dayline.MainActivity
 import com.pix.dayline.data.DaylineStore
 import com.pix.dayline.model.AgendaKind
@@ -219,8 +218,7 @@ private fun TinyAgendaRow(item: DaylineItem) {
         )
         Text(
             item.title,
-            modifier = GlanceModifier.defaultWeight(),
-            style = TextStyle(
+                        style = TextStyle(
                 color = GlanceTheme.colors.onSurface,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold
@@ -250,8 +248,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
                     Spacer(GlanceModifier.width(10.dp))
 
                     Column(
-                        modifier = GlanceModifier.defaultWeight(),
-                        verticalAlignment = Alignment.Vertical.CenterVertically
+                                                verticalAlignment = Alignment.Vertical.CenterVertically
                     ) {
                         Row(
                             modifier = GlanceModifier.fillMaxWidth(),
@@ -259,8 +256,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
                         ) {
                             Text(
                                 "DAY MAP",
-                                modifier = GlanceModifier.defaultWeight(),
-                                style = TextStyle(
+                                                                style = TextStyle(
                                     color = GlanceTheme.colors.onSurfaceVariant,
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold
@@ -423,7 +419,7 @@ class DaylineAgendaWidget : GlanceAppWidget() {
 
                         Spacer(GlanceModifier.width(10.dp))
 
-                        Column(modifier = GlanceModifier.defaultWeight()) {
+                        Column {
                             Text(
                                 today.dayOfWeek.getDisplayName(JavaTextStyle.FULL, Locale.getDefault()),
                                 style = TextStyle(
@@ -479,7 +475,7 @@ class DaylineAgendaWidget : GlanceAppWidget() {
 
                         Spacer(GlanceModifier.width(12.dp))
 
-                        Column(modifier = GlanceModifier.defaultWeight()) {
+                        Column {
                             if (agenda.isEmpty()) {
                                 Text(
                                     "No blocks today.",

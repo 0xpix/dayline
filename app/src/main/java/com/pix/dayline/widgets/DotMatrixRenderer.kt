@@ -70,7 +70,7 @@ object DotMatrixRenderer {
     fun render(
         context: Context,
         rawText: String,
-        style: WidgetFontChoice,
+        fontChoice: WidgetFontChoice,
         scale: Float = 1f,
         maxChars: Int = 24
     ): DotMatrixImage {
@@ -79,7 +79,7 @@ object DotMatrixRenderer {
             .replace('↗', '>')
             .take(maxChars)
 
-        val bold = style == WidgetFontChoice.DOT_BOLD
+        val bold = fontChoice == WidgetFontChoice.DOT_BOLD
 
         val dotDp = (if (bold) 1.72f else 1.08f) * scale
         val stepDp = (if (bold) 2.18f else 2.12f) * scale
@@ -109,7 +109,7 @@ object DotMatrixRenderer {
         // so the same bitmap automatically remains readable in light/dark mode.
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = android.graphics.Color.WHITE
-            style = Paint.Style.FILL
+            this.style = Paint.Style.FILL
         }
 
         val dotPx = dotDp * density

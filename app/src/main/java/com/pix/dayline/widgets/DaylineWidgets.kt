@@ -5,6 +5,7 @@ import android.content.res.Configuration
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
@@ -33,6 +34,10 @@ import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
+import androidx.glance.text.FontFamily
+import androidx.glance.text.FontWeight
+import androidx.glance.text.Text
+import androidx.glance.text.TextStyle
 import com.pix.dayline.MainActivity
 import com.pix.dayline.R
 import com.pix.dayline.data.DaylineStore
@@ -157,7 +162,7 @@ private fun WidgetText(
     val rendered = DotMatrixRenderer.render(
         context = context,
         rawText = text,
-        style = fontChoice,
+        fontChoice = fontChoice,
         scale = scale,
         maxChars = maxChars
     )

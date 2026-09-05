@@ -1,20 +1,16 @@
-# Dayline — v0.8.7
+# Dayline — v0.8.8
 
-Custom widget cover selector.
+Compile repair for the widget-font + widget-cover update.
 
-## New setting
-Settings → **Widget cover** now lets you change the dot-matrix logo on the left side of the transparent **Pulse 3×1** widget.
+Fixed:
+- restores the missing Glance `Text`, `TextStyle`, `FontWeight`, `FontFamily` imports
+- restores the missing Compose `sp` import
+- renames the `DotMatrixRenderer.render()` parameter from `style` to `fontChoice`
+- explicitly uses `this.style = Paint.Style.FILL`, avoiding the Kotlin name collision with the widget font choice
 
-Included covers:
-- Dayline
-- Calendar
-- Work
-- Game
-- Chat
-- Home
-
-The selector is a horizontally scrolling row of circular cover previews inspired by the Nothing OS folder-cover chooser.
-
-Selecting a cover saves immediately and refreshes the Dayline widgets without requiring the widget to be removed from the launcher.
-
-The selected cover is rendered as a monochrome dot-matrix mask and tinted with the current system foreground color, so it remains visible in both light and dark mode.
+No visual features were removed:
+- Widget typography selector remains
+- Widget cover selector remains
+- Pulse 3×1 remains transparent
+- Pulse pills remain Material You / Nothing system colors
+- Orbit 2×2 remains system-themed

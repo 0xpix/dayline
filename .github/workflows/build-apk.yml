@@ -64,4 +64,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME"             "${{ steps.apk.outputs.name }}"             --repo "$GITHUB_REPOSITORY"             --title "Dayline $GITHUB_REF_NAME"             --generate-notes
+          gh release create "$GITHUB_REF_NAME" \
+            "${{ steps.apk.outputs.name }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Dayline $GITHUB_REF_NAME" \
+            --generate-notes

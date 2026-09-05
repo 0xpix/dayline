@@ -1,6 +1,5 @@
-package com.pix.dayline.ui.today
+package com.pix.dayline.ui.upcoming
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -21,35 +19,29 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.pix.dayline.model.DaylineItem
 import com.pix.dayline.model.occursOn
 import com.pix.dayline.ui.components.AgendaList
 import com.pix.dayline.ui.components.FloatingControls
-import com.pix.dayline.ui.theme.OrbBlue
-import com.pix.dayline.ui.theme.OrbLavender
-import com.pix.dayline.ui.theme.OrbPink
 import java.time.LocalDate
-import java.time.LocalTime
-import java.time.format.TextStyle
-import java.util.Locale
+import java.time.format.DateTimeFormatter
 
 @Composable
-fun TodayScreen(
+fun UpcomingScreen(
     items: List<DaylineItem>,
-    showOrb: Boolean,
     onMenu: () -> Unit,
+    onToday: () -> Unit,
     onAdd: (LocalDate) -> Unit,
     onEdit: (DaylineItem) -> Unit,
     onToggleTask: (DaylineItem, LocalDate) -> Unit
 ) {
-    val now = remember { LocalTime.now() }
     val today = remember { LocalDate.now() }
-    val todaysItems = items
-        .filter { it.occursOn(today) }
-        .sortedWith(compareBy<DaylineItem> { it.time == null }.thenBy { it.time })
+    val upcomingDates = remember(items, today) {
+        (0L..30L).map { today.plusDays(it) }
+            .filter { date -> items.any { it.occursOn(date) } }
+    }
 
     Box(
         modifier = Modifier
@@ -64,28 +56,44 @@ fun TodayScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 42.dp, end = 84.dp, top = 72.dp, bottom = 130.dp)
+                .padding(start = 32.dp, end = 82.dp, top = 38.dp, bottom = 130.dp)
         ) {
-            if (showOrb) {
-                DawnOrb()
-                Spacer(Modifier.height(34.dp))
-            }
-
             Text(
-                text = greetingText(now, today),
+                text = "Upcoming",
                 style = MaterialTheme.typography.displayMedium,
                 color = MaterialTheme.colorScheme.onBackground
             )
+            Spacer(Modifier.height(30.dp))
 
-            Spacer(Modifier.height(32.dp))
+            if (upcomingDates.isEmpty()) {
+                Text(
+                    text = "Nothing in the next 30 days.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                upcomingDates.forEachIndexed { index, date ->
+                    Text(
+                        text = if (date == today) "Today" else date.format(DateTimeFormatter.ofPattern("EEE, MMM d")),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(10.dp))
 
-            AgendaList(
-                items = todaysItems,
-                date = today,
-                emptyText = "Your day is clear.",
-                onEdit = onEdit,
-                onToggleTask = onToggleTask
-            )
+                    val dayItems = items
+                        .filter { it.occursOn(date) }
+                        .sortedWith(compareBy<DaylineItem> { it.time == null }.thenBy { it.time })
+
+                    AgendaList(
+                        items = dayItems,
+                        date = date,
+                        onEdit = onEdit,
+                        onToggleTask = onToggleTask
+                    )
+
+                    if (index != upcomingDates.lastIndex) Spacer(Modifier.height(28.dp))
+                }
+            }
         }
 
         FloatingControls(
@@ -93,45 +101,8 @@ fun TodayScreen(
                 .align(Alignment.BottomEnd)
                 .padding(end = 24.dp, bottom = 24.dp),
             onMenu = onMenu,
-            onToday = {},
+            onToday = onToday,
             onAdd = { onAdd(today) }
         )
     }
-}
-
-@Composable
-private fun DawnOrb() {
-    Canvas(modifier = Modifier.size(74.dp)) {
-        drawCircle(
-            brush = Brush.linearGradient(
-                colors = listOf(OrbLavender, OrbPink, OrbBlue),
-                start = Offset(0f, size.height),
-                end = Offset(size.width, 0f)
-            )
-        )
-    }
-}
-
-private fun greetingText(now: LocalTime, date: LocalDate): String {
-    val greeting = when (now.hour) {
-        in 5..11 -> "Good morning!"
-        in 12..16 -> "Good afternoon!"
-        in 17..21 -> "Good evening!"
-        else -> "Good night!"
-    }
-
-    val dayName = date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
-    val monthName = date.month.getDisplayName(TextStyle.FULL, Locale.getDefault())
-
-    return "$greeting\nIt's $dayName\n$monthName ${ordinal(date.dayOfMonth)}."
-}
-
-private fun ordinal(day: Int): String {
-    val suffix = if (day in 11..13) "th" else when (day % 10) {
-        1 -> "st"
-        2 -> "nd"
-        3 -> "rd"
-        else -> "th"
-    }
-    return "$day$suffix"
 }

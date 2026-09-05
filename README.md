@@ -1,87 +1,67 @@
-# Dayline — v0.1.0
+# Dayline — v0.2.0
 
-Working-title Android calendar inspired by the calm, typography-first feel of Dawn,
-but built as a native modern Android app.
+A calm, typography-first Android calendar for Nothing OS / Android, built with Kotlin, Jetpack Compose and Material 3 underneath a custom visual language.
 
-## Current build
+## What changed in v0.2.0
 
-The first milestone implements:
+Dayline is no longer a static prototype.
 
-- Kotlin + Jetpack Compose
-- Material 3 foundation with a custom visual language
-- edge-to-edge Android UI
-- light and OLED-friendly dark themes
-- Dawn-inspired Today composition
-- large greeting/date typography
-- soft gradient orb
-- unified event/task agenda rows
-- three floating actions
-- minimalist Quick Add bottom sheet
-- minimalist navigation bottom sheet
-- Android 16 target with Android 17/API 37 compile support
+- Real local event and task creation.
+- Items persist after closing the app.
+- Edit and delete existing items.
+- Complete tasks per occurrence.
+- Real navigation: Today, Calendar, Upcoming, Tasks, Settings.
+- Minimal month calendar with day selection and event dots.
+- Upcoming view for the next 30 days.
+- Functional settings for System / Light / OLED dark appearance, orb visibility and week start.
+- Recurrence choices directly in Quick Add:
+  - Once
+  - Daily
+  - Weekdays
+  - Weekly
+  - Monthly
 
-The agenda data is intentionally mocked in v0.1.0.
+Weekly recurrence follows the weekday of the selected start date. Monthly recurrence follows the selected day of the month. Recurring task completion is stored per date, so completing today's recurring task does not remove the next occurrence.
+
+## Quick Add design
+
+The add sheet stays intentionally small and explicit:
+
+1. Title
+2. Event or Task
+3. Date and optional time
+4. Repeat frequency
+5. Add
+
+There is no large form. Recurrence is visible as a row of simple choices, with a plain-language summary underneath such as `Every Saturday.` or `Only once.`
+
+## Storage
+
+v0.2.0 is a standalone local calendar. Data is stored privately on the device using Android SharedPreferences with JSON serialization. It does not yet read or write Google Calendar / Android Calendar Provider data.
 
 ## Toolchain
 
 - Kotlin 2.3.21
-- Android Gradle Plugin 9.2.0
+- Android Gradle Plugin 9.2.0 with built-in Kotlin
 - Compose BOM 2026.08.00
 - compileSdk 37
 - targetSdk 36
 - minSdk 26
 - JDK 17
 
-## Run
+## Build an APK
 
-1. Open the folder in Android Studio.
-2. Make sure Android SDK API 37 is installed.
-3. Use JDK 17 for Gradle.
-4. Let Android Studio sync Gradle.
-5. Run on your Nothing OS / Android 16 device.
+Push to `main` to build a test APK in GitHub Actions.
 
-## Design principles
+Create and push a version tag to publish an APK under GitHub Releases:
 
-1. The calendar opens to the day, not a dashboard.
-2. Typography carries hierarchy instead of cards.
-3. Whitespace is functional.
-4. Color is optional and restrained.
-5. Events and tasks coexist in the same day.
-6. Material 3 supplies platform behavior, not the visual identity.
-7. Nothing-like monochrome should remain the default direction.
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
 
-## Next milestone
+The release workflow will attach `dayline-v0.2.0-debug.apk`.
 
-v0.2 will replace mock data with:
+## Next
 
-- real navigation
-- month calendar
-- upcoming view
-- Room-backed local tasks
-- Android Calendar Provider read access
-- event creation/editing
-- theme setting: Nothing / Dawn / Material You
-- first home-screen widget
-
-## Fonts
-
-No font files are bundled in this repository.
-
-The initial design uses the system sans-serif family with custom weight, size,
-line-height and tracking. A later milestone can use Manrope through Android's
-downloadable-font mechanism without shipping a font binary in the project.
-
-## APK without Android Studio
-
-This repository includes `.github/workflows/build-apk.yml`.
-
-After pushing the project to GitHub:
-
-1. Open the repository's **Actions** tab.
-2. Run **Build Android APK**.
-3. Open the completed run.
-4. Download the `dayline-v0.1.0-debug-apk` artifact.
-5. Extract it and install the APK on Android.
-
-The debug APK is suitable for personal testing. A later release workflow should use
-a persistent signing key for upgradeable release APKs.
+v0.3.0 is planned for Android Calendar Provider integration so Dayline can display and create device / Google calendar events while preserving the same minimal UI.

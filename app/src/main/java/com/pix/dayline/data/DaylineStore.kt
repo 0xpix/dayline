@@ -91,7 +91,7 @@ class DaylineStore(context: Context) {
                     .put("completedDates", completed)
             )
         }
-        prefs.edit().putString(KEY_ITEMS, array.toString()).apply()
+        prefs.edit().putString(KEY_ITEMS, array.toString()).commit()
     }
 
     fun loadSpaces(): List<DaylineSpace> {

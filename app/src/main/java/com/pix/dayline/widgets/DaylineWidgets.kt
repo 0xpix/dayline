@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
@@ -28,7 +29,9 @@ import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.appWidgetBackground
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
+import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.background
+import androidx.glance.currentState
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
@@ -45,6 +48,7 @@ import androidx.glance.text.FontFamily
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.unit.ColorProvider
 import com.pix.dayline.MainActivity
 import com.pix.dayline.R
@@ -63,6 +67,7 @@ import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
 
 private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+private val WidgetRefreshKey = longPreferencesKey("dayline_refresh_token")
 
 private val PulseFreeText = ColorProvider(Color(0xFFF8F4F0))
 private val PulseFreeMuted = ColorProvider(Color(0xFFD9D1CB))
@@ -268,7 +273,7 @@ private fun SystemSquareSurface(content: @Composable () -> Unit) {
             modifier = GlanceModifier
                 .fillMaxSize()
                 .appWidgetBackground()
-                .background(GlanceTheme.colors.widgetBackground)
+                .background(GlanceTheme.colors.background)
                 .cornerRadius(android.R.dimen.system_app_widget_background_radius)
                 .clickable(actionStartActivity<MainActivity>())
                 .padding(11.dp)
@@ -286,7 +291,7 @@ private fun WidgetEmojiMark(
     Box(
         modifier = GlanceModifier
             .size(size.dp)
-            .background(GlanceTheme.colors.secondaryContainer)
+            .background(GlanceTheme.colors.surfaceVariant)
             .cornerRadius((size / 2).dp),
         contentAlignment = Alignment.Center
     ) {
@@ -295,7 +300,7 @@ private fun WidgetEmojiMark(
             contentDescription = emoji.name,
             modifier = GlanceModifier.size((size * 0.56f).dp),
             contentScale = ContentScale.Fit,
-            colorFilter = ColorFilter.tint(GlanceTheme.colors.onSecondaryContainer)
+            colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface)
         )
     }
 }
@@ -310,10 +315,7 @@ private fun SystemPill(
 ) {
     Box(
         modifier = GlanceModifier
-            .background(
-                if (strong) GlanceTheme.colors.primaryContainer
-                else GlanceTheme.colors.secondaryContainer
-            )
+            .background(GlanceTheme.colors.surfaceVariant)
             .cornerRadius(30.dp)
             .padding(
                 horizontal = horizontalPadding.dp,
@@ -347,8 +349,8 @@ private fun DayTrack(
             }
 
             val color = when {
-                current -> GlanceTheme.colors.tertiary
-                busy -> GlanceTheme.colors.primary
+                current -> GlanceTheme.colors.onSurface
+                busy -> GlanceTheme.colors.onSurfaceVariant
                 else -> GlanceTheme.colors.surfaceVariant
             }
 
@@ -381,7 +383,7 @@ private fun AnimatedEventText(
             text = fullText,
             fontChoice = fontChoice,
             scale = 0.72f,
-            color = GlanceTheme.colors.onPrimaryContainer,
+            color = GlanceTheme.colors.onSurface,
             maxChars = 18
         )
         return
@@ -428,13 +430,7 @@ private fun SystemEventPill(
     val isTask = item.kind == AgendaKind.TASK
 
     val base = GlanceModifier
-        .background(
-            when {
-                isTask -> GlanceTheme.colors.secondaryContainer
-                strong -> GlanceTheme.colors.primaryContainer
-                else -> GlanceTheme.colors.secondaryContainer
-            }
-        )
+        .background(GlanceTheme.colors.surfaceVariant)
         .cornerRadius(30.dp)
         .padding(horizontal = 8.dp, vertical = 4.dp)
 
@@ -457,11 +453,7 @@ private fun SystemEventPill(
                 text = "${if (item.kind == AgendaKind.TASK) "+" else ">"} ${compactTitle(item.title, 11)} ${itemLead(item)}",
                 fontChoice = fontChoice,
                 scale = 0.82f,
-                color = when {
-                    isTask -> GlanceTheme.colors.onSecondaryContainer
-                    strong -> GlanceTheme.colors.onPrimaryContainer
-                    else -> GlanceTheme.colors.onSecondaryContainer
-                },
+                color = GlanceTheme.colors.onSurface,
                 maxChars = 20
             )
         }
@@ -474,8 +466,11 @@ private fun SystemEventPill(
  * Transparent body + system-colored pills + Nothing-style dot-matrix typography.
  */
 class DaylineCompactWidget : GlanceAppWidget() {
+    override val stateDefinition = PreferencesGlanceStateDefinition
+
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
+            currentState(WidgetRefreshKey)
             val store = DaylineStore(context)
             val items = store.loadItems()
             val now = LocalDateTime.now()
@@ -533,7 +528,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                     today.dayOfMonth.toString(),
                                     widgetFont,
                                     scale = 0.64f,
-                                    color = GlanceTheme.colors.onPrimaryContainer
+                                    color = GlanceTheme.colors.onSurface
                                 )
                             }
 
@@ -546,7 +541,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                         .uppercase(),
                                     widgetFont,
                                     scale = 0.58f,
-                                    color = GlanceTheme.colors.onSecondaryContainer
+                                    color = GlanceTheme.colors.onSurface
                                 )
                             }
 
@@ -557,7 +552,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                     nextStatus(next, now),
                                     widgetFont,
                                     scale = 0.56f,
-                                    color = GlanceTheme.colors.onPrimaryContainer
+                                    color = GlanceTheme.colors.onSurface
                                 )
                             }
                         }
@@ -571,7 +566,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                         "YOUR DAY IS CLEAR",
                                         widgetFont,
                                         scale = 0.69f,
-                                        color = GlanceTheme.colors.onPrimaryContainer,
+                                        color = GlanceTheme.colors.onSurface,
                                         maxChars = 20
                                     )
                                 }
@@ -637,8 +632,11 @@ class DaylineCompactWidgetReceiver : GlanceAppWidgetReceiver() {
  * System background and system pills, but the display typography uses the same dot matrix.
  */
 class DaylineSquareWidget : GlanceAppWidget() {
+    override val stateDefinition = PreferencesGlanceStateDefinition
+
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
+            currentState(WidgetRefreshKey)
             val store = DaylineStore(context)
             val items = store.loadItems()
             val today = LocalDate.now()
@@ -690,8 +688,8 @@ class DaylineSquareWidget : GlanceAppWidget() {
                                 "$freeHours H FREE",
                                 widgetFont,
                                 scale = 0.50f,
-                                color = if (busyHours > 0) GlanceTheme.colors.onPrimaryContainer
-                                else GlanceTheme.colors.onSecondaryContainer
+                                color = if (busyHours > 0) GlanceTheme.colors.onSurface
+                                else GlanceTheme.colors.onSurface
                             )
                         }
                     }
@@ -724,7 +722,7 @@ class DaylineSquareWidget : GlanceAppWidget() {
                                 "YOUR DAY IS WIDE OPEN",
                                 widgetFont,
                                 scale = 0.58f,
-                                color = GlanceTheme.colors.onPrimaryContainer,
+                                color = GlanceTheme.colors.onSurface,
                                 maxChars = 22
                             )
                         }
@@ -734,7 +732,7 @@ class DaylineSquareWidget : GlanceAppWidget() {
                                 "TAP TO PLAN",
                                 widgetFont,
                                 scale = 0.58f,
-                                color = GlanceTheme.colors.onSecondaryContainer
+                                color = GlanceTheme.colors.onSurface
                             )
                         }
                     } else {
@@ -763,8 +761,11 @@ class DaylineSquareWidgetReceiver : GlanceAppWidgetReceiver() {
 }
 
 class DaylineLockWidget : GlanceAppWidget() {
+    override val stateDefinition = PreferencesGlanceStateDefinition
+
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
+            currentState(WidgetRefreshKey)
             val store = DaylineStore(context)
             val items = store.loadItems()
             val now = LocalDateTime.now()
@@ -842,19 +843,29 @@ class DaylineLockWidgetReceiver : GlanceAppWidgetReceiver() {
 object DaylineWidgetUpdater {
     suspend fun updateAll(context: Context) {
         val manager = GlanceAppWidgetManager(context)
+        val token = System.nanoTime()
 
         val compact = DaylineCompactWidget()
         manager.getGlanceIds(DaylineCompactWidget::class.java).forEach { id ->
+            updateAppWidgetState(context, id) { prefs ->
+                prefs[WidgetRefreshKey] = token
+            }
             compact.update(context, id)
         }
 
         val square = DaylineSquareWidget()
         manager.getGlanceIds(DaylineSquareWidget::class.java).forEach { id ->
+            updateAppWidgetState(context, id) { prefs ->
+                prefs[WidgetRefreshKey] = token
+            }
             square.update(context, id)
         }
 
         val lock = DaylineLockWidget()
         manager.getGlanceIds(DaylineLockWidget::class.java).forEach { id ->
+            updateAppWidgetState(context, id) { prefs ->
+                prefs[WidgetRefreshKey] = token
+            }
             lock.update(context, id)
         }
     }

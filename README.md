@@ -1,16 +1,26 @@
-# Dayline — v0.8.8
+# Dayline — v0.9.0
 
-Compile repair for the widget-font + widget-cover update.
+Emoji widget identity + simplified Settings.
 
-Fixed:
-- restores the missing Glance `Text`, `TextStyle`, `FontWeight`, `FontFamily` imports
-- restores the missing Compose `sp` import
-- renames the `DotMatrixRenderer.render()` parameter from `style` to `fontChoice`
-- explicitly uses `this.style = Paint.Style.FILL`, avoiding the Kotlin name collision with the widget font choice
+## Emoji-only Pulse identity
+The old custom dot-matrix cover shapes are removed.
 
-No visual features were removed:
-- Widget typography selector remains
-- Widget cover selector remains
-- Pulse 3×1 remains transparent
-- Pulse pills remain Material You / Nothing system colors
-- Orbit 2×2 remains system-themed
+Settings → Widgets → **Widget emoji** opens a compact emoji picker:
+🙂 😁 😉 😎 🤓 🥳 😴 🫠 👻 🤖 😌 😍
+
+The selected emoji is shown in the system-colored circular cover on the left side of the transparent Pulse 3×1 widget.
+
+## Cleaner Settings
+The settings page is no longer a long list of every possible option.
+
+It now shows compact rows:
+- Appearance
+- App font
+- Widget font
+- Widget emoji
+- 24-hour day dial
+- Notifications
+- Precise timing
+- Week starts Monday
+
+Appearance, app font, widget font and widget emoji open bottom-sheet selectors.

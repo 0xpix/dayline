@@ -167,15 +167,15 @@ class DaylineStore(context: Context) {
         prefs.edit().putString(KEY_WIDGET_FONT, font.name).apply()
     }
 
-    fun loadWidgetCoverChoice(): WidgetCoverChoice = runCatching {
-        WidgetCoverChoice.valueOf(
-            prefs.getString(KEY_WIDGET_COVER, WidgetCoverChoice.DAYLINE.name)
-                ?: WidgetCoverChoice.DAYLINE.name
+    fun loadWidgetEmojiChoice(): WidgetEmojiChoice = runCatching {
+        WidgetEmojiChoice.valueOf(
+            prefs.getString(KEY_WIDGET_EMOJI, WidgetEmojiChoice.SMILE.name)
+                ?: WidgetEmojiChoice.SMILE.name
         )
-    }.getOrDefault(WidgetCoverChoice.DAYLINE)
+    }.getOrDefault(WidgetEmojiChoice.SMILE)
 
-    fun saveWidgetCoverChoice(cover: WidgetCoverChoice) {
-        prefs.edit().putString(KEY_WIDGET_COVER, cover.name).apply()
+    fun saveWidgetEmojiChoice(emoji: WidgetEmojiChoice) {
+        prefs.edit().putString(KEY_WIDGET_EMOJI, emoji.name).apply()
     }
 
     fun loadShowOrb(): Boolean = prefs.getBoolean(KEY_SHOW_ORB, true)
@@ -192,7 +192,7 @@ class DaylineStore(context: Context) {
         private const val KEY_APPEARANCE = "appearance"
         private const val KEY_FONT = "font"
         private const val KEY_WIDGET_FONT = "widget_font"
-        private const val KEY_WIDGET_COVER = "widget_cover"
+        private const val KEY_WIDGET_EMOJI = "widget_emoji"
         private const val KEY_SHOW_ORB = "show_orb"
         private const val KEY_WEEK_STARTS_MONDAY = "week_starts_monday"
     }
@@ -203,4 +203,17 @@ enum class FontChoice { PIXELIFY, GEIST, GEIST_PIXEL, SYSTEM }
 
 enum class WidgetFontChoice { DOT_BOLD, DOT_FINE, MONO }
 
-enum class WidgetCoverChoice { DAYLINE, CALENDAR, WORK, GAME, CHAT, HOME }
+enum class WidgetEmojiChoice {
+    SMILE,
+    GRIN,
+    WINK,
+    COOL,
+    NERD,
+    PARTY,
+    SLEEPY,
+    MELT,
+    GHOST,
+    ROBOT,
+    RELAXED,
+    HEART_EYES
+}

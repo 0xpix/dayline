@@ -38,11 +38,13 @@ import androidx.glance.text.FontFamily
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import androidx.glance.unit.ColorProvider
 import com.pix.dayline.MainActivity
 import com.pix.dayline.R
 import com.pix.dayline.data.DaylineStore
-import com.pix.dayline.data.WidgetCoverChoice
+import com.pix.dayline.data.WidgetEmojiChoice
 import com.pix.dayline.data.WidgetFontChoice
+import com.pix.dayline.data.symbol
 import com.pix.dayline.model.AgendaKind
 import com.pix.dayline.model.DaylineItem
 import com.pix.dayline.model.occursOn
@@ -54,6 +56,16 @@ import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
 
 private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+
+private val PulseFreeText = ColorProvider(
+    day = Color(0xFFF8F4F0),
+    night = Color(0xFFF8F4F0)
+)
+private val PulseFreeMuted = ColorProvider(
+    day = Color(0xFFD9D1CB),
+    night = Color(0xFFD9D1CB)
+)
+
 
 private data class Occurrence(
     val item: DaylineItem,
@@ -211,28 +223,28 @@ private fun SystemSquareSurface(content: @Composable () -> Unit) {
     }
 }
 
-private fun widgetCoverResource(cover: WidgetCoverChoice): Int = when (cover) {
-    WidgetCoverChoice.DAYLINE -> R.drawable.widget_cover_dayline
-    WidgetCoverChoice.CALENDAR -> R.drawable.widget_cover_calendar
-    WidgetCoverChoice.WORK -> R.drawable.widget_cover_work
-    WidgetCoverChoice.GAME -> R.drawable.widget_cover_game
-    WidgetCoverChoice.CHAT -> R.drawable.widget_cover_chat
-    WidgetCoverChoice.HOME -> R.drawable.widget_cover_home
-}
-
 @Composable
-private fun WidgetCoverMark(
-    cover: WidgetCoverChoice,
+private fun WidgetEmojiMark(
+    emoji: WidgetEmojiChoice,
     size: Int
 ) {
-    Image(
-        provider = ImageProvider(widgetCoverResource(cover)),
-        contentDescription = null,
-        modifier = GlanceModifier.size(size.dp),
-        contentScale = ContentScale.Fit,
-        colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface)
-    )
+    Box(
+        modifier = GlanceModifier
+            .size(size.dp)
+            .background(GlanceTheme.colors.secondaryContainer)
+            .cornerRadius((size / 2).dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = emoji.symbol,
+            style = TextStyle(
+                color = GlanceTheme.colors.onSecondaryContainer,
+                fontSize = (size * 0.55f).sp
+            )
+        )
+    }
 }
+
 
 @Composable
 private fun SystemPill(
@@ -344,7 +356,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
         val today = now.toLocalDate()
         val next = nextOccurrence(items, now)
         val widgetFont = DaylineStore(context).loadWidgetFontChoice()
-        val widgetCover = DaylineStore(context).loadWidgetCoverChoice()
+        val widgetEmoji = DaylineStore(context).loadWidgetEmojiChoice()
 
         provideContent {
             TransparentPulseSurface {
@@ -356,13 +368,13 @@ class DaylineCompactWidget : GlanceAppWidget() {
                         modifier = GlanceModifier.width(44.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        WidgetCoverMark(widgetCover, 36)
+                        WidgetEmojiMark(widgetEmoji, 36)
                         Spacer(GlanceModifier.height(2.dp))
                         WidgetText(
                             "DAYLINE",
                             widgetFont,
                             scale = 0.48f,
-                            color = GlanceTheme.colors.onSurface
+                            color = PulseFreeText
                         )
                     }
 
@@ -372,7 +384,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
                         modifier = GlanceModifier
                             .width(1.dp)
                             .height(48.dp)
-                            .background(GlanceTheme.colors.onSurfaceVariant)
+                            .background(PulseFreeMuted)
                     ) { }
 
                     Spacer(GlanceModifier.width(7.dp))
@@ -385,7 +397,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                     .uppercase(),
                                 widgetFont,
                                 scale = 0.72f,
-                                color = GlanceTheme.colors.onSurface
+                                color = PulseFreeText
                             )
 
                             Spacer(GlanceModifier.width(5.dp))
@@ -450,14 +462,14 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                         "NEXT",
                                         widgetFont,
                                         scale = 0.44f,
-                                        color = GlanceTheme.colors.onSurface
+                                        color = PulseFreeMuted
                                     )
                                     Spacer(GlanceModifier.height(1.dp))
                                     WidgetText(
                                         "UP",
                                         widgetFont,
                                         scale = 0.44f,
-                                        color = GlanceTheme.colors.onSurface
+                                        color = PulseFreeMuted
                                     )
                                 }
                             }
@@ -470,7 +482,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                 "AM",
                                 widgetFont,
                                 scale = 0.48f,
-                                color = GlanceTheme.colors.onSurface
+                                color = PulseFreeText
                             )
                             Spacer(GlanceModifier.width(4.dp))
                             DayTrack(items = items, date = today)
@@ -479,7 +491,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                 "PM",
                                 widgetFont,
                                 scale = 0.48f,
-                                color = GlanceTheme.colors.onSurface
+                                color = PulseFreeText
                             )
                         }
                     }

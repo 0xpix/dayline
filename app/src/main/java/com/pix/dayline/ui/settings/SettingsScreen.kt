@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -23,13 +24,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.unit.sp
 import com.pix.dayline.data.Appearance
 import com.pix.dayline.data.FontChoice
 import com.pix.dayline.data.WidgetEmojiChoice
 import com.pix.dayline.data.WidgetFontChoice
 import com.pix.dayline.data.label
-import com.pix.dayline.data.symbol
+import com.pix.dayline.data.iconRes
 import com.pix.dayline.ui.components.FloatingControls
 
 private enum class SettingsSheet {
@@ -101,7 +104,7 @@ fun SettingsScreen(
 
                 SelectorRow(
                     title = "Widget emoji",
-                    value = "${widgetEmojiChoice.symbol}  ${widgetEmojiChoice.label}"
+                    value = widgetEmojiChoice.label
                 ) { openSheet = SettingsSheet.WIDGET_EMOJI }
             }
 
@@ -158,7 +161,7 @@ fun SettingsScreen(
             Spacer(Modifier.height(34.dp))
 
             Text(
-                "Dayline 0.9.1",
+                "Dayline 0.9.2",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -384,7 +387,7 @@ private fun EmojiSheet(
             Spacer(Modifier.height(6.dp))
 
             Text(
-                "Choose the emoji shown on the left side of Pulse 3×1.",
+                "Choose a monochrome emoji icon for the left side of Pulse 3×1.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -438,9 +441,14 @@ private fun EmojiChoice(
             ),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = emoji.symbol,
-            fontSize = 30.sp
+        Image(
+            painter = painterResource(emoji.iconRes),
+            contentDescription = emoji.label,
+            modifier = Modifier.size(30.dp),
+            colorFilter = ColorFilter.tint(
+                if (selected) MaterialTheme.colorScheme.onPrimaryContainer
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
         )
     }
 }

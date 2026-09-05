@@ -1,21 +1,12 @@
-# Dayline — v0.9.1
+# Dayline — v0.9.2
 
-Compile repair for v0.9.0.
+Monochrome emoji-style widget icons.
 
-The current Glance `ColorProvider` API in this project accepts either:
-- a single Compose `Color`, or
-- a color resource id.
+## What changed
+- Replaced standard yellow Unicode emojis with transparent monochrome custom icons.
+- The left badge of the Pulse 3×1 widget now uses Nothing-style plain face icons.
+- The widget emoji picker in Settings now shows icon previews instead of colored emojis.
+- Kept the same saved choices and compact settings layout.
 
-v0.9.0 incorrectly used named `day` / `night` arguments for the free-standing Pulse text colors.
-
-Fixed:
-- `PulseFreeText = ColorProvider(Color(...))`
-- `PulseFreeMuted = ColorProvider(Color(...))`
-
-No visual features were removed:
-- emoji-only Pulse identity remains
-- compact bottom-sheet Settings remains
-- Pulse 3×1 remains transparent
-- free-standing SAT / AM / PM / NEXT / UP text remains bright
-- Material You pill colors remain
-- Orbit 2×2 remains system-themed
+## Included emoji icon styles
+Smile, Grin, Wink, Cool, Nerd, Party, Sleepy, Melt, Ghost, Robot, Relaxed, Heart eyes.

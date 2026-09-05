@@ -44,7 +44,7 @@ import com.pix.dayline.R
 import com.pix.dayline.data.DaylineStore
 import com.pix.dayline.data.WidgetEmojiChoice
 import com.pix.dayline.data.WidgetFontChoice
-import com.pix.dayline.data.symbol
+import com.pix.dayline.data.iconRes
 import com.pix.dayline.model.AgendaKind
 import com.pix.dayline.model.DaylineItem
 import com.pix.dayline.model.occursOn
@@ -229,12 +229,12 @@ private fun WidgetEmojiMark(
             .cornerRadius((size / 2).dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = emoji.symbol,
-            style = TextStyle(
-                color = GlanceTheme.colors.onSecondaryContainer,
-                fontSize = (size * 0.55f).sp
-            )
+        Image(
+            provider = ImageProvider(emoji.iconRes),
+            contentDescription = emoji.name,
+            modifier = GlanceModifier.size((size * 0.56f).dp),
+            contentScale = ContentScale.Fit,
+            colorFilter = ColorFilter.tint(GlanceTheme.colors.onSecondaryContainer)
         )
     }
 }

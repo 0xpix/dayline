@@ -2,6 +2,7 @@ package com.pix.dayline.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -16,14 +18,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.pix.dayline.model.AgendaKind
 import com.pix.dayline.model.DaylineItem
+import com.pix.dayline.model.Recurrence
 import com.pix.dayline.model.isCompletedOn
 import com.pix.dayline.ui.theme.composeColor
 import java.time.Duration
@@ -38,7 +49,8 @@ fun DayTimeline(
     date: LocalDate,
     emptyText: String = "Your day is clear.",
     onEdit: (DaylineItem) -> Unit,
-    onToggleTask: (DaylineItem, LocalDate) -> Unit
+    onToggleTask: (DaylineItem, LocalDate) -> Unit,
+    onReschedule: (DaylineItem) -> Unit
 ) {
     if (items.isEmpty()) {
         Text(
@@ -55,6 +67,7 @@ fun DayTimeline(
 
     Column {
         var previousEnd: LocalTime? = null
+
         scheduled.forEachIndexed { index, item ->
             val start = item.startTime ?: return@forEachIndexed
             val gap = previousEnd?.let { Duration.between(it, start).toMinutes() } ?: 0L
@@ -64,19 +77,24 @@ fun DayTimeline(
                 item = item,
                 date = date,
                 onEdit = onEdit,
-                onToggleTask = onToggleTask
+                onToggleTask = onToggleTask,
+                onReschedule = onReschedule
             )
+
             previousEnd = item.endTime?.takeIf { it.isAfter(start) } ?: start
         }
 
         if (anytime.isNotEmpty()) {
             if (scheduled.isNotEmpty()) Spacer(Modifier.height(26.dp))
+
             Text(
                 text = "ANYTIME",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
             Spacer(Modifier.height(10.dp))
+
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 anytime.forEach { item ->
                     AnytimeItem(item, date, onEdit, onToggleTask)
@@ -91,7 +109,8 @@ private fun TimelineItem(
     item: DaylineItem,
     date: LocalDate,
     onEdit: (DaylineItem) -> Unit,
-    onToggleTask: (DaylineItem, LocalDate) -> Unit
+    onToggleTask: (DaylineItem, LocalDate) -> Unit,
+    onReschedule: (DaylineItem) -> Unit
 ) {
     val start = item.startTime ?: return
     val end = item.endTime?.takeIf { it.isAfter(start) }
@@ -99,26 +118,79 @@ private fun TimelineItem(
     val accent = item.color.composeColor()
     val height = durationToHeight(start, end)
 
+    val density = LocalDensity.current
+    val pixelsPer15Minutes = with(density) { 18.dp.toPx() }
+
+    var dragging by remember(item.id) { mutableStateOf(false) }
+    var dragOffsetPx by remember(item.id) { mutableFloatStateOf(0f) }
+
+    val previewItem = remember(item, dragging, dragOffsetPx, pixelsPer15Minutes) {
+        if (!dragging) {
+            item
+        } else {
+            val steps = (dragOffsetPx / pixelsPer15Minutes).roundToInt()
+            shiftItem(item, steps * 15)
+        }
+    }
+
+    val previewStart = previewItem.startTime ?: start
+    val previewEnd = previewItem.endTime?.takeIf { it.isAfter(previewStart) }
+
     Row(
-        modifier = Modifier.clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null,
-            onClick = { onEdit(item) }
-        ),
+        modifier = Modifier
+            .offset {
+                IntOffset(
+                    x = 0,
+                    y = if (dragging) dragOffsetPx.roundToInt() else 0
+                )
+            }
+            .zIndex(if (dragging) 2f else 0f)
+            .pointerInput(item.id, item.startTime, item.endTime) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = {
+                        dragging = true
+                        dragOffsetPx = 0f
+                    },
+                    onDragCancel = {
+                        dragging = false
+                        dragOffsetPx = 0f
+                    },
+                    onDragEnd = {
+                        val steps = (dragOffsetPx / pixelsPer15Minutes).roundToInt()
+
+                        if (steps != 0) {
+                            onReschedule(shiftItem(item, steps * 15))
+                        }
+
+                        dragging = false
+                        dragOffsetPx = 0f
+                    }
+                ) { change, dragAmount ->
+                    change.consume()
+                    dragOffsetPx += dragAmount.y
+                }
+            }
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { onEdit(item) }
+            ),
         verticalAlignment = Alignment.Top
     ) {
         Column(modifier = Modifier.width(58.dp)) {
             Text(
-                text = start.format(DateTimeFormatter.ofPattern("HH:mm")),
+                text = previewStart.format(DateTimeFormatter.ofPattern("HH:mm")),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onBackground
+                color = if (dragging) accent else MaterialTheme.colorScheme.onBackground
             )
-            if (end != null) {
+
+            if (previewEnd != null) {
                 Spacer(Modifier.height((height - 30.dp).coerceAtLeast(4.dp)))
+
                 Text(
-                    text = end.format(DateTimeFormatter.ofPattern("HH:mm")),
+                    text = previewEnd.format(DateTimeFormatter.ofPattern("HH:mm")),
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (dragging) accent else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -126,7 +198,7 @@ private fun TimelineItem(
         Box(
             modifier = Modifier
                 .padding(top = 2.dp, end = 14.dp)
-                .width(4.dp)
+                .width(if (dragging) 6.dp else 4.dp)
                 .height(height)
                 .background(accent, RoundedCornerShape(99.dp))
         )
@@ -142,6 +214,7 @@ private fun TimelineItem(
 
                 if (item.kind == AgendaKind.TASK) {
                     Spacer(Modifier.width(12.dp))
+
                     Text(
                         text = if (completed) "✓" else "○",
                         modifier = Modifier.clickable(
@@ -155,13 +228,33 @@ private fun TimelineItem(
                 }
             }
 
-            val meta = buildList {
-                if (end != null) add(durationLabel(start, end))
-                item.reminderMinutes?.let { add("${it}m reminder") }
-            }.joinToString(" · ")
-
-            if (meta.isNotBlank()) {
+            if (dragging) {
                 Spacer(Modifier.height(3.dp))
+
+                Text(
+                    text = buildString {
+                        append("Release · ")
+                        append(previewStart.format(DateTimeFormatter.ofPattern("HH:mm")))
+                        previewEnd?.let {
+                            append("–")
+                            append(it.format(DateTimeFormatter.ofPattern("HH:mm")))
+                        }
+                        if (item.recurrence != Recurrence.ONCE) {
+                            append(" · series")
+                        }
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = accent
+                )
+            } else {
+                val meta = buildList {
+                    if (end != null) add(durationLabel(start, end))
+                    item.reminderMinutes?.let { add("${it}m reminder") }
+                    add("hold + drag to move")
+                }.joinToString(" · ")
+
+                Spacer(Modifier.height(3.dp))
+
                 Text(
                     text = meta,
                     style = MaterialTheme.typography.bodyMedium,
@@ -180,6 +273,7 @@ private fun AnytimeItem(
     onToggleTask: (DaylineItem, LocalDate) -> Unit
 ) {
     val completed = item.kind == AgendaKind.TASK && item.isCompletedOn(date)
+
     Row(
         modifier = Modifier.clickable(
             interactionSource = remember { MutableInteractionSource() },
@@ -195,14 +289,17 @@ private fun AnytimeItem(
                 .height(6.dp)
                 .background(item.color.composeColor(), CircleShape)
         )
+
         Text(
             text = item.title,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onBackground,
             textDecoration = if (completed) TextDecoration.LineThrough else TextDecoration.None
         )
+
         if (item.kind == AgendaKind.TASK) {
             Spacer(Modifier.width(12.dp))
+
             Text(
                 text = if (completed) "✓" else "○",
                 modifier = Modifier.clickable(
@@ -217,14 +314,46 @@ private fun AnytimeItem(
     }
 }
 
+private fun shiftItem(item: DaylineItem, deltaMinutes: Int): DaylineItem {
+    val start = item.startTime ?: return item
+    val end = item.endTime?.takeIf { it.isAfter(start) }
+
+    val startMinutes = start.hour * 60 + start.minute
+    val duration = end?.let {
+        Duration.between(start, it).toMinutes().toInt()
+    } ?: 0
+
+    val latestStart = (24 * 60 - 1 - duration).coerceAtLeast(0)
+    val shiftedStart = (startMinutes + deltaMinutes).coerceIn(0, latestStart)
+
+    val newStart = LocalTime.of(shiftedStart / 60, shiftedStart % 60)
+    val newEnd = end?.let {
+        val endMinutes = shiftedStart + duration
+        LocalTime.of(endMinutes / 60, endMinutes % 60)
+    }
+
+    return item.copy(
+        startTime = newStart,
+        endTime = newEnd
+    )
+}
+
 private fun gapToSpace(minutes: Long): Dp {
     if (minutes <= 0) return 10.dp
-    return (10 + (minutes.coerceAtMost(180) / 15.0).roundToInt()).dp.coerceAtMost(28.dp)
+
+    return (10 + (minutes.coerceAtMost(180) / 15.0).roundToInt())
+        .dp
+        .coerceAtMost(28.dp)
 }
 
 private fun durationToHeight(start: LocalTime, end: LocalTime?): Dp {
-    val minutes = end?.let { Duration.between(start, it).toMinutes() }?.coerceAtLeast(30) ?: 45
+    val minutes = end
+        ?.let { Duration.between(start, it).toMinutes() }
+        ?.coerceAtLeast(30)
+        ?: 45
+
     val value = 42 + (minutes.coerceAtMost(360) / 60.0 * 12.0).roundToInt()
+
     return value.dp.coerceIn(46.dp, 114.dp)
 }
 
@@ -232,6 +361,7 @@ private fun durationLabel(start: LocalTime, end: LocalTime): String {
     val total = Duration.between(start, end).toMinutes()
     val hours = total / 60
     val minutes = total % 60
+
     return when {
         hours > 0 && minutes > 0 -> "${hours}h ${minutes}m"
         hours > 0 -> "${hours}h"

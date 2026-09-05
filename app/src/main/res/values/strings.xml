@@ -4,4 +4,6 @@
     <string name="widget_compact_description">A cool Frost 3×1 strip matching the Dayline concept: orbit mark, date pills, next-up capsule and day track.</string>
     <string name="widget_square_name">Dayline · Orbit 2×2</string>
     <string name="widget_square_description">A dense 2×2 Dayline widget using the Android / Nothing system palette.</string>
+    <string name="widget_lock_name">Dayline · Lock 2×1</string>
+    <string name="widget_lock_description">A minimal keyguard widget for the current or next Dayline event.</string>
 </resources>

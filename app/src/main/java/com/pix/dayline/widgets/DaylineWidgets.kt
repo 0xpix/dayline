@@ -752,9 +752,87 @@ class DaylineSquareWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = DaylineSquareWidget()
 }
 
+class DaylineLockWidget : GlanceAppWidget() {
+    override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val store = DaylineStore(context)
+        val items = store.loadItems()
+        val now = LocalDateTime.now()
+        val next = nextOccurrence(items, now)
+        val widgetFont = store.loadWidgetFontChoice()
+        val widgetEmoji = store.loadWidgetEmojiChoice()
+
+        provideContent {
+            GlanceTheme {
+                Row(
+                    modifier = GlanceModifier
+                        .fillMaxSize()
+                        .appWidgetBackground()
+                        .clickable(actionStartActivity<MainActivity>())
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.Vertical.CenterVertically
+                ) {
+                    WidgetEmojiMark(widgetEmoji, 32)
+
+                    Spacer(GlanceModifier.width(9.dp))
+
+                    Column {
+                        WidgetText(
+                            text = now.dayOfWeek
+                                .getDisplayName(JavaTextStyle.SHORT, Locale.getDefault())
+                                .uppercase() +
+                                " ${now.dayOfMonth} " +
+                                now.month
+                                    .getDisplayName(JavaTextStyle.SHORT, Locale.getDefault())
+                                    .uppercase(),
+                            fontChoice = widgetFont,
+                            scale = 0.58f,
+                            color = GlanceTheme.colors.onSurface,
+                            maxChars = 16
+                        )
+
+                        Spacer(GlanceModifier.height(4.dp))
+
+                        val text = if (next == null) {
+                            "DAY CLEAR"
+                        } else {
+                            val start = next.item.startTime
+                            val end = next.item.endTime
+                            val active =
+                                next.date == now.toLocalDate() &&
+                                start != null &&
+                                end != null &&
+                                !now.toLocalTime().isBefore(start) &&
+                                now.toLocalTime().isBefore(end)
+
+                            if (active) {
+                                "NOW  ${compactTitle(next.item.title, 12)}"
+                            } else {
+                                "NEXT ${compactTitle(next.item.title, 11)} ${itemLead(next.item)}"
+                            }
+                        }
+
+                        WidgetText(
+                            text = text,
+                            fontChoice = widgetFont,
+                            scale = 0.68f,
+                            color = GlanceTheme.colors.onSurface,
+                            maxChars = 22
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+class DaylineLockWidgetReceiver : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget: GlanceAppWidget = DaylineLockWidget()
+}
+
 object DaylineWidgetUpdater {
     suspend fun updateAll(context: Context) {
         DaylineCompactWidget().updateAll(context)
         DaylineSquareWidget().updateAll(context)
+        DaylineLockWidget().updateAll(context)
     }
 }

@@ -37,7 +37,8 @@ fun TodayScreen(
     onMenu: () -> Unit,
     onAdd: (LocalDate) -> Unit,
     onEdit: (DaylineItem) -> Unit,
-    onToggleTask: (DaylineItem, LocalDate) -> Unit
+    onToggleTask: (DaylineItem, LocalDate) -> Unit,
+    onReschedule: (DaylineItem) -> Unit
 ) {
     val now = remember { LocalTime.now() }
     val today = remember { LocalDate.now() }
@@ -78,7 +79,8 @@ fun TodayScreen(
                 date = today,
                 emptyText = "Your day is clear.",
                 onEdit = onEdit,
-                onToggleTask = onToggleTask
+                onToggleTask = onToggleTask,
+                onReschedule = onReschedule
             )
         }
 

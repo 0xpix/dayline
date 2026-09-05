@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
@@ -23,6 +24,10 @@
 
         <receiver
             android:name=".notifications.NotificationReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".notifications.NowActivityReceiver"
             android:exported="false" />
 
         <receiver
@@ -57,5 +62,17 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/dayline_widget_square_info" />
         </receiver>
+        <receiver
+            android:name=".widgets.DaylineLockWidgetReceiver"
+            android:exported="false"
+            android:label="@string/widget_lock_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/dayline_widget_lock_info" />
+        </receiver>
+
 </application>
 </manifest>

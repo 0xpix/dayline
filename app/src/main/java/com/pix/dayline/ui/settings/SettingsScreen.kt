@@ -55,6 +55,7 @@ fun SettingsScreen(
     widgetFontChoice: WidgetFontChoice,
     widgetEmojiChoice: WidgetEmojiChoice,
     widgetAutoSlide: Boolean,
+    nowActivityEnabled: Boolean,
     showOrb: Boolean,
     weekStartsMonday: Boolean,
     onAppearance: (Appearance) -> Unit,
@@ -62,6 +63,7 @@ fun SettingsScreen(
     onWidgetFontChoice: (WidgetFontChoice) -> Unit,
     onWidgetEmojiChoice: (WidgetEmojiChoice) -> Unit,
     onWidgetAutoSlide: (Boolean) -> Unit,
+    onNowActivityEnabled: (Boolean) -> Unit,
     onShowOrb: (Boolean) -> Unit,
     onWeekStart: (Boolean) -> Unit,
     onMenu: () -> Unit,
@@ -134,6 +136,20 @@ fun SettingsScreen(
             Spacer(Modifier.height(24.dp))
 
             SettingsGroup("Reminders") {
+                ToggleSettingRow(
+                    title = "Now activity",
+                    checked = nowActivityEnabled,
+                    onChecked = onNowActivityEnabled
+                )
+
+                Text(
+                    "Shows the active timed block as a persistent notification. Android 16 can promote it as a Live Update on supported system surfaces.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(Modifier.height(6.dp))
+
                 SelectorRow(
                     title = "Notifications",
                     value = "Open"
@@ -174,7 +190,7 @@ fun SettingsScreen(
             Spacer(Modifier.height(34.dp))
 
             Text(
-                "Dayline 0.9.3",
+                "Dayline 0.10.0",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

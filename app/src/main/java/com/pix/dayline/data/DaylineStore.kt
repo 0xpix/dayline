@@ -185,6 +185,13 @@ class DaylineStore(context: Context) {
         prefs.edit().putBoolean(KEY_WIDGET_AUTO_SLIDE, enabled).apply()
     }
 
+    fun loadNowActivityEnabled(): Boolean =
+        prefs.getBoolean(KEY_NOW_ACTIVITY, true)
+
+    fun saveNowActivityEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_NOW_ACTIVITY, enabled).apply()
+    }
+
     fun loadShowOrb(): Boolean = prefs.getBoolean(KEY_SHOW_ORB, true)
     fun saveShowOrb(show: Boolean) { prefs.edit().putBoolean(KEY_SHOW_ORB, show).apply() }
 
@@ -201,6 +208,7 @@ class DaylineStore(context: Context) {
         private const val KEY_WIDGET_FONT = "widget_font"
         private const val KEY_WIDGET_EMOJI = "widget_emoji"
         private const val KEY_WIDGET_AUTO_SLIDE = "widget_auto_slide"
+        private const val KEY_NOW_ACTIVITY = "now_activity"
         private const val KEY_SHOW_ORB = "show_orb"
         private const val KEY_WEEK_STARTS_MONDAY = "week_starts_monday"
     }

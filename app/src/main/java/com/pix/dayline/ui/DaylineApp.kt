@@ -13,6 +13,7 @@ import androidx.core.content.ContextCompat
 import com.pix.dayline.data.*
 import com.pix.dayline.model.*
 import com.pix.dayline.notifications.NotificationScheduler
+import com.pix.dayline.notifications.NowActivityScheduler
 import com.pix.dayline.ui.calendar.CalendarScreen
 import com.pix.dayline.ui.components.NavigationSheet
 import com.pix.dayline.ui.components.QuickAddSheet
@@ -45,6 +46,7 @@ fun DaylineApp() {
     var widgetFontChoice by remember { mutableStateOf(store.loadWidgetFontChoice()) }
     var widgetEmojiChoice by remember { mutableStateOf(store.loadWidgetEmojiChoice()) }
     var widgetAutoSlide by remember { mutableStateOf(store.loadWidgetAutoSlide()) }
+    var nowActivityEnabled by remember { mutableStateOf(store.loadNowActivityEnabled()) }
     var showOrb by remember { mutableStateOf(store.loadShowOrb()) }
     var weekStartsMonday by remember { mutableStateOf(store.loadWeekStartsMonday()) }
 
@@ -54,6 +56,12 @@ fun DaylineApp() {
 
     LaunchedEffect(Unit) {
         NotificationScheduler.syncAll(appContext, items)
+
+        if (nowActivityEnabled) {
+            NowActivityScheduler.syncAll(appContext, items)
+        } else {
+            NowActivityScheduler.cancelAll(appContext, items)
+        }
     }
 
     val dark = when (appearance) {
@@ -102,6 +110,13 @@ fun DaylineApp() {
             items = next
             store.saveItems(next)
             NotificationScheduler.syncAll(appContext, next)
+
+            if (nowActivityEnabled) {
+                NowActivityScheduler.syncAll(appContext, next)
+            } else {
+                NowActivityScheduler.cancelAll(appContext, next)
+            }
+
             widgetScope.launch { DaylineWidgetUpdater.updateAll(appContext) }
         }
 
@@ -116,7 +131,14 @@ fun DaylineApp() {
             if (taskDetail?.id == item.id) taskDetail = item
 
             if (
-                item.reminderMinutes != null &&
+                (
+                    item.reminderMinutes != null ||
+                    (
+                        nowActivityEnabled &&
+                        item.startTime != null &&
+                        item.endTime != null
+                    )
+                ) &&
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                 ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
                 PackageManager.PERMISSION_GRANTED
@@ -130,6 +152,7 @@ fun DaylineApp() {
 
         fun deleteItem(item: DaylineItem) {
             NotificationScheduler.cancel(appContext, item)
+            NowActivityScheduler.cancel(appContext, item)
             saveAll(items.filterNot { it.id == item.id })
             editing = null
             taskDetail = null
@@ -184,7 +207,8 @@ fun DaylineApp() {
                     onMenu = { menuOpen = true },
                     onAdd = { addRequest = AddRequest(it, AgendaKind.EVENT) },
                     onEdit = { if (it.kind == AgendaKind.TASK) taskDetail = it else editing = it },
-                    onToggleTask = ::toggleTask
+                    onToggleTask = ::toggleTask,
+                    onReschedule = ::saveItem
                 )
 
                 DaylineScreen.CALENDAR -> CalendarScreen(
@@ -232,6 +256,7 @@ fun DaylineApp() {
                     widgetFontChoice = widgetFontChoice,
                     widgetEmojiChoice = widgetEmojiChoice,
                     widgetAutoSlide = widgetAutoSlide,
+                    nowActivityEnabled = nowActivityEnabled,
                     showOrb = showOrb,
                     weekStartsMonday = weekStartsMonday,
                     onAppearance = {
@@ -256,6 +281,27 @@ fun DaylineApp() {
                         widgetAutoSlide = it
                         store.saveWidgetAutoSlide(it)
                         widgetScope.launch { DaylineWidgetUpdater.updateAll(appContext) }
+                    },
+                    onNowActivityEnabled = {
+                        nowActivityEnabled = it
+                        store.saveNowActivityEnabled(it)
+
+                        if (
+                            it &&
+                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                            ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.POST_NOTIFICATIONS
+                            ) != PackageManager.PERMISSION_GRANTED
+                        ) {
+                            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+
+                        if (it) {
+                            NowActivityScheduler.syncAll(appContext, items)
+                        } else {
+                            NowActivityScheduler.cancelAll(appContext, items)
+                        }
                     },
                     onShowOrb = {
                         showOrb = it

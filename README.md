@@ -1,35 +1,58 @@
-# Dayline — v0.10.3
+# Dayline — v0.11.0
 
-Live event refresh + neutral system widget surfaces.
+Calendar integration, optional Pomodoro event cycles, live Now marker,
+and a redesigned Today ribbon.
 
-## Live event updates
-Event changes now use a Glance state refresh token.
+## Android Calendar sync
+Settings → Calendar → Android Calendar sync.
 
-For every placed widget instance Dayline now:
-1. commits the updated event JSON first;
-2. changes the widget's Glance Preferences state;
-3. calls `update()` for that exact widget id.
+When enabled:
+- Dayline requests READ_CALENDAR + WRITE_CALENDAR.
+- Events from visible Android calendars are overlaid in Today, Calendar,
+  Upcoming and widgets.
+- Existing/new Dayline events are published to the first visible writable
+  calendar on the phone.
+- Dayline-created events retain their Calendar Provider event id so edits
+  update the same external event instead of creating duplicates.
+- External calendar occurrences are shown read-only inside Dayline.
+- Calendar Provider changes are observed while Dayline is running.
 
-Each widget reads the refresh token inside `provideContent`, so an already-running
-Glance composition is forced to recompose and then reload the current events.
+Turning sync off only hides the external overlay; it does not delete calendar
+events from the phone.
 
-This applies to:
-- adding events/tasks
-- editing events/tasks
-- deleting events/tasks
-- drag rescheduling
-- task completion
-- emoji/font/widget-setting changes
+## Optional Pomodoro 25 / 5
+Timed events now have a Focus cycle option:
 
-## Widget background
-Removed Material You accent containers from the widget UI.
+- Off
+- 25 / 5
 
-- Orbit 2×2 uses the system Material 3 `background`
-- pills use neutral `surfaceVariant`
-- emoji circle uses neutral `surfaceVariant`
-- event/task text uses `onSurface`
-- day-track dots use neutral system foregrounds
-- Pulse 3×1 body remains transparent
+When 25 / 5 is enabled:
+- 25 minutes focus
+- 5 minutes rest
+- repeats until the event's end time
+- the persistent Now activity counts down to the current focus/rest boundary
+  rather than only to the whole event end
+- the notification automatically switches between FOCUS and REST
 
-This avoids the blue Material You look while still following system light/dark
-surface colors.
+This is per event, so Gym / CS2 can stay Off while a research/deep-work block
+uses 25 / 5.
+
+## Current-time line
+Today now gets a live current-time marker in the agenda:
+- HH:mm label
+- small Material You dot
+- thin line
+- updates every ~30 seconds
+
+## Today ribbon
+The previous dotted Day signal is replaced with a very quiet 24-hour ribbon:
+- faint line = the day
+- solid segments = actual scheduled event ranges
+- small ring = the current point in the day
+
+Every mark now represents real time rather than decoration.
+
+## Calendar Provider implementation note
+Recurring events are written with RRULE + DURATION, while non-recurring events
+use DTEND. All-day events use UTC midnight boundaries as required by Android's
+Calendar Provider.

@@ -13,11 +13,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -34,9 +36,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.pix.dayline.model.AgendaKind
 import com.pix.dayline.model.DaylineItem
+import com.pix.dayline.model.FocusCycle
 import com.pix.dayline.model.Recurrence
 import com.pix.dayline.model.isCompletedOn
 import com.pix.dayline.ui.theme.composeColor
+import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
@@ -53,11 +57,18 @@ fun DayTimeline(
     onReschedule: (DaylineItem) -> Unit
 ) {
     if (items.isEmpty()) {
-        Text(
-            text = emptyText,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Column {
+            if (date == LocalDate.now()) {
+                CurrentTimeMarker(LocalTime.now())
+                Spacer(Modifier.height(18.dp))
+            }
+
+            Text(
+                text = emptyText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         return
     }
 
@@ -65,13 +76,46 @@ fun DayTimeline(
         .sortedWith(compareBy<DaylineItem> { it.startTime }.thenBy { it.title })
     val anytime = items.filter { it.startTime == null }
 
+    var now by remember(date) {
+        mutableStateOf(LocalTime.now())
+    }
+
+    LaunchedEffect(date) {
+        while (true) {
+            now = LocalTime.now()
+            delay(30_000L)
+        }
+    }
+
+    val showNow = date == LocalDate.now()
+
     Column {
         var previousEnd: LocalTime? = null
+        var nowPlaced = false
 
         scheduled.forEachIndexed { index, item ->
             val start = item.startTime ?: return@forEachIndexed
             val gap = previousEnd?.let { Duration.between(it, start).toMinutes() } ?: 0L
-            if (index > 0) Spacer(Modifier.height(gapToSpace(gap)))
+
+            val eventEnd =
+                item.endTime?.takeIf { it.isAfter(start) } ?: start
+
+            val activeNow =
+                !now.isBefore(start) &&
+                now.isBefore(eventEnd)
+
+            if (
+                showNow &&
+                !nowPlaced &&
+                (now.isBefore(start) || activeNow)
+            ) {
+                if (index > 0) Spacer(Modifier.height(gapToSpace(gap) / 2))
+                CurrentTimeMarker(now)
+                Spacer(Modifier.height(gapToSpace(gap) / 2))
+                nowPlaced = true
+            } else if (index > 0) {
+                Spacer(Modifier.height(gapToSpace(gap)))
+            }
 
             TimelineItem(
                 item = item,
@@ -81,7 +125,12 @@ fun DayTimeline(
                 onReschedule = onReschedule
             )
 
-            previousEnd = item.endTime?.takeIf { it.isAfter(start) } ?: start
+            previousEnd = eventEnd
+        }
+
+        if (showNow && !nowPlaced && scheduled.isNotEmpty()) {
+            Spacer(Modifier.height(18.dp))
+            CurrentTimeMarker(now)
         }
 
         if (anytime.isNotEmpty()) {
@@ -145,7 +194,9 @@ private fun TimelineItem(
                 )
             }
             .zIndex(if (dragging) 2f else 0f)
-            .pointerInput(item.id, item.startTime, item.endTime) {
+            .pointerInput(item.id, item.startTime, item.endTime, item.calendarReadOnly) {
+                if (item.calendarReadOnly) return@pointerInput
+
                 detectDragGesturesAfterLongPress(
                     onDragStart = {
                         dragging = true
@@ -250,7 +301,11 @@ private fun TimelineItem(
                 val meta = buildList {
                     if (end != null) add(durationLabel(start, end))
                     item.reminderMinutes?.let { add("${it}m reminder") }
-                    add("hold + drag to move")
+                    if (item.focusCycle == FocusCycle.POMODORO_25_5) {
+                        add("25/5 focus")
+                    }
+                    item.calendarName?.let { add(it) }
+                    if (!item.calendarReadOnly) add("hold + drag to move")
                 }.joinToString(" · ")
 
                 Spacer(Modifier.height(3.dp))
@@ -262,6 +317,47 @@ private fun TimelineItem(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun CurrentTimeMarker(
+    now: LocalTime
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = now.format(
+                DateTimeFormatter.ofPattern("HH:mm")
+            ),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.width(58.dp)
+        )
+
+        Box(
+            modifier = Modifier
+                .width(6.dp)
+                .height(6.dp)
+                .background(
+                    MaterialTheme.colorScheme.primary,
+                    CircleShape
+                )
+        )
+
+        Spacer(Modifier.width(8.dp))
+
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(1.dp)
+                .background(
+                    MaterialTheme.colorScheme.primary.copy(
+                        alpha = 0.55f
+                    )
+                )
+        )
     }
 }
 

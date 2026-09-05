@@ -2,8 +2,8 @@ package com.pix.dayline.notifications
 
 import android.Manifest
 import android.app.AlarmManager
-import android.app.NotificationManager
 import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -16,7 +16,9 @@ import com.pix.dayline.MainActivity
 import com.pix.dayline.R
 import com.pix.dayline.data.DaylineStore
 import com.pix.dayline.model.DaylineItem
+import com.pix.dayline.model.FocusCycle
 import com.pix.dayline.model.occursOn
+import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -31,6 +33,11 @@ object NowActivityScheduler {
         val date: LocalDate,
         val start: LocalDateTime,
         val end: LocalDateTime
+    )
+
+    private data class FocusPhase(
+        val focus: Boolean,
+        val phaseEnd: LocalDateTime
     )
 
     fun ensureChannel(context: Context) {
@@ -57,17 +64,19 @@ object NowActivityScheduler {
             cancelAlarms(context, item)
             cancelNotification(context, item)
 
-            val currentOrNext = currentOrNext(item, LocalDateTime.now()) ?: return@forEach
+            val now = LocalDateTime.now()
+            val occurrence = currentOrNext(item, now) ?: return@forEach
 
-            if (
-                currentOrNext.start <= LocalDateTime.now() &&
-                currentOrNext.end > LocalDateTime.now()
-            ) {
-                showNow(context, currentOrNext)
-                scheduleEnd(context, currentOrNext)
-                scheduleNextStartAfter(context, item, currentOrNext.end.plusSeconds(1))
+            if (occurrence.start <= now && occurrence.end > now) {
+                showNow(context, occurrence)
+                scheduleEnd(context, occurrence)
+                scheduleNextStartAfter(
+                    context,
+                    item,
+                    occurrence.end.plusSeconds(1)
+                )
             } else {
-                scheduleStart(context, currentOrNext)
+                scheduleStart(context, occurrence)
             }
         }
     }
@@ -88,12 +97,22 @@ object NowActivityScheduler {
             ?: return
 
         val now = LocalDateTime.now()
-        val occurrence = currentOrNext(item, now.minusMinutes(2)) ?: return
+        val occurrence = currentOrNext(
+            item,
+            now.minusMinutes(2)
+        ) ?: return
 
-        if (occurrence.end > now && occurrence.start <= now.plusMinutes(2)) {
+        if (
+            occurrence.end > now &&
+            occurrence.start <= now.plusMinutes(2)
+        ) {
             showNow(context, occurrence)
             scheduleEnd(context, occurrence)
-            scheduleNextStartAfter(context, item, occurrence.end.plusSeconds(1))
+            scheduleNextStartAfter(
+                context,
+                item,
+                occurrence.end.plusSeconds(1)
+            )
         } else {
             scheduleStart(context, occurrence)
         }
@@ -107,15 +126,20 @@ object NowActivityScheduler {
         if (item != null) {
             cancelNotification(context, item)
 
-            currentOrNext(item, LocalDateTime.now().plusSeconds(1))
-                ?.let { scheduleStart(context, it) }
+            currentOrNext(
+                item,
+                LocalDateTime.now().plusSeconds(1)
+            )?.let { scheduleStart(context, it) }
         } else {
             NotificationManagerCompat.from(context)
                 .cancel(notificationId(itemId))
         }
     }
 
-    private fun showNow(context: Context, occurrence: Occurrence) {
+    private fun showNow(
+        context: Context,
+        occurrence: Occurrence
+    ) {
         if (
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(
@@ -128,13 +152,25 @@ object NowActivityScheduler {
 
         ensureChannel(context)
 
-        val endMillis = occurrence.end
+        val now = LocalDateTime.now()
+
+        val phase = if (
+            occurrence.item.focusCycle == FocusCycle.POMODORO_25_5
+        ) {
+            focusPhase(occurrence, now)
+        } else {
+            null
+        }
+
+        val countdownEnd = phase?.phaseEnd ?: occurrence.end
+
+        val endMillis = countdownEnd
             .atZone(ZoneId.systemDefault())
             .toInstant()
             .toEpochMilli()
 
-        val nowMillis = System.currentTimeMillis()
-        val remaining = (endMillis - nowMillis).coerceAtLeast(1_000L)
+        val remaining = (endMillis - System.currentTimeMillis())
+            .coerceAtLeast(1_000L)
 
         val contentIntent = PendingIntent.getActivity(
             context,
@@ -143,14 +179,31 @@ object NowActivityScheduler {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val timeFormat = DateTimeFormatter.ofPattern("HH:mm")
-        val range = "${occurrence.start.toLocalTime().format(timeFormat)}–" +
-            occurrence.end.toLocalTime().format(timeFormat)
+        val format = DateTimeFormatter.ofPattern("HH:mm")
+        val range =
+            "${occurrence.start.toLocalTime().format(format)}–" +
+            occurrence.end.toLocalTime().format(format)
+
+        val title = if (phase == null) {
+            occurrence.item.title
+        } else {
+            "${if (phase.focus) "FOCUS" else "REST"} · ${occurrence.item.title}"
+        }
+
+        val content = if (phase == null) {
+            "$range · in progress"
+        } else {
+            val minutes = Duration
+                .between(now, countdownEnd)
+                .toMinutes()
+                .coerceAtLeast(1)
+            "${if (phase.focus) "25 min focus" else "5 min rest"} · ${minutes}m left"
+        }
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_dayline_notification)
-            .setContentTitle(occurrence.item.title)
-            .setContentText("$range · in progress")
+            .setContentTitle(title)
+            .setContentText(content)
             .setContentIntent(contentIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -168,6 +221,45 @@ object NowActivityScheduler {
             notificationId(occurrence.item.id),
             builder.build()
         )
+
+        if (phase != null && phase.phaseEnd < occurrence.end) {
+            scheduleAlarm(
+                context = context,
+                at = phase.phaseEnd,
+                pendingIntent = phasePendingIntent(
+                    context,
+                    occurrence.item.id
+                )
+            )
+        }
+    }
+
+    private fun focusPhase(
+        occurrence: Occurrence,
+        now: LocalDateTime
+    ): FocusPhase {
+        val elapsedSeconds = Duration
+            .between(occurrence.start, now)
+            .seconds
+            .coerceAtLeast(0)
+
+        val cycleSeconds = 30L * 60L
+        val focusSeconds = 25L * 60L
+        val offset = elapsedSeconds % cycleSeconds
+        val cycleStart = now.minusSeconds(offset)
+
+        val focus = offset < focusSeconds
+
+        val rawEnd = if (focus) {
+            cycleStart.plusSeconds(focusSeconds)
+        } else {
+            cycleStart.plusSeconds(cycleSeconds)
+        }
+
+        return FocusPhase(
+            focus = focus,
+            phaseEnd = minOf(rawEnd, occurrence.end)
+        )
     }
 
     private fun currentOrNext(
@@ -175,7 +267,9 @@ object NowActivityScheduler {
         from: LocalDateTime
     ): Occurrence? {
         val startTime = item.startTime ?: return null
-        val endTime = item.endTime?.takeIf { it.isAfter(startTime) } ?: return null
+        val endTime = item.endTime
+            ?.takeIf { it.isAfter(startTime) }
+            ?: return null
 
         var date = maxOf(item.startDate, from.toLocalDate())
 
@@ -217,7 +311,10 @@ object NowActivityScheduler {
         scheduleAlarm(
             context = context,
             at = occurrence.start,
-            pendingIntent = startPendingIntent(context, occurrence.item.id)
+            pendingIntent = startPendingIntent(
+                context,
+                occurrence.item.id
+            )
         )
     }
 
@@ -228,7 +325,10 @@ object NowActivityScheduler {
         scheduleAlarm(
             context = context,
             at = occurrence.end,
-            pendingIntent = endPendingIntent(context, occurrence.item.id)
+            pendingIntent = endPendingIntent(
+                context,
+                occurrence.item.id
+            )
         )
     }
 
@@ -244,7 +344,8 @@ object NowActivityScheduler {
 
         if (triggerMillis <= System.currentTimeMillis()) return
 
-        val manager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val manager =
+            context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
         if (
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
@@ -274,9 +375,12 @@ object NowActivityScheduler {
         context: Context,
         item: DaylineItem
     ) {
-        val manager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val manager =
+            context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+
         manager.cancel(startPendingIntent(context, item.id))
         manager.cancel(endPendingIntent(context, item.id))
+        manager.cancel(phasePendingIntent(context, item.id))
     }
 
     private fun cancelNotification(
@@ -291,48 +395,71 @@ object NowActivityScheduler {
     private fun startPendingIntent(
         context: Context,
         itemId: String
-    ): PendingIntent {
-        val intent = Intent(
-            context,
-            NowActivityReceiver::class.java
-        ).apply {
-            action = NowActivityReceiver.ACTION_START
-            putExtra(NowActivityReceiver.EXTRA_ITEM_ID, itemId)
-        }
-
-        return PendingIntent.getBroadcast(
+    ): PendingIntent =
+        PendingIntent.getBroadcast(
             context,
             requestCode(itemId, "start"),
-            intent,
+            Intent(
+                context,
+                NowActivityReceiver::class.java
+            ).apply {
+                action = NowActivityReceiver.ACTION_START
+                putExtra(
+                    NowActivityReceiver.EXTRA_ITEM_ID,
+                    itemId
+                )
+            },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-    }
+
+    private fun phasePendingIntent(
+        context: Context,
+        itemId: String
+    ): PendingIntent =
+        PendingIntent.getBroadcast(
+            context,
+            requestCode(itemId, "phase"),
+            Intent(
+                context,
+                NowActivityReceiver::class.java
+            ).apply {
+                action = NowActivityReceiver.ACTION_PHASE
+                putExtra(
+                    NowActivityReceiver.EXTRA_ITEM_ID,
+                    itemId
+                )
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
 
     private fun endPendingIntent(
         context: Context,
         itemId: String
-    ): PendingIntent {
-        val intent = Intent(
-            context,
-            NowActivityReceiver::class.java
-        ).apply {
-            action = NowActivityReceiver.ACTION_END
-            putExtra(NowActivityReceiver.EXTRA_ITEM_ID, itemId)
-        }
-
-        return PendingIntent.getBroadcast(
+    ): PendingIntent =
+        PendingIntent.getBroadcast(
             context,
             requestCode(itemId, "end"),
-            intent,
+            Intent(
+                context,
+                NowActivityReceiver::class.java
+            ).apply {
+                action = NowActivityReceiver.ACTION_END
+                putExtra(
+                    NowActivityReceiver.EXTRA_ITEM_ID,
+                    itemId
+                )
+            },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-    }
 
     private fun requestCode(
         itemId: String,
         kind: String
-    ): Int = "$kind:$itemId".hashCode() and 0x7fffffff
+    ): Int =
+        "$kind:$itemId".hashCode() and 0x7fffffff
 
     private fun notificationId(itemId: String): Int =
-        NOTIFICATION_OFFSET + (itemId.hashCode() and 0x0fffffff)
+        NOTIFICATION_OFFSET + (
+            itemId.hashCode() and 0x0fffffff
+        )
 }

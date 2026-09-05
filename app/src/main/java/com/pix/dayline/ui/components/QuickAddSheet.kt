@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import com.pix.dayline.model.AgendaKind
 import com.pix.dayline.model.DaylineItem
 import com.pix.dayline.model.DaylineSpace
+import com.pix.dayline.model.FocusCycle
 import com.pix.dayline.model.ItemColor
 import com.pix.dayline.model.Recurrence
 import com.pix.dayline.ui.theme.composeColor
@@ -66,6 +67,9 @@ fun QuickAddSheet(
     var kind by remember(editing?.id, initialKind) { mutableStateOf(editing?.kind ?: initialKind) }
     var recurrence by remember(editing?.id) { mutableStateOf(editing?.recurrence ?: Recurrence.ONCE) }
     var reminderMinutes by remember(editing?.id) { mutableStateOf(editing?.reminderMinutes) }
+    var focusCycle by remember(editing?.id) {
+        mutableStateOf(editing?.focusCycle ?: FocusCycle.OFF)
+    }
     var itemColor by remember(editing?.id) { mutableStateOf(editing?.color ?: ItemColor.MONO) }
     var spaceId by remember(editing?.id) { mutableStateOf(editing?.spaceId) }
 
@@ -245,6 +249,43 @@ fun QuickAddSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
+
+            if (
+                kind == AgendaKind.EVENT &&
+                startTime != null &&
+                endTime != null
+            ) {
+                Spacer(Modifier.height(20.dp))
+
+                Text(
+                    "Focus cycle",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ChoicePill(
+                        "Off",
+                        focusCycle == FocusCycle.OFF
+                    ) { focusCycle = FocusCycle.OFF }
+
+                    ChoicePill(
+                        "25 / 5",
+                        focusCycle == FocusCycle.POMODORO_25_5
+                    ) { focusCycle = FocusCycle.POMODORO_25_5 }
+                }
+
+                if (focusCycle == FocusCycle.POMODORO_25_5) {
+                    Spacer(Modifier.height(7.dp))
+                    Text(
+                        "25 min focus · 5 min rest · repeats until this event ends.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
             Spacer(Modifier.height(20.dp))
 
             Text("Reminder", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -295,10 +336,18 @@ fun QuickAddSheet(
                                     endTime = endTime?.takeIf { startTime != null && it.isAfter(startTime) },
                                     recurrence = recurrence,
                                     reminderMinutes = reminderMinutes.takeIf { startTime != null },
+                                    focusCycle = focusCycle.takeIf {
+                                        kind == AgendaKind.EVENT &&
+                                            startTime != null &&
+                                            endTime != null
+                                    } ?: FocusCycle.OFF,
                                     color = itemColor,
                                     spaceId = spaceId,
                                     details = editing?.details ?: emptyList(),
-                                    completedDates = editing?.completedDates ?: emptySet()
+                                    completedDates = editing?.completedDates ?: emptySet(),
+                                    calendarEventId = editing?.calendarEventId,
+                                    calendarName = editing?.calendarName,
+                                    calendarReadOnly = editing?.calendarReadOnly ?: false
                                 )
                             )
                         }

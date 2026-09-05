@@ -46,12 +46,22 @@ class DaylineStore(context: Context) {
                             endTime = json.optString("endTime").takeIf { it.isNotBlank() }?.let(LocalTime::parse),
                             recurrence = Recurrence.valueOf(json.getString("recurrence")),
                             reminderMinutes = json.optInt("reminderMinutes", -1).takeIf { it >= 0 },
+                            focusCycle = runCatching {
+                                FocusCycle.valueOf(
+                                    json.optString("focusCycle", FocusCycle.OFF.name)
+                                )
+                            }.getOrDefault(FocusCycle.OFF),
                             color = runCatching {
                                 ItemColor.valueOf(json.optString("color", ItemColor.MONO.name))
                             }.getOrDefault(ItemColor.MONO),
                             spaceId = json.optString("spaceId").takeIf { it.isNotBlank() },
                             details = details,
-                            completedDates = completed
+                            completedDates = completed,
+                            calendarEventId = json.optLong("calendarEventId", -1L)
+                                .takeIf { it >= 0L },
+                            calendarName = json.optString("calendarName")
+                                .takeIf { it.isNotBlank() },
+                            calendarReadOnly = false
                         )
                     )
                 }
@@ -85,10 +95,13 @@ class DaylineStore(context: Context) {
                     .put("endTime", item.endTime?.toString().orEmpty())
                     .put("recurrence", item.recurrence.name)
                     .put("reminderMinutes", item.reminderMinutes ?: -1)
+                    .put("focusCycle", item.focusCycle.name)
                     .put("color", item.color.name)
                     .put("spaceId", item.spaceId.orEmpty())
                     .put("details", details)
                     .put("completedDates", completed)
+                    .put("calendarEventId", item.calendarEventId ?: -1L)
+                    .put("calendarName", item.calendarName.orEmpty())
             )
         }
         prefs.edit().putString(KEY_ITEMS, array.toString()).commit()
@@ -192,6 +205,13 @@ class DaylineStore(context: Context) {
         prefs.edit().putBoolean(KEY_NOW_ACTIVITY, enabled).apply()
     }
 
+    fun loadCalendarSyncEnabled(): Boolean =
+        prefs.getBoolean(KEY_CALENDAR_SYNC, false)
+
+    fun saveCalendarSyncEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_CALENDAR_SYNC, enabled).apply()
+    }
+
     fun loadShowOrb(): Boolean = prefs.getBoolean(KEY_SHOW_ORB, true)
     fun saveShowOrb(show: Boolean) { prefs.edit().putBoolean(KEY_SHOW_ORB, show).apply() }
 
@@ -209,6 +229,7 @@ class DaylineStore(context: Context) {
         private const val KEY_WIDGET_EMOJI = "widget_emoji"
         private const val KEY_WIDGET_AUTO_SLIDE = "widget_auto_slide"
         private const val KEY_NOW_ACTIVITY = "now_activity"
+        private const val KEY_CALENDAR_SYNC = "calendar_sync"
         private const val KEY_SHOW_ORB = "show_orb"
         private const val KEY_WEEK_STARTS_MONDAY = "week_starts_monday"
     }

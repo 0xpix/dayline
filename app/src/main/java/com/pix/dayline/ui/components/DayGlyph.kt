@@ -6,6 +6,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.pix.dayline.model.DaylineItem
@@ -13,15 +14,13 @@ import java.time.LocalDate
 import java.time.LocalTime
 
 /**
- * Minimal 24-hour "day signal".
+ * A quiet 24-hour ribbon.
  *
- * 12 positions = 2 hours each.
- * - faint dot: open time
- * - solid dot: scheduled time
- * - ring: current time bucket
+ * The rail is the day.
+ * Scheduled events become small solid segments at their real position.
+ * The ring is "now".
  *
- * It intentionally avoids a large decorative circle so the Today page
- * keeps more whitespace and feels closer to Nothing/Dawn.
+ * No decorative orbit/dots — every mark has temporal meaning.
  */
 @Composable
 fun DayGlyph(
@@ -29,81 +28,77 @@ fun DayGlyph(
     date: LocalDate,
     modifier: Modifier = Modifier
 ) {
-    val busy = BooleanArray(12)
-
-    items.forEach { item ->
-        val start = item.startTime ?: return@forEach
-        val end = item.endTime
-
-        val startMinute = start.hour * 60 + start.minute
-        val endMinute = if (end != null && end.isAfter(start)) {
-            end.hour * 60 + end.minute
-        } else {
-            startMinute + 60
-        }
-
-        for (slot in 0 until 12) {
-            val slotStart = slot * 120
-            val slotEnd = slotStart + 120
-
-            if (startMinute < slotEnd && endMinute > slotStart) {
-                busy[slot] = true
-            }
-        }
-    }
-
     val foreground = MaterialTheme.colorScheme.onBackground
-    val accent = MaterialTheme.colorScheme.primary
     val muted = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f)
-
-    val now = LocalTime.now()
-    val currentSlot = if (date == LocalDate.now()) {
-        ((now.hour * 60 + now.minute) / 120).coerceIn(0, 11)
-    } else {
-        -1
-    }
+    val accent = MaterialTheme.colorScheme.primary
 
     Canvas(
-        modifier = modifier.then(
-            Modifier
-                .size(width = 116.dp, height = 18.dp)
+        modifier = modifier.size(
+            width = 138.dp,
+            height = 18.dp
         )
     ) {
-        val left = 7.dp.toPx()
-        val right = size.width - 7.dp.toPx()
+        val left = 6.dp.toPx()
+        val right = size.width - 6.dp.toPx()
         val y = size.height / 2f
-        val step = (right - left) / 11f
+        val railWidth = right - left
 
-        // One almost invisible rail keeps the dots visually connected.
+        fun x(minutes: Int): Float =
+            left + railWidth * (
+                minutes.coerceIn(0, 24 * 60).toFloat() /
+                    (24 * 60).toFloat()
+            )
+
         drawLine(
             color = muted,
             start = Offset(left, y),
             end = Offset(right, y),
-            strokeWidth = 1.dp.toPx()
+            strokeWidth = 1.2.dp.toPx(),
+            cap = StrokeCap.Round
         )
 
-        for (slot in 0 until 12) {
-            val center = Offset(left + slot * step, y)
+        items.forEach { item ->
+            val start = item.startTime ?: return@forEach
+            val end = item.endTime
+                ?.takeIf { it.isAfter(start) }
+                ?: start.plusHours(1)
 
-            if (slot == currentSlot) {
-                drawCircle(
-                    color = accent,
-                    radius = 5.2.dp.toPx(),
-                    center = center,
-                    style = Stroke(width = 1.7.dp.toPx())
-                )
-                drawCircle(
-                    color = accent,
-                    radius = 2.1.dp.toPx(),
-                    center = center
-                )
-            } else {
-                drawCircle(
-                    color = if (busy[slot]) foreground else muted,
-                    radius = if (busy[slot]) 2.4.dp.toPx() else 1.7.dp.toPx(),
-                    center = center
-                )
-            }
+            val startMinutes = start.hour * 60 + start.minute
+            val endMinutes = end.hour * 60 + end.minute
+
+            drawLine(
+                color = foreground,
+                start = Offset(x(startMinutes), y),
+                end = Offset(
+                    x(endMinutes.coerceAtLeast(startMinutes + 15)),
+                    y
+                ),
+                strokeWidth = 2.8.dp.toPx(),
+                cap = StrokeCap.Round
+            )
+        }
+
+        if (date == LocalDate.now()) {
+            val now = LocalTime.now()
+            val nowMinutes = now.hour * 60 + now.minute
+            val center = Offset(x(nowMinutes), y)
+
+            drawCircle(
+                color = MaterialTheme.colorScheme.background,
+                radius = 4.2.dp.toPx(),
+                center = center
+            )
+            drawCircle(
+                color = accent,
+                radius = 3.4.dp.toPx(),
+                center = center,
+                style = Stroke(width = 1.5.dp.toPx())
+            )
+            drawCircle(
+                color = accent,
+                radius = 1.4.dp.toPx(),
+                center = center
+            )
         }
     }
 }

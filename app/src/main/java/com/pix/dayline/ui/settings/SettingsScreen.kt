@@ -56,6 +56,7 @@ fun SettingsScreen(
     widgetEmojiChoice: WidgetEmojiChoice,
     widgetAutoSlide: Boolean,
     nowActivityEnabled: Boolean,
+    calendarSyncEnabled: Boolean,
     showOrb: Boolean,
     weekStartsMonday: Boolean,
     onAppearance: (Appearance) -> Unit,
@@ -64,6 +65,7 @@ fun SettingsScreen(
     onWidgetEmojiChoice: (WidgetEmojiChoice) -> Unit,
     onWidgetAutoSlide: (Boolean) -> Unit,
     onNowActivityEnabled: (Boolean) -> Unit,
+    onCalendarSyncEnabled: (Boolean) -> Unit,
     onShowOrb: (Boolean) -> Unit,
     onWeekStart: (Boolean) -> Unit,
     onMenu: () -> Unit,
@@ -181,6 +183,20 @@ fun SettingsScreen(
 
             SettingsGroup("Calendar") {
                 ToggleSettingRow(
+                    title = "Android Calendar sync",
+                    checked = calendarSyncEnabled,
+                    onChecked = onCalendarSyncEnabled
+                )
+
+                Text(
+                    "Shows events from calendars on this phone. New Dayline events are published to the first writable visible calendar.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                ToggleSettingRow(
                     title = "Week starts Monday",
                     checked = weekStartsMonday,
                     onChecked = onWeekStart
@@ -190,7 +206,7 @@ fun SettingsScreen(
             Spacer(Modifier.height(34.dp))
 
             Text(
-                "Dayline 0.10.3",
+                "Dayline 0.11.0",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

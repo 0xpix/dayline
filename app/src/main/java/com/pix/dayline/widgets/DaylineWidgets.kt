@@ -52,6 +52,7 @@ import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.unit.ColorProvider
 import com.pix.dayline.MainActivity
 import com.pix.dayline.R
+import com.pix.dayline.data.AndroidCalendarSync
 import com.pix.dayline.data.DaylineStore
 import com.pix.dayline.data.WidgetEmojiChoice
 import com.pix.dayline.data.WidgetFontChoice
@@ -472,7 +473,11 @@ class DaylineCompactWidget : GlanceAppWidget() {
         provideContent {
             currentState(WidgetRefreshKey)
             val store = DaylineStore(context)
-            val items = store.loadItems()
+            val items = AndroidCalendarSync.mergedItems(
+                context = context,
+                local = store.loadItems(),
+                enabled = store.loadCalendarSyncEnabled()
+            )
             val now = LocalDateTime.now()
             val today = now.toLocalDate()
             val next = nextOccurrence(items, now)
@@ -638,7 +643,11 @@ class DaylineSquareWidget : GlanceAppWidget() {
         provideContent {
             currentState(WidgetRefreshKey)
             val store = DaylineStore(context)
-            val items = store.loadItems()
+            val items = AndroidCalendarSync.mergedItems(
+                context = context,
+                local = store.loadItems(),
+                enabled = store.loadCalendarSyncEnabled()
+            )
             val today = LocalDate.now()
             val agenda = todayItems(items, today).take(2)
             val busyHours = (0..23).count { isHourBusy(items, today, it) }
@@ -767,7 +776,11 @@ class DaylineLockWidget : GlanceAppWidget() {
         provideContent {
             currentState(WidgetRefreshKey)
             val store = DaylineStore(context)
-            val items = store.loadItems()
+            val items = AndroidCalendarSync.mergedItems(
+                context = context,
+                local = store.loadItems(),
+                enabled = store.loadCalendarSyncEnabled()
+            )
             val now = LocalDateTime.now()
             val next = nextOccurrence(items, now)
             val widgetFont = store.loadWidgetFontChoice()

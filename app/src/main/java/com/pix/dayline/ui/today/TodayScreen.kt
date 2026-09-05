@@ -16,7 +16,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -25,6 +29,7 @@ import com.pix.dayline.model.occursOn
 import com.pix.dayline.ui.components.DayGlyph
 import com.pix.dayline.ui.components.DayTimeline
 import com.pix.dayline.ui.components.FloatingControls
+import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.TextStyle
@@ -40,8 +45,16 @@ fun TodayScreen(
     onToggleTask: (DaylineItem, LocalDate) -> Unit,
     onReschedule: (DaylineItem) -> Unit
 ) {
-    val now = remember { LocalTime.now() }
-    val today = remember { LocalDate.now() }
+    var now by remember { mutableStateOf(LocalTime.now()) }
+    var today by remember { mutableStateOf(LocalDate.now()) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            now = LocalTime.now()
+            today = LocalDate.now()
+            delay(30_000L)
+        }
+    }
     val todaysItems = items
         .filter { it.occursOn(today) }
         .sortedWith(compareBy<DaylineItem> { it.startTime == null }.thenBy { it.startTime })

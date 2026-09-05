@@ -9,7 +9,8 @@ class NowActivityReceiver : BroadcastReceiver() {
         val itemId = intent.getStringExtra(EXTRA_ITEM_ID) ?: return
 
         when (intent.action) {
-            ACTION_START -> NowActivityScheduler.handleStart(
+            ACTION_START,
+            ACTION_PHASE -> NowActivityScheduler.handleStart(
                 context.applicationContext,
                 itemId
             )
@@ -23,6 +24,7 @@ class NowActivityReceiver : BroadcastReceiver() {
 
     companion object {
         const val ACTION_START = "com.pix.dayline.NOW_START"
+        const val ACTION_PHASE = "com.pix.dayline.NOW_PHASE"
         const val ACTION_END = "com.pix.dayline.NOW_END"
         const val EXTRA_ITEM_ID = "item_id"
     }

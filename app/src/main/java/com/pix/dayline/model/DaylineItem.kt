@@ -7,6 +7,7 @@ import java.time.LocalTime
 enum class AgendaKind { EVENT, TASK }
 enum class Recurrence { ONCE, DAILY, WEEKDAYS, WEEKLY, MONTHLY }
 enum class ItemColor { MONO, BLUE, SAGE, AMBER, ROSE, VIOLET }
+enum class FocusCycle { OFF, POMODORO_25_5 }
 
 data class TaskDetail(val id: String, val text: String, val done: Boolean = false)
 
@@ -19,10 +20,14 @@ data class DaylineItem(
     val endTime: LocalTime?,
     val recurrence: Recurrence,
     val reminderMinutes: Int? = null,
+    val focusCycle: FocusCycle = FocusCycle.OFF,
     val color: ItemColor = ItemColor.MONO,
     val spaceId: String? = null,
     val details: List<TaskDetail> = emptyList(),
-    val completedDates: Set<LocalDate> = emptySet()
+    val completedDates: Set<LocalDate> = emptySet(),
+    val calendarEventId: Long? = null,
+    val calendarName: String? = null,
+    val calendarReadOnly: Boolean = false
 ) {
     val time: LocalTime? get() = startTime
     val durationMinutes: Long?

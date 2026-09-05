@@ -1,15 +1,16 @@
 package com.pix.dayline.widgets
 
 import android.content.Context
+import android.content.res.Configuration
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
+import androidx.glance.LocalContext
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -31,11 +32,6 @@ import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
-import androidx.glance.text.FontFamily
-import androidx.glance.text.FontWeight
-import androidx.glance.text.Text
-import androidx.glance.text.TextStyle
-import androidx.glance.unit.ColorProvider
 import com.pix.dayline.MainActivity
 import com.pix.dayline.R
 import com.pix.dayline.data.DaylineStore
@@ -50,19 +46,6 @@ import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
 
 private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
-
-// Deliberately independent from Material You.
-// The approved concept is a cool frost / pale-blue widget family.
-private val FrostWhite = ColorProvider(Color(0xFFF9FBFF))
-private val FrostInk = ColorProvider(Color(0xFF92A1BB))
-private val FrostMuted = ColorProvider(Color(0xFFDCE4EF))
-private val FrostFaint = ColorProvider(Color(0xFFC8D2E1))
-private val FrostGlass = ColorProvider(Color(0xDDF5F8FC))
-private val FrostSoftGlass = ColorProvider(Color(0x55F6F9FD))
-private val FrostTrack = ColorProvider(Color(0x99EDF2F8))
-private val FrostApproxBackground = ColorProvider(Color(0xFFA8B6CC))
-
-private val Mono = FontFamily.Monospace
 
 private data class Occurrence(
     val item: DaylineItem,
@@ -108,8 +91,11 @@ private fun compactTitle(title: String, max: Int): String =
 private fun nextStatus(next: Occurrence?, now: LocalDateTime): String {
     if (next == null) return "OPEN"
 
-    val start = next.item.startTime ?: return if (next.date == now.toLocalDate()) "TODAY" else
-        next.date.dayOfWeek.getDisplayName(JavaTextStyle.SHORT, Locale.getDefault()).uppercase()
+    val start = next.item.startTime
+        ?: return if (next.date == now.toLocalDate()) "TODAY"
+        else next.date.dayOfWeek
+            .getDisplayName(JavaTextStyle.SHORT, Locale.getDefault())
+            .uppercase()
 
     val startDateTime = LocalDateTime.of(next.date, start)
     val minutes = Duration.between(now, startDateTime).toMinutes()
@@ -118,7 +104,9 @@ private fun nextStatus(next: Occurrence?, now: LocalDateTime): String {
         minutes <= 0 -> "NOW"
         minutes < 60 -> "${minutes}M"
         minutes < 24 * 60 -> "${minutes / 60}H"
-        else -> next.date.dayOfWeek.getDisplayName(JavaTextStyle.SHORT, Locale.getDefault()).uppercase()
+        else -> next.date.dayOfWeek
+            .getDisplayName(JavaTextStyle.SHORT, Locale.getDefault())
+            .uppercase()
     }
 }
 
@@ -141,24 +129,59 @@ private fun isHourBusy(items: List<DaylineItem>, date: LocalDate, hour: Int): Bo
     }
 }
 
+private fun isNight(context: Context): Boolean =
+    context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
+        Configuration.UI_MODE_NIGHT_YES
+
+private fun dotForeground(context: Context): Int =
+    if (isNight(context)) 0xFFF5F0EC.toInt() else 0xFF302E2D.toInt()
+
+private fun dotOnSystemPill(context: Context): Int =
+    if (isNight(context)) 0xFFF9F4EE.toInt() else 0xFF2E2926.toInt()
+
+@Composable
+private fun DotText(
+    text: String,
+    scale: Float = 1f,
+    onSystemPill: Boolean = false,
+    maxChars: Int = 24
+) {
+    val context = LocalContext.current
+    val rendered = DotMatrixRenderer.render(
+        context = context,
+        rawText = text,
+        color = if (onSystemPill) dotOnSystemPill(context) else dotForeground(context),
+        scale = scale,
+        maxChars = maxChars
+    )
+
+    Image(
+        provider = ImageProvider(rendered.bitmap),
+        contentDescription = text,
+        modifier = GlanceModifier
+            .width(rendered.widthDp.dp)
+            .height(rendered.heightDp.dp),
+        contentScale = ContentScale.Fit
+    )
+}
+
 @Composable
 private fun TransparentPulseSurface(content: @Composable () -> Unit) {
-    // Intentionally transparent so the 3×1 feels like native Nothing home-screen chrome.
-    // Strong pills remain semi-opaque for readability over busy wallpapers.
-    Box(
-        modifier = GlanceModifier
-            .fillMaxSize()
-            .appWidgetBackground()
-            .clickable(actionStartActivity<MainActivity>())
-            .padding(horizontal = 6.dp, vertical = 4.dp)
-    ) {
-        content()
+    GlanceTheme {
+        Box(
+            modifier = GlanceModifier
+                .fillMaxSize()
+                .appWidgetBackground()
+                .clickable(actionStartActivity<MainActivity>())
+                .padding(horizontal = 5.dp, vertical = 4.dp)
+        ) {
+            content()
+        }
     }
 }
 
 @Composable
 private fun SystemSquareSurface(content: @Composable () -> Unit) {
-    // The 2×2 follows Android / Nothing Material You instead of the Dayline Frost palette.
     GlanceTheme {
         Box(
             modifier = GlanceModifier
@@ -167,7 +190,7 @@ private fun SystemSquareSurface(content: @Composable () -> Unit) {
                 .background(GlanceTheme.colors.widgetBackground)
                 .cornerRadius(android.R.dimen.system_app_widget_background_radius)
                 .clickable(actionStartActivity<MainActivity>())
-                .padding(12.dp)
+                .padding(11.dp)
         ) {
             content()
         }
@@ -185,155 +208,11 @@ private fun OrbitMark(size: Int) {
 }
 
 @Composable
-private fun MonoText(
-    text: String,
-    size: Int,
-    color: ColorProvider = FrostWhite,
-    bold: Boolean = false
-) {
-    Text(
-        text,
-        style = TextStyle(
-            color = color,
-            fontSize = size.sp,
-            fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
-            fontFamily = Mono
-        )
-    )
-}
-
-@Composable
-private fun FrostPill(
-    text: String,
-    strong: Boolean = false,
-    compact: Boolean = false
-) {
-    Box(
-        modifier = GlanceModifier
-            .background(if (strong) FrostGlass else FrostSoftGlass)
-            .cornerRadius(30.dp)
-            .padding(
-                horizontal = if (compact) 7.dp else 9.dp,
-                vertical = if (compact) 2.dp else 4.dp
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        MonoText(
-            text = text,
-            size = if (compact) 9 else 11,
-            color = if (strong) FrostInk else FrostWhite,
-            bold = strong
-        )
-    }
-}
-
-@Composable
-private fun TrackDot(
-    current: Boolean,
-    busy: Boolean
-) {
-    if (current) {
-        Box(
-            modifier = GlanceModifier
-                .size(11.dp)
-                .background(FrostWhite)
-                .cornerRadius(20.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(
-                modifier = GlanceModifier
-                    .size(6.dp)
-                    .background(FrostApproxBackground)
-                    .cornerRadius(20.dp)
-            ) { }
-        }
-    } else {
-        Box(
-            modifier = GlanceModifier
-                .size(11.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(
-                modifier = GlanceModifier
-                    .size(if (busy) 7.dp else 5.dp)
-                    .background(if (busy) FrostWhite else FrostTrack)
-                    .cornerRadius(20.dp)
-            ) { }
-        }
-    }
-}
-
-@Composable
-private fun DayTrack(
-    items: List<DaylineItem>,
-    date: LocalDate,
-    segments: Int
-) {
-    val now = LocalDateTime.now()
-
-    Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
-        repeat(segments.coerceAtMost(8)) { index ->
-            val startHour = index * 24 / segments
-            val endHour = (index + 1) * 24 / segments
-
-            val current =
-                date == now.toLocalDate() &&
-                now.hour in startHour until endHour.coerceAtMost(24)
-
-            var busy = false
-            for (hour in startHour until endHour.coerceAtMost(24)) {
-                if (isHourBusy(items, date, hour)) {
-                    busy = true
-                    break
-                }
-            }
-
-            TrackDot(current = current, busy = busy)
-        }
-    }
-}
-
-@Composable
-private fun EventPill(
-    item: DaylineItem,
-    width: Int? = null,
-    strong: Boolean = true
-) {
-    val base = GlanceModifier
-        .background(if (strong) FrostGlass else FrostSoftGlass)
-        .cornerRadius(30.dp)
-        .padding(horizontal = 8.dp, vertical = 4.dp)
-
-    val modifier = if (width != null) {
-        base.width(width.dp)
-    } else {
-        base.fillMaxWidth()
-    }
-
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.Vertical.CenterVertically
-    ) {
-        MonoText(
-            if (item.kind == AgendaKind.TASK) "□" else "↗",
-            size = 11,
-            color = if (strong) FrostInk else FrostWhite,
-            bold = true
-        )
-        Spacer(GlanceModifier.width(5.dp))
-        MonoText(
-            "${compactTitle(item.title, 12)} ${itemLead(item)}",
-            size = 10,
-            color = if (strong) FrostInk else FrostWhite,
-            bold = strong
-        )
-    }
-}
-
-@Composable
 private fun SystemPill(
-    text: String,
-    strong: Boolean = false
+    content: @Composable () -> Unit,
+    strong: Boolean = false,
+    horizontalPadding: Int = 7,
+    verticalPadding: Int = 3
 ) {
     Box(
         modifier = GlanceModifier
@@ -342,24 +221,18 @@ private fun SystemPill(
                 else GlanceTheme.colors.secondaryContainer
             )
             .cornerRadius(30.dp)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(
+                horizontal = horizontalPadding.dp,
+                vertical = verticalPadding.dp
+            ),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text,
-            style = TextStyle(
-                color = if (strong) GlanceTheme.colors.onPrimaryContainer
-                else GlanceTheme.colors.onSecondaryContainer,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = Mono
-            )
-        )
+        content()
     }
 }
 
 @Composable
-private fun SystemTrack(
+private fun DayTrack(
     items: List<DaylineItem>,
     date: LocalDate
 ) {
@@ -379,20 +252,20 @@ private fun SystemTrack(
                 }
             }
 
-            val outerColor = when {
+            val color = when {
                 current -> GlanceTheme.colors.tertiary
                 busy -> GlanceTheme.colors.primary
                 else -> GlanceTheme.colors.surfaceVariant
             }
 
             Box(
-                modifier = GlanceModifier.size(14.dp),
+                modifier = GlanceModifier.size(11.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = GlanceModifier
                         .size(if (current) 9.dp else if (busy) 7.dp else 5.dp)
-                        .background(outerColor)
+                        .background(color)
                         .cornerRadius(20.dp)
                 ) { }
             }
@@ -401,50 +274,37 @@ private fun SystemTrack(
 }
 
 @Composable
-private fun SystemEventRow(
+private fun SystemEventPill(
     item: DaylineItem,
-    strong: Boolean
+    strong: Boolean,
+    width: Int? = null
 ) {
-    Row(
-        modifier = GlanceModifier
-            .fillMaxWidth()
-            .background(
-                if (strong) GlanceTheme.colors.primaryContainer
-                else GlanceTheme.colors.secondaryContainer
-            )
-            .cornerRadius(28.dp)
-            .padding(horizontal = 9.dp, vertical = 5.dp),
-        verticalAlignment = Alignment.Vertical.CenterVertically
-    ) {
-        Text(
-            if (item.kind == AgendaKind.TASK) "□" else "↗",
-            style = TextStyle(
-                color = if (strong) GlanceTheme.colors.onPrimaryContainer
-                else GlanceTheme.colors.onSecondaryContainer,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = Mono
-            )
+    val base = GlanceModifier
+        .background(
+            if (strong) GlanceTheme.colors.primaryContainer
+            else GlanceTheme.colors.secondaryContainer
         )
-        Spacer(GlanceModifier.width(6.dp))
-        Text(
-            "${compactTitle(item.title, 12)} ${itemLead(item)}",
-            style = TextStyle(
-                color = if (strong) GlanceTheme.colors.onPrimaryContainer
-                else GlanceTheme.colors.onSecondaryContainer,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = Mono
-            )
+        .cornerRadius(30.dp)
+        .padding(horizontal = 8.dp, vertical = 4.dp)
+
+    val modifier = if (width != null) base.width(width.dp) else base.fillMaxWidth()
+
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.CenterStart
+    ) {
+        DotText(
+            text = "${if (item.kind == AgendaKind.TASK) "+" else ">"} ${compactTitle(item.title, 11)} ${itemLead(item)}",
+            scale = 0.82f,
+            onSystemPill = true,
+            maxChars = 20
         )
     }
 }
 
 /**
  * Pulse 3×1
- *
- * This is intentionally composed like the approved concept:
- * left orbit mark / divider / TUE + date pills / next-up pill / AM→PM dot track.
+ * Transparent body + system-colored pills + Nothing-style dot-matrix typography.
  */
 class DaylineCompactWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -460,11 +320,12 @@ class DaylineCompactWidget : GlanceAppWidget() {
                     verticalAlignment = Alignment.Vertical.CenterVertically
                 ) {
                     Column(
-                        modifier = GlanceModifier.width(48.dp),
+                        modifier = GlanceModifier.width(44.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        OrbitMark(38)
-                        MonoText("DAYLINE", 6, FrostWhite, true)
+                        OrbitMark(34)
+                        Spacer(GlanceModifier.height(2.dp))
+                        DotText("DAYLINE", scale = 0.48f)
                     }
 
                     Spacer(GlanceModifier.width(6.dp))
@@ -472,48 +333,77 @@ class DaylineCompactWidget : GlanceAppWidget() {
                     Box(
                         modifier = GlanceModifier
                             .width(1.dp)
-                            .height(50.dp)
-                            .background(FrostMuted)
+                            .height(48.dp)
+                            .background(GlanceTheme.colors.outlineVariant)
                     ) { }
 
-                    Spacer(GlanceModifier.width(8.dp))
+                    Spacer(GlanceModifier.width(7.dp))
 
                     Column {
-                        // TUE  5  SEPT  [time to next]
                         Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
-                            MonoText(
+                            DotText(
                                 today.dayOfWeek
                                     .getDisplayName(JavaTextStyle.SHORT, Locale.getDefault())
                                     .uppercase(),
-                                10,
-                                FrostWhite,
-                                true
+                                scale = 0.72f
                             )
 
                             Spacer(GlanceModifier.width(5.dp))
-                            FrostPill(today.dayOfMonth.toString(), strong = true, compact = true)
+
+                            SystemPill(strong = true, horizontalPadding = 6, verticalPadding = 2) {
+                                DotText(
+                                    today.dayOfMonth.toString(),
+                                    scale = 0.64f,
+                                    onSystemPill = true
+                                )
+                            }
+
                             Spacer(GlanceModifier.width(4.dp))
-                            FrostPill(
-                                today.month
-                                    .getDisplayName(JavaTextStyle.SHORT, Locale.getDefault())
-                                    .uppercase(),
-                                compact = true
-                            )
+
+                            SystemPill(horizontalPadding = 6, verticalPadding = 2) {
+                                DotText(
+                                    today.month
+                                        .getDisplayName(JavaTextStyle.SHORT, Locale.getDefault())
+                                        .uppercase(),
+                                    scale = 0.58f,
+                                    onSystemPill = true
+                                )
+                            }
+
                             Spacer(GlanceModifier.width(4.dp))
-                            FrostPill(nextStatus(next, now), strong = true, compact = true)
+
+                            SystemPill(strong = true, horizontalPadding = 6, verticalPadding = 2) {
+                                DotText(
+                                    nextStatus(next, now),
+                                    scale = 0.56f,
+                                    onSystemPill = true
+                                )
+                            }
                         }
 
                         Spacer(GlanceModifier.height(4.dp))
 
                         Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
                             if (next == null) {
-                                FrostPill("↗  YOUR DAY IS CLEAR", strong = true)
+                                SystemPill(strong = true, horizontalPadding = 8, verticalPadding = 4) {
+                                    DotText(
+                                        "YOUR DAY IS CLEAR",
+                                        scale = 0.69f,
+                                        onSystemPill = true,
+                                        maxChars = 20
+                                    )
+                                }
                             } else {
-                                EventPill(next.item, width = 132, strong = true)
-                                Spacer(GlanceModifier.width(6.dp))
+                                SystemEventPill(
+                                    item = next.item,
+                                    strong = true,
+                                    width = 137
+                                )
+                                Spacer(GlanceModifier.width(5.dp))
                                 Column {
-                                    MonoText("NEXT", 6, FrostMuted, true)
-                                    MonoText("UP", 6, FrostMuted, true)
+                                    DotText("NEXT", scale = 0.44f)
+                                    Spacer(GlanceModifier.height(1.dp))
+                                    DotText("UP", scale = 0.44f)
                                 }
                             }
                         }
@@ -521,11 +411,11 @@ class DaylineCompactWidget : GlanceAppWidget() {
                         Spacer(GlanceModifier.height(4.dp))
 
                         Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
-                            MonoText("AM", 6, FrostWhite, true)
+                            DotText("AM", scale = 0.48f)
                             Spacer(GlanceModifier.width(4.dp))
-                            DayTrack(items = items, date = today, segments = 8)
+                            DayTrack(items = items, date = today)
                             Spacer(GlanceModifier.width(4.dp))
-                            MonoText("PM", 6, FrostWhite, true)
+                            DotText("PM", scale = 0.48f)
                         }
                     }
                 }
@@ -539,11 +429,8 @@ class DaylineCompactWidgetReceiver : GlanceAppWidgetReceiver() {
 }
 
 /**
- * Orbit 2×2 — Material You / Nothing system palette.
- *
- * Dense layout with no dead lower half:
- * large date, day-state badge, full AM→PM track,
- * then two agenda rows or a useful free-day panel.
+ * Orbit 2×2
+ * System background and system pills, but the display typography uses the same dot matrix.
  */
 class DaylineSquareWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -560,83 +447,70 @@ class DaylineSquareWidget : GlanceAppWidget() {
                         modifier = GlanceModifier.fillMaxWidth(),
                         verticalAlignment = Alignment.Vertical.CenterVertically
                     ) {
-                        Text(
-                            today.dayOfMonth.toString(),
-                            style = TextStyle(
-                                color = GlanceTheme.colors.onSurface,
-                                fontSize = 31.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = Mono
-                            )
-                        )
+                        DotText(today.dayOfMonth.toString(), scale = 1.15f)
 
                         Spacer(GlanceModifier.width(8.dp))
 
                         Column {
-                            Text(
+                            DotText(
                                 today.dayOfWeek
-                                    .getDisplayName(JavaTextStyle.FULL, Locale.getDefault())
+                                    .getDisplayName(JavaTextStyle.SHORT, Locale.getDefault())
                                     .uppercase(),
-                                style = TextStyle(
-                                    color = GlanceTheme.colors.onSurface,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = Mono
-                                )
+                                scale = 0.60f
                             )
-                            Text(
+                            Spacer(GlanceModifier.height(2.dp))
+                            DotText(
                                 today.month
                                     .getDisplayName(JavaTextStyle.SHORT, Locale.getDefault())
                                     .uppercase(),
-                                style = TextStyle(
-                                    color = GlanceTheme.colors.onSurfaceVariant,
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = Mono
-                                )
+                                scale = 0.52f
                             )
                         }
 
-                        Spacer(GlanceModifier.width(8.dp))
-                        SystemPill("$freeHours H FREE", strong = busyHours > 0)
+                        Spacer(GlanceModifier.width(7.dp))
+
+                        SystemPill(strong = busyHours > 0) {
+                            DotText(
+                                "$freeHours H FREE",
+                                scale = 0.50f,
+                                onSystemPill = true
+                            )
+                        }
                     }
 
-                    Spacer(GlanceModifier.height(8.dp))
+                    Spacer(GlanceModifier.height(9.dp))
 
                     Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
-                        Text(
-                            "AM",
-                            style = TextStyle(
-                                color = GlanceTheme.colors.onSurfaceVariant,
-                                fontSize = 7.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = Mono
-                            )
-                        )
+                        DotText("AM", scale = 0.45f)
                         Spacer(GlanceModifier.width(4.dp))
-                        SystemTrack(items, today)
+                        DayTrack(items, today)
                         Spacer(GlanceModifier.width(4.dp))
-                        Text(
-                            "PM",
-                            style = TextStyle(
-                                color = GlanceTheme.colors.onSurfaceVariant,
-                                fontSize = 7.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = Mono
-                            )
-                        )
+                        DotText("PM", scale = 0.45f)
                     }
 
                     Spacer(GlanceModifier.height(9.dp))
 
                     if (agenda.isEmpty()) {
-                        SystemPill("YOUR DAY IS WIDE OPEN", strong = true)
+                        SystemPill(strong = true) {
+                            DotText(
+                                "YOUR DAY IS WIDE OPEN",
+                                scale = 0.58f,
+                                onSystemPill = true,
+                                maxChars = 22
+                            )
+                        }
                         Spacer(GlanceModifier.height(7.dp))
-                        SystemPill("TAP TO PLAN SOMETHING")
+                        SystemPill {
+                            DotText(
+                                "TAP TO PLAN",
+                                scale = 0.58f,
+                                onSystemPill = true
+                            )
+                        }
                     } else {
                         agenda.forEachIndexed { index, item ->
                             Column {
-                                SystemEventRow(item = item, strong = index == 0)
+                                SystemEventPill(item = item, strong = index == 0)
                                 if (index != agenda.lastIndex) {
                                     Spacer(GlanceModifier.height(6.dp))
                                 }
@@ -652,8 +526,6 @@ class DaylineSquareWidget : GlanceAppWidget() {
 class DaylineSquareWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = DaylineSquareWidget()
 }
-
-
 
 object DaylineWidgetUpdater {
     suspend fun updateAll(context: Context) {

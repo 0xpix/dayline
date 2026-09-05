@@ -1,21 +1,22 @@
-# Dayline — v0.8.3
+# Dayline — v0.8.4
 
-Widget cleanup.
+Dot-matrix widget typography + system pills.
+
+## Typography
+Glance app widgets do not support app-bundled custom fonts. To get much closer to the Nothing dot-matrix reference without shipping a font file, Dayline now renders widget labels with its own 5×7 dot-matrix bitmap renderer.
+
+This applies to the visible typography in both widgets:
+- weekday / date / month
+- DAYLINE label
+- next event
+- `YOUR DAY IS CLEAR`
+- AM / PM
+- 2×2 date, free-hours badge and agenda text
 
 ## Pulse · 3×1
-- background is now transparent
-- keeps the cool Frost typography/pills/orbit mark
-- only the pills provide local contrast over the wallpaper
-- no large rounded rectangle behind the widget
+The widget body remains transparent.
+
+The rounded pills now use the Android / Nothing Material You system containers rather than the old Frost fill. This includes `YOUR DAY IS CLEAR`, event pills, date pills, and status pills.
 
 ## Orbit · 2×2
-- background now follows Android / Nothing Material You system colors
-- redesigned to use the full 2×2 area
-- large day number + weekday/month
-- free-hours badge
-- full AM → PM day track
-- two event rows
-- if the day is empty, it uses the lower area for `YOUR DAY IS WIDE OPEN` + `TAP TO PLAN SOMETHING` instead of leaving dead space
-
-## Removed
-- the 3×2 Dayline widget has been removed from the widget picker and app manifest.
+Keeps the Android / Nothing system background and now uses the same custom dot-matrix typography for a consistent widget family.

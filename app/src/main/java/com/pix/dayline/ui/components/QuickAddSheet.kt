@@ -2,7 +2,8 @@ package com.pix.dayline.ui.components
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
-import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -13,7 +14,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -32,7 +36,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pix.dayline.model.AgendaKind
 import com.pix.dayline.model.DaylineItem
+import com.pix.dayline.model.DaylineSpace
+import com.pix.dayline.model.ItemColor
 import com.pix.dayline.model.Recurrence
+import com.pix.dayline.ui.theme.composeColor
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -46,6 +53,7 @@ fun QuickAddSheet(
     initialDate: LocalDate,
     initialKind: AgendaKind = AgendaKind.EVENT,
     editing: DaylineItem? = null,
+    spaces: List<DaylineSpace> = emptyList(),
     onSave: (DaylineItem) -> Unit,
     onDelete: ((DaylineItem) -> Unit)? = null,
     onDismiss: () -> Unit
@@ -53,9 +61,45 @@ fun QuickAddSheet(
     val context = LocalContext.current
     var title by remember(editing?.id) { mutableStateOf(TextFieldValue(editing?.title.orEmpty())) }
     var date by remember(editing?.id, initialDate) { mutableStateOf(editing?.startDate ?: initialDate) }
-    var time by remember(editing?.id) { mutableStateOf(editing?.time) }
+    var startTime by remember(editing?.id) { mutableStateOf(editing?.startTime) }
+    var endTime by remember(editing?.id) { mutableStateOf(editing?.endTime) }
     var kind by remember(editing?.id, initialKind) { mutableStateOf(editing?.kind ?: initialKind) }
     var recurrence by remember(editing?.id) { mutableStateOf(editing?.recurrence ?: Recurrence.ONCE) }
+    var reminderMinutes by remember(editing?.id) { mutableStateOf(editing?.reminderMinutes) }
+    var itemColor by remember(editing?.id) { mutableStateOf(editing?.color ?: ItemColor.MONO) }
+    var spaceId by remember(editing?.id) { mutableStateOf(editing?.spaceId) }
+
+    fun pickStartTime() {
+        val initial = startTime ?: LocalTime.of(9, 0)
+        TimePickerDialog(
+            context,
+            { _, hour, minute ->
+                val next = LocalTime.of(hour, minute)
+                startTime = next
+                if (endTime == null || !endTime!!.isAfter(next)) {
+                    endTime = next.plusHours(1)
+                }
+            },
+            initial.hour,
+            initial.minute,
+            true
+        ).show()
+    }
+
+    fun pickEndTime() {
+        val start = startTime ?: LocalTime.of(9, 0)
+        val initial = endTime ?: start.plusHours(1)
+        TimePickerDialog(
+            context,
+            { _, hour, minute ->
+                val next = LocalTime.of(hour, minute)
+                endTime = if (next.isAfter(start)) next else start.plusHours(1)
+            },
+            initial.hour,
+            initial.minute,
+            true
+        ).show()
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -116,7 +160,7 @@ fun QuickAddSheet(
                 }
             )
 
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(26.dp))
 
             Text("Type", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
@@ -125,15 +169,22 @@ fun QuickAddSheet(
                 ChoicePill("Task", kind == AgendaKind.TASK) { kind = AgendaKind.TASK }
             }
 
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(20.dp))
+
+            if (spaces.isNotEmpty()) {
+                Text("Space", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ChoicePill("None", spaceId == null) { spaceId = null }
+                    spaces.take(3).forEach { space -> ChoicePill(space.name, spaceId == space.id) { spaceId = space.id } }
+                }
+                if (spaces.size > 3) { Spacer(Modifier.height(8.dp)); Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { spaces.drop(3).take(3).forEach { space -> ChoicePill(space.name, spaceId == space.id) { spaceId = space.id } } } }
+                Spacer(Modifier.height(20.dp))
+            }
 
             Text("When", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 PlainPill(date.format(DateTimeFormatter.ofPattern("EEE, MMM d"))) {
                     DatePickerDialog(
                         context,
@@ -143,25 +194,19 @@ fun QuickAddSheet(
                         date.dayOfMonth
                     ).show()
                 }
-
-                PlainPill(time?.format(DateTimeFormatter.ofPattern("HH:mm")) ?: "All day") {
-                    val initial = time ?: LocalTime.of(9, 0)
-                    TimePickerDialog(
-                        context,
-                        { _, hour, minute -> time = LocalTime.of(hour, minute) },
-                        initial.hour,
-                        initial.minute,
-                        true
-                    ).show()
-                }
-
-                if (time != null) {
+                PlainPill(startTime?.format(DateTimeFormatter.ofPattern("HH:mm")) ?: "All day", ::pickStartTime)
+                if (startTime != null) {
+                    PlainPill(endTime?.format(DateTimeFormatter.ofPattern("HH:mm")) ?: "+ end", ::pickEndTime)
                     Text(
                         text = "×",
                         modifier = Modifier.clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            onClick = { time = null }
+                            onClick = {
+                                startTime = null
+                                endTime = null
+                                reminderMinutes = null
+                            }
                         ),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -169,7 +214,16 @@ fun QuickAddSheet(
                 }
             }
 
-            Spacer(Modifier.height(22.dp))
+            if (startTime != null && endTime != null) {
+                Spacer(Modifier.height(7.dp))
+                Text(
+                    text = "${startTime!!.format(DateTimeFormatter.ofPattern("HH:mm"))} → ${endTime!!.format(DateTimeFormatter.ofPattern("HH:mm"))}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(Modifier.height(20.dp))
 
             Text("Repeat", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
@@ -184,15 +238,43 @@ fun QuickAddSheet(
                     RepeatPill("Monthly", Recurrence.MONTHLY, recurrence) { recurrence = it }
                 }
             }
-
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
             Text(
                 text = recurrenceDescription(recurrence, date),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(20.dp))
+
+            Text("Reminder", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ReminderPill("Off", null, reminderMinutes, startTime != null) { reminderMinutes = it }
+                ReminderPill("5m", 5, reminderMinutes, startTime != null) { reminderMinutes = it }
+                ReminderPill("10m", 10, reminderMinutes, startTime != null) { reminderMinutes = it }
+                ReminderPill("15m", 15, reminderMinutes, startTime != null) { reminderMinutes = it }
+            }
+            if (startTime == null) {
+                Spacer(Modifier.height(7.dp))
+                Text(
+                    text = "Add a start time to enable reminders.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            Text("Color", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                ItemColor.entries.forEach { color ->
+                    ColorSwatch(color = color, selected = itemColor == color) { itemColor = color }
+                }
+            }
+
+            Spacer(Modifier.height(26.dp))
 
             val canSave = title.text.isNotBlank()
             Surface(
@@ -209,8 +291,13 @@ fun QuickAddSheet(
                                     title = title.text.trim(),
                                     kind = kind,
                                     startDate = date,
-                                    time = time,
+                                    startTime = startTime,
+                                    endTime = endTime?.takeIf { startTime != null && it.isAfter(startTime) },
                                     recurrence = recurrence,
+                                    reminderMinutes = reminderMinutes.takeIf { startTime != null },
+                                    color = itemColor,
+                                    spaceId = spaceId,
+                                    details = editing?.details ?: emptyList(),
                                     completedDates = editing?.completedDates ?: emptySet()
                                 )
                             )
@@ -264,13 +351,58 @@ private fun PlainPill(label: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun RepeatPill(
-    label: String,
-    value: Recurrence,
-    selected: Recurrence,
-    onSelect: (Recurrence) -> Unit
-) {
+private fun RepeatPill(label: String, value: Recurrence, selected: Recurrence, onSelect: (Recurrence) -> Unit) {
     ChoicePill(label, value == selected) { onSelect(value) }
+}
+
+@Composable
+private fun ReminderPill(
+    label: String,
+    value: Int?,
+    selected: Int?,
+    enabled: Boolean,
+    onSelect: (Int?) -> Unit
+) {
+    val active = value == selected
+    Surface(
+        modifier = Modifier.clickable(
+            enabled = enabled || value == null,
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null,
+            onClick = { onSelect(value) }
+        ),
+        shape = CircleShape,
+        color = if (active) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.surface,
+        contentColor = if (active) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onSurface
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (!enabled && value != null) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f) else androidx.compose.ui.graphics.Color.Unspecified
+        )
+    }
+}
+
+@Composable
+private fun ColorSwatch(color: ItemColor, selected: Boolean, onClick: () -> Unit) {
+    val composeColor = color.composeColor()
+    Box(
+        modifier = Modifier
+            .size(27.dp)
+            .border(
+                width = if (selected) 2.dp else 1.dp,
+                color = if (selected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
+                shape = CircleShape
+            )
+            .padding(4.dp)
+            .background(composeColor, CircleShape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+    )
 }
 
 private fun recurrenceDescription(recurrence: Recurrence, date: LocalDate): String = when (recurrence) {

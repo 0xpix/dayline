@@ -35,6 +35,7 @@ fun NavigationSheet(
             NavigationRow("Calendar", DaylineScreen.CALENDAR, current, onSelect)
             NavigationRow("Upcoming", DaylineScreen.UPCOMING, current, onSelect)
             NavigationRow("Tasks", DaylineScreen.TASKS, current, onSelect)
+            NavigationRow("Spaces", DaylineScreen.SPACES, current, onSelect)
             Spacer(Modifier.height(14.dp))
             NavigationRow("Settings", DaylineScreen.SETTINGS, current, onSelect)
             Spacer(Modifier.height(26.dp))

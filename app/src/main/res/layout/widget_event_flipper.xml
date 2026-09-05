@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ViewFlipper xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/event_flipper"
+    android:layout_width="match_parent"
+    android:layout_height="18dp"
+    android:autoStart="true"
+    android:animateFirstView="false"
+    android:flipInterval="2800"
+    android:inAnimation="@anim/widget_slide_in_right"
+    android:outAnimation="@anim/widget_slide_out_left">
+
+    <ImageView
+        android:id="@+id/event_frame_1"
+        android:layout_width="match_parent"
+        android:layout_height="18dp"
+        android:adjustViewBounds="true"
+        android:scaleType="centerInside" />
+
+    <ImageView
+        android:id="@+id/event_frame_2"
+        android:layout_width="match_parent"
+        android:layout_height="18dp"
+        android:adjustViewBounds="true"
+        android:scaleType="centerInside" />
+
+    <ImageView
+        android:id="@+id/event_frame_3"
+        android:layout_width="match_parent"
+        android:layout_height="18dp"
+        android:adjustViewBounds="true"
+        android:scaleType="centerInside" />
+
+    <ImageView
+        android:id="@+id/event_frame_4"
+        android:layout_width="match_parent"
+        android:layout_height="18dp"
+        android:adjustViewBounds="true"
+        android:scaleType="centerInside" />
+</ViewFlipper>

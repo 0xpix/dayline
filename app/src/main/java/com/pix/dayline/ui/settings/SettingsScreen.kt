@@ -8,8 +8,10 @@ import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -29,10 +31,13 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.unit.sp
 import com.pix.dayline.data.Appearance
 import com.pix.dayline.data.FontChoice
+import com.pix.dayline.data.WidgetEmojiCategory
 import com.pix.dayline.data.WidgetEmojiChoice
 import com.pix.dayline.data.WidgetFontChoice
-import com.pix.dayline.data.label
+import com.pix.dayline.data.category
+import com.pix.dayline.data.icon
 import com.pix.dayline.data.iconRes
+import com.pix.dayline.data.label
 import com.pix.dayline.ui.components.FloatingControls
 
 private enum class SettingsSheet {
@@ -49,12 +54,14 @@ fun SettingsScreen(
     fontChoice: FontChoice,
     widgetFontChoice: WidgetFontChoice,
     widgetEmojiChoice: WidgetEmojiChoice,
+    widgetAutoSlide: Boolean,
     showOrb: Boolean,
     weekStartsMonday: Boolean,
     onAppearance: (Appearance) -> Unit,
     onFontChoice: (FontChoice) -> Unit,
     onWidgetFontChoice: (WidgetFontChoice) -> Unit,
     onWidgetEmojiChoice: (WidgetEmojiChoice) -> Unit,
+    onWidgetAutoSlide: (Boolean) -> Unit,
     onShowOrb: (Boolean) -> Unit,
     onWeekStart: (Boolean) -> Unit,
     onMenu: () -> Unit,
@@ -106,6 +113,12 @@ fun SettingsScreen(
                     title = "Widget emoji",
                     value = widgetEmojiChoice.label
                 ) { openSheet = SettingsSheet.WIDGET_EMOJI }
+
+                ToggleSettingRow(
+                    title = "Slide long event titles",
+                    checked = widgetAutoSlide,
+                    onChecked = onWidgetAutoSlide
+                )
             }
 
             Spacer(Modifier.height(24.dp))
@@ -161,7 +174,7 @@ fun SettingsScreen(
             Spacer(Modifier.height(34.dp))
 
             Text(
-                "Dayline 0.9.2",
+                "Dayline 0.9.3",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -372,6 +385,8 @@ private fun EmojiSheet(
     onSelect: (WidgetEmojiChoice) -> Unit,
     onDismiss: () -> Unit
 ) {
+    var category by remember { mutableStateOf(selected.category) }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.background
@@ -379,7 +394,7 @@ private fun EmojiSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = 22.dp)
                 .padding(bottom = 28.dp)
         ) {
             Text("Widget emoji", style = MaterialTheme.typography.headlineLarge)
@@ -387,14 +402,27 @@ private fun EmojiSheet(
             Spacer(Modifier.height(6.dp))
 
             Text(
-                "Choose a monochrome emoji icon for the left side of Pulse 3×1.",
+                "Monochrome icons inspired by the Nothing OS emoji style.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
+            Spacer(Modifier.height(18.dp))
+
+            WidgetEmojiPreview(selected)
+
+            Spacer(Modifier.height(18.dp))
+
+            EmojiCategoryStrip(
+                selected = category,
+                onSelect = { category = it }
+            )
+
             Spacer(Modifier.height(20.dp))
 
-            WidgetEmojiChoice.entries.chunked(4).forEach { row ->
+            val visible = WidgetEmojiChoice.entries.filter { it.category == category }
+
+            visible.chunked(4).forEach { row ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -418,6 +446,125 @@ private fun EmojiSheet(
 }
 
 @Composable
+private fun WidgetEmojiPreview(selected: WidgetEmojiChoice) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                MaterialTheme.colorScheme.surfaceVariant,
+                MaterialTheme.shapes.extraLarge
+            )
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .background(
+                    MaterialTheme.colorScheme.secondaryContainer,
+                    CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(selected.iconRes),
+                contentDescription = selected.label,
+                modifier = Modifier.size(28.dp),
+                colorFilter = ColorFilter.tint(
+                    MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            )
+        }
+
+        Spacer(Modifier.width(12.dp))
+
+        Box(
+            modifier = Modifier
+                .width(1.dp)
+                .height(46.dp)
+                .background(MaterialTheme.colorScheme.outlineVariant)
+        )
+
+        Spacer(Modifier.width(12.dp))
+
+        Column {
+            Text(
+                "SAT  5  SEPT",
+                style = MaterialTheme.typography.labelMedium,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+            )
+            Spacer(Modifier.height(5.dp))
+            Text(
+                "YOUR DAY IS CLEAR",
+                style = MaterialTheme.typography.bodyMedium,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+            )
+            Spacer(Modifier.height(5.dp))
+            Text(
+                "AM  · · ·  ◉  · · ·  PM",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmojiCategoryStrip(
+    selected: WidgetEmojiCategory,
+    onSelect: (WidgetEmojiCategory) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .background(
+                MaterialTheme.colorScheme.surfaceVariant,
+                CircleShape
+            )
+            .padding(5.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        WidgetEmojiCategory.entries.forEach { category ->
+            val active = category == selected
+            Row(
+                modifier = Modifier
+                    .background(
+                        if (active) MaterialTheme.colorScheme.primaryContainer
+                        else MaterialTheme.colorScheme.surfaceVariant,
+                        CircleShape
+                    )
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { onSelect(category) }
+                    .padding(horizontal = 14.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Image(
+                    painter = painterResource(category.icon.iconRes),
+                    contentDescription = category.label,
+                    modifier = Modifier.size(20.dp),
+                    colorFilter = ColorFilter.tint(
+                        if (active) MaterialTheme.colorScheme.onPrimaryContainer
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                )
+                Spacer(Modifier.width(7.dp))
+                Text(
+                    category.label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (active) MaterialTheme.colorScheme.onPrimaryContainer
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun EmojiChoice(
     emoji: WidgetEmojiChoice,
     selected: Boolean,
@@ -426,6 +573,13 @@ private fun EmojiChoice(
     Box(
         modifier = Modifier
             .size(68.dp)
+            .border(
+                width = if (selected) 2.dp else 0.dp,
+                color = if (selected) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.surfaceVariant,
+                shape = CircleShape
+            )
+            .padding(if (selected) 4.dp else 0.dp)
             .background(
                 color = if (selected) {
                     MaterialTheme.colorScheme.primaryContainer
@@ -444,7 +598,7 @@ private fun EmojiChoice(
         Image(
             painter = painterResource(emoji.iconRes),
             contentDescription = emoji.label,
-            modifier = Modifier.size(30.dp),
+            modifier = Modifier.size(31.dp),
             colorFilter = ColorFilter.tint(
                 if (selected) MaterialTheme.colorScheme.onPrimaryContainer
                 else MaterialTheme.colorScheme.onSurfaceVariant
@@ -452,6 +606,7 @@ private fun EmojiChoice(
         )
     }
 }
+
 
 private fun appearanceLabel(appearance: Appearance): String = when (appearance) {
     Appearance.SYSTEM -> "System"

@@ -35,3 +35,42 @@ val WidgetEmojiChoice.iconRes: Int
         WidgetEmojiChoice.RELAXED -> R.drawable.emoji_relaxed
         WidgetEmojiChoice.HEART_EYES -> R.drawable.emoji_heart_eyes
     }
+
+
+enum class WidgetEmojiCategory {
+    FACES,
+    FUN,
+    OTHER
+}
+
+val WidgetEmojiChoice.category: WidgetEmojiCategory
+    get() = when (this) {
+        WidgetEmojiChoice.SMILE,
+        WidgetEmojiChoice.GRIN,
+        WidgetEmojiChoice.WINK,
+        WidgetEmojiChoice.RELAXED -> WidgetEmojiCategory.FACES
+
+        WidgetEmojiChoice.COOL,
+        WidgetEmojiChoice.NERD,
+        WidgetEmojiChoice.PARTY,
+        WidgetEmojiChoice.HEART_EYES -> WidgetEmojiCategory.FUN
+
+        WidgetEmojiChoice.SLEEPY,
+        WidgetEmojiChoice.MELT,
+        WidgetEmojiChoice.GHOST,
+        WidgetEmojiChoice.ROBOT -> WidgetEmojiCategory.OTHER
+    }
+
+val WidgetEmojiCategory.label: String
+    get() = when (this) {
+        WidgetEmojiCategory.FACES -> "Faces"
+        WidgetEmojiCategory.FUN -> "Fun"
+        WidgetEmojiCategory.OTHER -> "Other"
+    }
+
+val WidgetEmojiCategory.icon: WidgetEmojiChoice
+    get() = when (this) {
+        WidgetEmojiCategory.FACES -> WidgetEmojiChoice.SMILE
+        WidgetEmojiCategory.FUN -> WidgetEmojiChoice.PARTY
+        WidgetEmojiCategory.OTHER -> WidgetEmojiChoice.ROBOT
+    }

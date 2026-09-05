@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
+import android.graphics.Typeface
 import com.pix.dayline.data.WidgetFontChoice
 import kotlin.math.ceil
 import kotlin.math.max
@@ -79,6 +80,10 @@ object DotMatrixRenderer {
             .replace('↗', '>')
             .take(maxChars)
 
+        if (fontChoice == WidgetFontChoice.MONO) {
+            return renderMono(context, text, scale)
+        }
+
         val bold = fontChoice == WidgetFontChoice.DOT_BOLD
 
         val dotDp = (if (bold) 1.72f else 1.08f) * scale
@@ -146,4 +151,33 @@ object DotMatrixRenderer {
 
         return DotMatrixImage(bitmap, widthDp, heightDp)
     }
+    private fun renderMono(
+        context: Context,
+        text: String,
+        scale: Float
+    ): DotMatrixImage {
+        val density = context.resources.displayMetrics.density
+        val scaledDensity = context.resources.displayMetrics.scaledDensity
+
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.WHITE
+            textSize = 10.5f * scale * scaledDensity
+            typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        }
+
+        val widthPx = max(1, ceil(paint.measureText(text).toDouble()).toInt())
+        val fm = paint.fontMetrics
+        val heightPx = max(1, ceil((fm.bottom - fm.top).toDouble()).toInt())
+
+        val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        canvas.drawText(text, 0f, -fm.top, paint)
+
+        return DotMatrixImage(
+            bitmap = bitmap,
+            widthDp = max(1, ceil(widthPx / density).toInt()),
+            heightDp = max(1, ceil(heightPx / density).toInt())
+        )
+    }
+
 }

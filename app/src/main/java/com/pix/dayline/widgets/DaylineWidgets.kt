@@ -2,6 +2,12 @@ package com.pix.dayline.widgets
 
 import android.content.Context
 import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffColorFilter
+import android.widget.RemoteViews
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -15,6 +21,7 @@ import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
+import androidx.glance.appwidget.AndroidRemoteViews
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.appWidgetBackground
@@ -101,6 +108,60 @@ private fun itemLead(item: DaylineItem): String =
 
 private fun compactTitle(title: String, max: Int): String =
     if (title.length <= max) title else title.take(max - 1) + "…"
+
+private fun splitForSlide(text: String, maxChars: Int = 14): List<String> {
+    val words = text.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+    if (words.isEmpty()) return listOf("")
+
+    val chunks = mutableListOf<String>()
+    var current = ""
+
+    fun flush() {
+        if (current.isNotBlank()) {
+            chunks += current
+            current = ""
+        }
+    }
+
+    for (word in words) {
+        if (word.length > maxChars) {
+            flush()
+            word.chunked(maxChars).forEach { chunks += it }
+            continue
+        }
+
+        val candidate = if (current.isBlank()) word else "$current $word"
+        if (candidate.length <= maxChars) {
+            current = candidate
+        } else {
+            flush()
+            current = word
+        }
+    }
+    flush()
+
+    return chunks.take(4)
+}
+
+private fun tintMask(bitmap: Bitmap, color: Int): Bitmap {
+    val out = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(out)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)
+    }
+    canvas.drawBitmap(bitmap, 0f, 0f, paint)
+    return out
+}
+
+private fun animatedPillTextColor(context: Context): Int =
+    if (
+        context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
+        Configuration.UI_MODE_NIGHT_YES
+    ) {
+        0xFFF9F5F1.toInt()
+    } else {
+        0xFF2D2926.toInt()
+    }
 
 private fun nextStatus(next: Occurrence?, now: LocalDateTime): String {
     if (next == null) return "OPEN"
@@ -307,10 +368,61 @@ private fun DayTrack(
 }
 
 @Composable
+private fun AnimatedEventText(
+    fullText: String,
+    fontChoice: WidgetFontChoice,
+    width: Int
+) {
+    val context = LocalContext.current
+    val chunks = splitForSlide(fullText, maxChars = 14)
+
+    if (chunks.size <= 1) {
+        WidgetText(
+            text = fullText,
+            fontChoice = fontChoice,
+            scale = 0.72f,
+            color = GlanceTheme.colors.onPrimaryContainer,
+            maxChars = 18
+        )
+        return
+    }
+
+    val remoteViews = RemoteViews(context.packageName, R.layout.widget_event_flipper)
+    val frameIds = intArrayOf(
+        R.id.event_frame_1,
+        R.id.event_frame_2,
+        R.id.event_frame_3,
+        R.id.event_frame_4
+    )
+
+    val color = animatedPillTextColor(context)
+
+    frameIds.forEachIndexed { index, viewId ->
+        val chunk = chunks.getOrElse(index) { chunks[index % chunks.size] }
+        val rendered = DotMatrixRenderer.render(
+            context = context,
+            rawText = chunk,
+            fontChoice = fontChoice,
+            scale = 0.72f,
+            maxChars = 14
+        )
+        remoteViews.setImageViewBitmap(viewId, tintMask(rendered.bitmap, color))
+    }
+
+    AndroidRemoteViews(
+        remoteViews = remoteViews,
+        modifier = GlanceModifier
+            .width(width.dp)
+            .height(18.dp)
+    )
+}
+
+@Composable
 private fun SystemEventPill(
     item: DaylineItem,
     strong: Boolean,
     fontChoice: WidgetFontChoice,
+    autoSlide: Boolean,
     width: Int? = null
 ) {
     val base = GlanceModifier
@@ -327,14 +439,24 @@ private fun SystemEventPill(
         modifier = modifier,
         contentAlignment = Alignment.CenterStart
     ) {
-        WidgetText(
-            text = "${if (item.kind == AgendaKind.TASK) "+" else ">"} ${compactTitle(item.title, 11)} ${itemLead(item)}",
-            fontChoice = fontChoice,
-            scale = 0.82f,
-            color = if (strong) GlanceTheme.colors.onPrimaryContainer
-            else GlanceTheme.colors.onSecondaryContainer,
-            maxChars = 20
-        )
+        val complete = "${if (item.kind == AgendaKind.TASK) "+" else ">"} ${item.title} ${itemLead(item)}"
+
+        if (autoSlide && complete.length > 18 && strong) {
+            AnimatedEventText(
+                fullText = complete,
+                fontChoice = fontChoice,
+                width = (width ?: 148) - 16
+            )
+        } else {
+            WidgetText(
+                text = "${if (item.kind == AgendaKind.TASK) "+" else ">"} ${compactTitle(item.title, 11)} ${itemLead(item)}",
+                fontChoice = fontChoice,
+                scale = 0.82f,
+                color = if (strong) GlanceTheme.colors.onPrimaryContainer
+                else GlanceTheme.colors.onSecondaryContainer,
+                maxChars = 20
+            )
+        }
     }
 }
 
@@ -351,6 +473,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
         val next = nextOccurrence(items, now)
         val widgetFont = DaylineStore(context).loadWidgetFontChoice()
         val widgetEmoji = DaylineStore(context).loadWidgetEmojiChoice()
+        val widgetAutoSlide = DaylineStore(context).loadWidgetAutoSlide()
 
         provideContent {
             TransparentPulseSurface {
@@ -448,6 +571,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                     item = next.item,
                                     strong = true,
                                     fontChoice = widgetFont,
+                                    autoSlide = widgetAutoSlide,
                                     width = 137
                                 )
                                 Spacer(GlanceModifier.width(5.dp))
@@ -511,6 +635,7 @@ class DaylineSquareWidget : GlanceAppWidget() {
         val busyHours = (0..23).count { isHourBusy(items, today, it) }
         val freeHours = 24 - busyHours
         val widgetFont = DaylineStore(context).loadWidgetFontChoice()
+        val widgetAutoSlide = DaylineStore(context).loadWidgetAutoSlide()
 
         provideContent {
             SystemSquareSurface {
@@ -608,7 +733,8 @@ class DaylineSquareWidget : GlanceAppWidget() {
                                 SystemEventPill(
                                     item = item,
                                     strong = index == 0,
-                                    fontChoice = widgetFont
+                                    fontChoice = widgetFont,
+                                    autoSlide = widgetAutoSlide
                                 )
                                 if (index != agenda.lastIndex) {
                                     Spacer(GlanceModifier.height(6.dp))

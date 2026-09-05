@@ -6,11 +6,15 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -18,11 +22,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.pix.dayline.R
 import com.pix.dayline.data.Appearance
 import com.pix.dayline.data.FontChoice
+import com.pix.dayline.data.WidgetCoverChoice
 import com.pix.dayline.data.WidgetFontChoice
 import com.pix.dayline.ui.components.FloatingControls
 
@@ -31,11 +39,13 @@ fun SettingsScreen(
     appearance: Appearance,
     fontChoice: FontChoice,
     widgetFontChoice: WidgetFontChoice,
+    widgetCoverChoice: WidgetCoverChoice,
     showOrb: Boolean,
     weekStartsMonday: Boolean,
     onAppearance: (Appearance) -> Unit,
     onFontChoice: (FontChoice) -> Unit,
     onWidgetFontChoice: (WidgetFontChoice) -> Unit,
+    onWidgetCoverChoice: (WidgetCoverChoice) -> Unit,
     onShowOrb: (Boolean) -> Unit,
     onWeekStart: (Boolean) -> Unit,
     onMenu: () -> Unit,
@@ -96,6 +106,20 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
+            Spacer(Modifier.height(26.dp))
+            SectionLabel("Widget cover")
+            Spacer(Modifier.height(12.dp))
+            WidgetCoverPicker(
+                selected = widgetCoverChoice,
+                onSelected = onWidgetCoverChoice
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Changes the dot-matrix logo on the left side of the transparent 3×1 Pulse widget.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
             Spacer(Modifier.height(28.dp))
             SectionLabel("Today")
             Spacer(Modifier.height(8.dp))
@@ -140,7 +164,7 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(34.dp))
             Text(
-                "Dayline 0.8.6",
+                "Dayline 0.8.7",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -155,6 +179,92 @@ fun SettingsScreen(
             onToday = onToday
         )
     }
+}
+
+@Composable
+private fun WidgetCoverPicker(
+    selected: WidgetCoverChoice,
+    onSelected: (WidgetCoverChoice) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        WidgetCoverChoice.entries.forEach { cover ->
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.width(72.dp)
+            ) {
+                val selectedBorder = if (cover == selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .border(
+                            width = if (cover == selected) 2.dp else 1.dp,
+                            color = selectedBorder,
+                            shape = CircleShape
+                        )
+                        .padding(5.dp)
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            CircleShape
+                        )
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { onSelected(cover) }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(widgetCoverDrawable(cover)),
+                        contentDescription = widgetCoverLabel(cover),
+                        modifier = Modifier.size(37.dp),
+                        colorFilter = ColorFilter.tint(
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    )
+                }
+
+                Spacer(Modifier.height(7.dp))
+
+                Text(
+                    widgetCoverLabel(cover),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (cover == selected) {
+                        MaterialTheme.colorScheme.onBackground
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
+        }
+    }
+}
+
+private fun widgetCoverDrawable(cover: WidgetCoverChoice): Int = when (cover) {
+    WidgetCoverChoice.DAYLINE -> R.drawable.widget_cover_dayline
+    WidgetCoverChoice.CALENDAR -> R.drawable.widget_cover_calendar
+    WidgetCoverChoice.WORK -> R.drawable.widget_cover_work
+    WidgetCoverChoice.GAME -> R.drawable.widget_cover_game
+    WidgetCoverChoice.CHAT -> R.drawable.widget_cover_chat
+    WidgetCoverChoice.HOME -> R.drawable.widget_cover_home
+}
+
+private fun widgetCoverLabel(cover: WidgetCoverChoice): String = when (cover) {
+    WidgetCoverChoice.DAYLINE -> "Dayline"
+    WidgetCoverChoice.CALENDAR -> "Calendar"
+    WidgetCoverChoice.WORK -> "Work"
+    WidgetCoverChoice.GAME -> "Game"
+    WidgetCoverChoice.CHAT -> "Chat"
+    WidgetCoverChoice.HOME -> "Home"
 }
 
 private fun preciseStatus(context: Context): String {

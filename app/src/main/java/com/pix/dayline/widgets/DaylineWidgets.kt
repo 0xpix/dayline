@@ -36,6 +36,7 @@ import androidx.glance.layout.width
 import com.pix.dayline.MainActivity
 import com.pix.dayline.R
 import com.pix.dayline.data.DaylineStore
+import com.pix.dayline.data.WidgetCoverChoice
 import com.pix.dayline.data.WidgetFontChoice
 import com.pix.dayline.model.AgendaKind
 import com.pix.dayline.model.DaylineItem
@@ -205,13 +206,26 @@ private fun SystemSquareSurface(content: @Composable () -> Unit) {
     }
 }
 
+private fun widgetCoverResource(cover: WidgetCoverChoice): Int = when (cover) {
+    WidgetCoverChoice.DAYLINE -> R.drawable.widget_cover_dayline
+    WidgetCoverChoice.CALENDAR -> R.drawable.widget_cover_calendar
+    WidgetCoverChoice.WORK -> R.drawable.widget_cover_work
+    WidgetCoverChoice.GAME -> R.drawable.widget_cover_game
+    WidgetCoverChoice.CHAT -> R.drawable.widget_cover_chat
+    WidgetCoverChoice.HOME -> R.drawable.widget_cover_home
+}
+
 @Composable
-private fun OrbitMark(size: Int) {
+private fun WidgetCoverMark(
+    cover: WidgetCoverChoice,
+    size: Int
+) {
     Image(
-        provider = ImageProvider(R.drawable.ic_widget_dayline_orbit),
+        provider = ImageProvider(widgetCoverResource(cover)),
         contentDescription = null,
         modifier = GlanceModifier.size(size.dp),
-        contentScale = ContentScale.Fit
+        contentScale = ContentScale.Fit,
+        colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface)
     )
 }
 
@@ -325,6 +339,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
         val today = now.toLocalDate()
         val next = nextOccurrence(items, now)
         val widgetFont = DaylineStore(context).loadWidgetFontChoice()
+        val widgetCover = DaylineStore(context).loadWidgetCoverChoice()
 
         provideContent {
             TransparentPulseSurface {
@@ -336,7 +351,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
                         modifier = GlanceModifier.width(44.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        OrbitMark(34)
+                        WidgetCoverMark(widgetCover, 36)
                         Spacer(GlanceModifier.height(2.dp))
                         WidgetText(
                             "DAYLINE",

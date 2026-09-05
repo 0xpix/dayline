@@ -43,6 +43,7 @@ fun DaylineApp() {
     var appearance by remember { mutableStateOf(store.loadAppearance()) }
     var fontChoice by remember { mutableStateOf(store.loadFontChoice()) }
     var widgetFontChoice by remember { mutableStateOf(store.loadWidgetFontChoice()) }
+    var widgetCoverChoice by remember { mutableStateOf(store.loadWidgetCoverChoice()) }
     var showOrb by remember { mutableStateOf(store.loadShowOrb()) }
     var weekStartsMonday by remember { mutableStateOf(store.loadWeekStartsMonday()) }
 
@@ -228,6 +229,7 @@ fun DaylineApp() {
                     appearance = appearance,
                     fontChoice = fontChoice,
                     widgetFontChoice = widgetFontChoice,
+                    widgetCoverChoice = widgetCoverChoice,
                     showOrb = showOrb,
                     weekStartsMonday = weekStartsMonday,
                     onAppearance = {
@@ -241,6 +243,11 @@ fun DaylineApp() {
                     onWidgetFontChoice = {
                         widgetFontChoice = it
                         store.saveWidgetFontChoice(it)
+                        widgetScope.launch { DaylineWidgetUpdater.updateAll(appContext) }
+                    },
+                    onWidgetCoverChoice = {
+                        widgetCoverChoice = it
+                        store.saveWidgetCoverChoice(it)
                         widgetScope.launch { DaylineWidgetUpdater.updateAll(appContext) }
                     },
                     onShowOrb = {

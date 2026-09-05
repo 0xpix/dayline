@@ -1,9 +1,9 @@
 <resources>
     <string name="app_name">Dayline</string>
     <string name="widget_compact_name">Dayline · Pulse 2×1</string>
-    <string name="widget_compact_description">A compact date, day-map and next-item pulse.</string>
-    <string name="widget_square_name">Dayline · Day Map 2×3</string>
-    <string name="widget_square_description">A visual 24-hour dot map with today’s first items.</string>
-    <string name="widget_agenda_name">Dayline · Day Board 3×3</string>
-    <string name="widget_agenda_description">A playful full-day board with a 24-hour map and agenda.</string>
+    <string name="widget_compact_description">A playful date, next-up capsule and tiny day track.</string>
+    <string name="widget_square_name">Dayline · Orbit 2×2</string>
+    <string name="widget_square_description">A compact orbit-style day map with two agenda capsules.</string>
+    <string name="widget_agenda_name">Dayline · Board 3×2</string>
+    <string name="widget_agenda_description">A wide Nothing-inspired board with date pills, a day track and agenda.</string>
 </resources>

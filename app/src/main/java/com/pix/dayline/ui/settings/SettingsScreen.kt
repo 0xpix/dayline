@@ -158,7 +158,7 @@ fun SettingsScreen(
             Spacer(Modifier.height(34.dp))
 
             Text(
-                "Dayline 0.9.0",
+                "Dayline 0.9.1",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

@@ -57,14 +57,8 @@ import java.util.Locale
 
 private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
-private val PulseFreeText = ColorProvider(
-    day = Color(0xFFF8F4F0),
-    night = Color(0xFFF8F4F0)
-)
-private val PulseFreeMuted = ColorProvider(
-    day = Color(0xFFD9D1CB),
-    night = Color(0xFFD9D1CB)
-)
+private val PulseFreeText = ColorProvider(Color(0xFFF8F4F0))
+private val PulseFreeMuted = ColorProvider(Color(0xFFD9D1CB))
 
 
 private data class Occurrence(

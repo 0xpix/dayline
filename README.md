@@ -1,26 +1,21 @@
-# Dayline — v0.9.0
+# Dayline — v0.9.1
 
-Emoji widget identity + simplified Settings.
+Compile repair for v0.9.0.
 
-## Emoji-only Pulse identity
-The old custom dot-matrix cover shapes are removed.
+The current Glance `ColorProvider` API in this project accepts either:
+- a single Compose `Color`, or
+- a color resource id.
 
-Settings → Widgets → **Widget emoji** opens a compact emoji picker:
-🙂 😁 😉 😎 🤓 🥳 😴 🫠 👻 🤖 😌 😍
+v0.9.0 incorrectly used named `day` / `night` arguments for the free-standing Pulse text colors.
 
-The selected emoji is shown in the system-colored circular cover on the left side of the transparent Pulse 3×1 widget.
+Fixed:
+- `PulseFreeText = ColorProvider(Color(...))`
+- `PulseFreeMuted = ColorProvider(Color(...))`
 
-## Cleaner Settings
-The settings page is no longer a long list of every possible option.
-
-It now shows compact rows:
-- Appearance
-- App font
-- Widget font
-- Widget emoji
-- 24-hour day dial
-- Notifications
-- Precise timing
-- Week starts Monday
-
-Appearance, app font, widget font and widget emoji open bottom-sheet selectors.
+No visual features were removed:
+- emoji-only Pulse identity remains
+- compact bottom-sheet Settings remains
+- Pulse 3×1 remains transparent
+- free-standing SAT / AM / PM / NEXT / UP text remains bright
+- Material You pill colors remain
+- Orbit 2×2 remains system-themed

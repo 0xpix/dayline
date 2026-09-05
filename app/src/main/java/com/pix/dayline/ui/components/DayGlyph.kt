@@ -31,6 +31,7 @@ fun DayGlyph(
     val foreground = MaterialTheme.colorScheme.onBackground
     val muted = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f)
     val accent = MaterialTheme.colorScheme.primary
+    val background = MaterialTheme.colorScheme.background
 
     Canvas(
         modifier = modifier.size(
@@ -84,7 +85,7 @@ fun DayGlyph(
             val center = Offset(x(nowMinutes), y)
 
             drawCircle(
-                color = MaterialTheme.colorScheme.background,
+                color = background,
                 radius = 4.2.dp.toPx(),
                 center = center
             )

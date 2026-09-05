@@ -3,10 +3,12 @@ package com.pix.dayline.ui.theme
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import com.pix.dayline.data.FontChoice
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
@@ -55,7 +57,12 @@ fun DaylineTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = daylineTypography(fontChoice),
-        content = content
-    )
+        typography = daylineTypography(fontChoice)
+    ) {
+        CompositionLocalProvider(
+            LocalContentColor provides colorScheme.onBackground
+        ) {
+            content()
+        }
+    }
 }

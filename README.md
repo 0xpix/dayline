@@ -1,10 +1,18 @@
-# Dayline — v0.5.0
+# Dayline — v0.6.0
 
-UI/navigation polish release.
+Dark-mode + launcher icon + widgets release.
 
-- Android back gesture now closes sheets/details first and navigates through Dayline screens instead of immediately exiting.
-- Floating controls overlay the page; content no longer reserves a blank 80dp strip on the right.
-- Today/home control uses a custom centered glyph instead of the off-center Unicode symbol.
-- More consistent top breathing room across Today, Calendar, Upcoming, Tasks, Spaces and Settings.
-- Typography setting: Pixelify Sans, Geist (Nothing OS 5), Geist Pixel, or system sans.
-- New adaptive + monochrome Dayline icon: a segmented 24-hour/day dial with a minimal day-line marker.
+## Fixed
+- Dark mode now provides the correct foreground content color globally, so labels and settings remain readable.
+- The launcher/adaptive/themed icon no longer depends on stroked arc paths. It uses solid geometry so Nothing Launcher should render the complete mark instead of only the center `!`-like part.
+- “Show day glyph” is renamed to **24-hour day dial** and explained in Settings.
+
+## Widgets
+Three separate Glance widgets are included:
+- **Dayline · Next 1×2** — date + next event/task.
+- **Dayline · Today 2×2** — date + first three items today.
+- **Dayline · Agenda 2×3** — taller Today list with up to six items.
+
+Widgets open Dayline when tapped, refresh when Dayline data changes, and request a periodic refresh every 30 minutes.
+
+Uses stable AndroidX Glance 1.2.0.

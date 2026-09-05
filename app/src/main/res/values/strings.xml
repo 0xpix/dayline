@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">Dayline</string>
+    <string name="widget_compact_name">Dayline · Next 1×2</string>
+    <string name="widget_compact_description">A narrow next-event widget.</string>
+    <string name="widget_square_name">Dayline · Today 2×2</string>
+    <string name="widget_square_description">Today’s date and first three items.</string>
+    <string name="widget_agenda_name">Dayline · Agenda 2×3</string>
+    <string name="widget_agenda_description">A taller Today agenda with up to six items.</string>
 </resources>

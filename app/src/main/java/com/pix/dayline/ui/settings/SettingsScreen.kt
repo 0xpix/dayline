@@ -75,7 +75,12 @@ fun SettingsScreen(
             Spacer(Modifier.height(28.dp))
             SectionLabel("Today")
             Spacer(Modifier.height(8.dp))
-            ToggleRow("Show day glyph", showOrb, onShowOrb)
+            ToggleRow("24-hour day dial", showOrb, onShowOrb)
+            Text(
+                "Shows a 24-segment dial on Today. Scheduled hours light up; the small marker shows the current hour.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             Spacer(Modifier.height(28.dp))
             SectionLabel("Reminders")
@@ -111,7 +116,7 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(34.dp))
             Text(
-                "Dayline 0.5.0",
+                "Dayline 0.6.0",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

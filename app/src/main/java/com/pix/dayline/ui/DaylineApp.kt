@@ -24,6 +24,8 @@ import com.pix.dayline.ui.tasks.TasksScreen
 import com.pix.dayline.ui.theme.DaylineTheme
 import com.pix.dayline.ui.today.TodayScreen
 import com.pix.dayline.ui.upcoming.UpcomingScreen
+import com.pix.dayline.widgets.DaylineWidgetUpdater
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 enum class DaylineScreen { TODAY, CALENDAR, UPCOMING, TASKS, SPACES, SETTINGS }
@@ -34,6 +36,7 @@ fun DaylineApp() {
     val context = LocalContext.current
     val appContext = context.applicationContext
     val store = remember(context) { DaylineStore(appContext) }
+    val widgetScope = rememberCoroutineScope()
 
     var items by remember { mutableStateOf(store.loadItems()) }
     var spaces by remember { mutableStateOf(store.loadSpaces()) }
@@ -92,6 +95,7 @@ fun DaylineApp() {
             items = next
             store.saveItems(next)
             NotificationScheduler.syncAll(appContext, next)
+            widgetScope.launch { DaylineWidgetUpdater.updateAll(appContext) }
         }
 
         fun saveItem(item: DaylineItem) {
@@ -137,6 +141,7 @@ fun DaylineApp() {
         fun saveSpaces(next: List<DaylineSpace>) {
             spaces = next
             store.saveSpaces(next)
+            widgetScope.launch { DaylineWidgetUpdater.updateAll(appContext) }
         }
 
         val hasOverlay =

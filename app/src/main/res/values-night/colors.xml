@@ -2,4 +2,5 @@
 <resources>
     <color name="widget_system_surface">#202020</color>
     <color name="widget_event_surface">#343434</color>
+    <color name="widget_track_empty">#555555</color>
 </resources>

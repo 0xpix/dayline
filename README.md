@@ -4,8 +4,19 @@
 
 Dayline is an open-source Android calendar and planner built with Kotlin, Jetpack Compose, Material 3 and Glance. It is intentionally local-first, minimal, and designed around Today rather than a dashboard.
 
-Current milestone: **v0.12.7 · Play beta**
+Current milestone: **v0.12.8 · Play beta**
 
+
+## v0.12.8 final widget contrast polish
+
+- Empty AM→PM timeline dots now use an explicit system-neutral contrast color,
+  making free time visible in light mode while retaining the darker look in
+  OLED/dark mode.
+- Date/status pills (`6`, `SEPT`, `NOW`, etc.) now use the exact same neutral
+  surface as the event-name pill.
+- Removed `XM LEFT` countdown text from the home-screen widget. Active normal
+  events show only the event title; focus events show `FOCUS`, `REST`, or
+  `PAUSED` plus the title. Detailed remaining time stays in the notification.
 
 ## v0.12.7 emoji picker + notification + typography polish
 

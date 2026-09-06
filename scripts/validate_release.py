@@ -155,10 +155,10 @@ for kind, name in re.findall(r"@([A-Za-z0-9_]+)/([A-Za-z0-9_]+)", manifest_text)
 
 # Release and Play configuration.
 gradle = read(APP / "build.gradle.kts")
-if 'versionName = "0.12.7"' not in gradle:
-    fail("app versionName must be 0.12.7")
-if 'versionCode = 37' not in gradle:
-    fail("app versionCode must be 37")
+if 'versionName = "0.12.8"' not in gradle:
+    fail("app versionName must be 0.12.8")
+if 'versionCode = 38' not in gradle:
+    fail("app versionCode must be 38")
 if "targetSdk = 36" not in gradle:
     fail("targetSdk 36 expected")
 if "compileSdk = 37" not in gradle:
@@ -228,6 +228,35 @@ for label, ok in feature_checks.items():
 
 
 
+
+
+# v0.12.8 final widget contrast checks.
+widgets_0128 = read(
+    JAVA / "com/pix/dayline/widgets/DaylineWidgets.kt"
+)
+
+if "R.color.widget_track_empty" not in widgets_0128:
+    fail("Light-mode empty timeline-dot contrast resource is missing")
+
+if 'R.color.widget_event_surface' not in widgets_0128:
+    fail("Unified widget event/date surface is missing")
+
+if 'M LEFT"' in widgets_0128 or 'minutesRemaining}M LEFT' in widgets_0128:
+    fail("Remaining-time LEFT text still appears in widget source")
+
+for resource_dir in (
+    "values",
+    "values-night",
+    "values-v31",
+    "values-night-v31"
+):
+    colors = RES / resource_dir / "colors.xml"
+    if not colors.is_file():
+        fail(f"Missing {resource_dir}/colors.xml")
+    elif "widget_track_empty" not in read(colors):
+        fail(
+            f"widget_track_empty is missing from {resource_dir}"
+        )
 
 # v0.12.7 picker/progress/typography/logo checks.
 widget_config_0127 = read(
@@ -541,7 +570,7 @@ for path in [*kotlin_files, *ROOT.glob("*.md"), *ROOT.glob("docs/*.md")]:
     if "FIXME" in text:
         fail(f"FIXME left in {path.relative_to(ROOT)}")
 
-print("Dayline v0.12.7 release validation")
+print("Dayline v0.12.8 release validation")
 print(f"  Kotlin files: {len(kotlin_files)}")
 print(f"  XML files: {len(list((APP / 'src/main').rglob('*.xml')))}")
 print(f"  Errors: {len(ERRORS)}")

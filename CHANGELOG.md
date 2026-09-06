@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.8 — Final widget contrast polish
+
+- Made unoccupied AM→PM timeline dots visible in light mode.
+- Unified date/status pill backgrounds with the event-name pill.
+- Removed remaining-time countdown text from the home-screen widget.
+
 ## 0.12.7 — Emoji picker and visual polish
 
 - Added a scrollable monochrome Noto Emoji widget picker.

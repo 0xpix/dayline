@@ -116,13 +116,23 @@ private fun liveWidgetLabel(
     } ?: return null
 
     val label = when {
-        live.paused && preferences.showFocusState ->
-            "PAUSED ${live.minutesRemaining}M"
-        live.focus == true && preferences.showFocusState ->
-            "FOCUS ${live.minutesRemaining}M"
-        live.focus == false && preferences.showFocusState ->
-            "REST ${live.minutesRemaining}M"
-        else -> "${compactTitle(live.item.title, 12)} ${live.minutesRemaining}M LEFT"
+        live.paused &&
+            preferences.showFocusState ->
+            "PAUSED > ${compactTitleUnicode(live.item.title, 14)}"
+
+        live.focus == true &&
+            preferences.showFocusState ->
+            "FOCUS > ${compactTitleUnicode(live.item.title, 14)}"
+
+        live.focus == false &&
+            preferences.showFocusState ->
+            "REST > ${compactTitleUnicode(live.item.title, 14)}"
+
+        else ->
+            compactTitleUnicode(
+                live.item.title,
+                18
+            )
     }
     return live.item to label
 }
@@ -378,7 +388,11 @@ private fun SystemPill(
 ) {
     Box(
         modifier = GlanceModifier
-            .background(GlanceTheme.colors.surfaceVariant)
+            .background(
+                ColorProvider(
+                    R.color.widget_event_surface
+                )
+            )
             .cornerRadius(30.dp)
             .padding(
                 horizontal = horizontalPadding.dp,
@@ -412,9 +426,16 @@ private fun DayTrack(
             }
 
             val color = when {
-                current -> GlanceTheme.colors.onSurface
-                busy -> GlanceTheme.colors.onSurfaceVariant
-                else -> GlanceTheme.colors.surfaceVariant
+                current ->
+                    GlanceTheme.colors.onSurface
+
+                busy ->
+                    GlanceTheme.colors.onSurfaceVariant
+
+                else ->
+                    ColorProvider(
+                        R.color.widget_track_empty
+                    )
             }
 
             Box(

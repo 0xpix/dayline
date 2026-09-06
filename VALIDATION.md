@@ -1,4 +1,4 @@
-# Dayline v0.12.7 — Validation
+# Dayline v0.12.8 — Validation
 
 This patch focuses on widget typography and surface polish.
 
@@ -121,5 +121,15 @@ GitHub Actions remains the authoritative full Android compile gate.
   minute boundary.
 - All Material typography roles are explicitly assigned the selected app font.
 - Floating Today/Home icon matches the segmented launcher foreground geometry.
+
+GitHub Actions remains the authoritative Android/Gradle compile gate.
+
+## v0.12.8 final widget checks
+
+- Empty DayTrack dots use a dedicated `widget_track_empty` resource for
+  light/dark and Android 12+ system-neutral palettes.
+- System/date/status pills and event-name pills share `widget_event_surface`.
+- Home-screen widget live labels contain no `M LEFT` countdown.
+- XML resources parse successfully and update/full ZIP integrity is verified.
 
 GitHub Actions remains the authoritative Android/Gradle compile gate.

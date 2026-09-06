@@ -1,8 +1,8 @@
-# Dayline v0.12.1-beta.2 — Validation Report
+# Dayline v0.12.8.beta — Validation Report
 
 ## Release checks completed
 
-## CI repair in beta.2
+## Version alignment in v0.12.8.beta
 
 - Settings widget arguments have safe defaults, so callers from the previous source shape compile.
 - Emoji preview uses a local resource mapper instead of the unresolved `iconRes` extension.

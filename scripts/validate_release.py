@@ -158,10 +158,10 @@ for kind, name in re.findall(r"@([A-Za-z0-9_]+)/([A-Za-z0-9_]+)", manifest_text)
 
 # Release and Play configuration.
 gradle = read(APP / "build.gradle.kts")
-if 'versionName = "0.12.1"' not in gradle:
-    fail("app versionName must be 0.12.1")
-if 'versionCode = 32' not in gradle:
-    fail("app versionCode must be 32")
+if 'versionName = "0.12.8"' not in gradle:
+    fail("app versionName must be 0.12.8")
+if 'versionCode = 33' not in gradle:
+    fail("app versionCode must be 33")
 if "targetSdk = 36" not in gradle:
     fail("targetSdk 36 expected")
 if "compileSdk = 37" not in gradle:
@@ -300,7 +300,7 @@ for path in [*kotlin_files, *ROOT.glob("*.md"), *ROOT.glob("docs/*.md")]:
     if "FIXME" in text:
         fail(f"FIXME left in {path.relative_to(ROOT)}")
 
-print("Dayline v0.12.1-beta.2 release validation")
+print("Dayline v0.12.8.beta release validation")
 print(f"  Kotlin files: {len(kotlin_files)}")
 print(f"  XML files: {len(list(APP.rglob('*.xml')))}")
 print(f"  Errors: {len(ERRORS)}")

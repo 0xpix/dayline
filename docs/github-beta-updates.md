@@ -31,7 +31,7 @@ The existing Play secrets remain separate:
 Use beta tags, for example:
 
 ```text
-v0.12.1-beta.2
+v0.12.8.beta
 ```
 
 The GitHub workflow builds `assembleBetaRelease`, creates a SHA-256 checksum and publishes both as a GitHub **prerelease**.

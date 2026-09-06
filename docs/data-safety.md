@@ -2,7 +2,7 @@
 
 Use this as a release checklist, not as a substitute for reviewing the final Play Console form.
 
-Current Play-flavor v0.12.1 architecture:
+Current Play-flavor v0.12.8 architecture:
 - no Dayline account
 - no Dayline backend
 - no analytics SDK

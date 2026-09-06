@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.12.8.beta — Beta version alignment
+
+- Aligned the app, README, validator, docs and issue template on `v0.12.8.beta`.
+- Beta flavor now reports `0.12.8.beta`; Play flavor reports `0.12.8`.
+- Bumped Android `versionCode` to 33 so the beta updater recognizes this build as newer.
+- GitHub Actions now accepts the `v*.beta*` tag convention while retaining compatibility with older `v*-beta*` tags.
+- Beta release APK names no longer append a redundant second `-beta`.
+
 ## 0.12.1-beta.2 — CI + Pages repair
 
 - Fixed Settings compile compatibility for widget font/emoji/auto-slide arguments.

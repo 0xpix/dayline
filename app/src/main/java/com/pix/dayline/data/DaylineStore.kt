@@ -388,16 +388,58 @@ class DaylineStore(context: Context) {
         val startTimeRaw = json.optString("startTime")
             .ifBlank { json.optString("time") }
 
+        val startDate =
+            LocalDate.parse(
+                json.getString("startDate")
+            )
+
+        val rawRecurrence =
+            json.optString(
+                "recurrence",
+                Recurrence.ONCE.name
+            )
+
+        val storedRepeatDays =
+            parseInts(
+                json.optJSONArray("repeatDays")
+            )
+
+        val recurrence =
+            when (rawRecurrence) {
+                "SUNDAYS",
+                "EXCEPT_SUNDAY" ->
+                    Recurrence.CUSTOM
+
+                else ->
+                    enumValue(
+                        rawRecurrence,
+                        Recurrence.ONCE
+                    )
+            }
+
+        val repeatDays =
+            when (rawRecurrence) {
+                "SUNDAYS" ->
+                    setOf(7)
+
+                "EXCEPT_SUNDAY" ->
+                    setOf(1, 2, 3, 4, 5, 6)
+
+                else ->
+                    storedRepeatDays
+            }
+
         return DaylineItem(
             id = json.getString("id"),
             title = json.getString("title"),
             kind = enumValue(json.optString("kind"), AgendaKind.EVENT),
-            startDate = LocalDate.parse(json.getString("startDate")),
+            startDate = startDate,
             startTime = startTimeRaw.takeIf { it.isNotBlank() }?.let(LocalTime::parse),
             endTime = json.optString("endTime")
                 .takeIf { it.isNotBlank() }
                 ?.let(LocalTime::parse),
-            recurrence = enumValue(json.optString("recurrence"), Recurrence.ONCE),
+            recurrence = recurrence,
+            repeatDays = repeatDays,
             recurrenceEndDate = json.optString("recurrenceEndDate")
                 .takeIf { it.isNotBlank() }
                 ?.let(LocalDate::parse),
@@ -442,6 +484,7 @@ class DaylineStore(context: Context) {
             .put("startTime", item.startTime?.toString().orEmpty())
             .put("endTime", item.endTime?.toString().orEmpty())
             .put("recurrence", item.recurrence.name)
+            .put("repeatDays", intsArray(item.repeatDays))
             .put("recurrenceEndDate", item.recurrenceEndDate?.toString().orEmpty())
             .put("excludedDates", datesArray(item.excludedDates))
             .put("seriesParentId", item.seriesParentId.orEmpty())
@@ -464,8 +507,34 @@ class DaylineStore(context: Context) {
             .put("calendarReadOnly", item.calendarReadOnly)
     }
 
-    private fun datesArray(dates: Set<LocalDate>): JSONArray = JSONArray().apply {
-        dates.sorted().forEach { put(it.toString()) }
+    private fun datesArray(
+        dates: Set<LocalDate>
+    ): JSONArray =
+        JSONArray().apply {
+            dates.sorted().forEach {
+                put(it.toString())
+            }
+        }
+
+    private fun intsArray(
+        values: Set<Int>
+    ): JSONArray =
+        JSONArray().apply {
+            values.sorted().forEach(::put)
+        }
+
+    private fun parseInts(
+        array: JSONArray?
+    ): Set<Int> = buildSet {
+        val source = array ?: JSONArray()
+
+        for (index in 0 until source.length()) {
+            val value = source.optInt(index, -1)
+
+            if (value in 1..7) {
+                add(value)
+            }
+        }
     }
 
     private fun parseDates(array: JSONArray?): Set<LocalDate> = buildSet {

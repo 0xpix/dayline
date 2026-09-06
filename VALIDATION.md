@@ -1,4 +1,4 @@
-# Dayline v0.12.5 — Validation
+# Dayline v0.12.6 — Validation
 
 This patch focuses on widget typography and surface polish.
 
@@ -98,3 +98,16 @@ runtime does not include an Android SDK/Gradle build environment.
 - Quick Add uses a padded title surface and stronger 30dp section spacing.
 
 GitHub Actions remains the authoritative Android/Gradle compile gate.
+
+## v0.12.6 recurrence + build-log repair
+
+The GitHub Actions log supplied after v0.12.5 exposed two compile failures:
+- `DaylineTransfer.kt` had a non-exhaustive recurrence `when`.
+- `DotMatrixRenderer.kt` had a malformed apostrophe character literal.
+
+Both are repaired here.
+
+Repeat UI now exposes only Once, Daily, Weekdays, Weekend and Choose days.
+Choose days opens a seven-day checkbox dialog and stores ISO weekday values 1..7.
+
+GitHub Actions remains the authoritative full Android compile gate.

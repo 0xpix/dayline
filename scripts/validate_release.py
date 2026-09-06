@@ -155,10 +155,10 @@ for kind, name in re.findall(r"@([A-Za-z0-9_]+)/([A-Za-z0-9_]+)", manifest_text)
 
 # Release and Play configuration.
 gradle = read(APP / "build.gradle.kts")
-if 'versionName = "0.12.5"' not in gradle:
-    fail("app versionName must be 0.12.5")
-if 'versionCode = 35' not in gradle:
-    fail("app versionCode must be 35")
+if 'versionName = "0.12.6"' not in gradle:
+    fail("app versionName must be 0.12.6")
+if 'versionCode = 36' not in gradle:
+    fail("app versionCode must be 36")
 if "targetSdk = 36" not in gradle:
     fail("targetSdk 36 expected")
 if "compileSdk = 37" not in gradle:
@@ -227,6 +227,18 @@ for label, ok in feature_checks.items():
 
 
 
+
+# v0.12.6 compile-regression checks.
+renderer_source = read(
+    JAVA / "com/pix/dayline/widgets/DotMatrixRenderer.kt"
+)
+store_source = read(
+    JAVA / "com/pix/dayline/data/DaylineStore.kt"
+)
+
+if "repeatDays" not in store_source:
+    fail("Custom repeat-day persistence is missing")
+
 # v0.12.5 Unicode / recurrence / widget layout checks.
 renderer_source = read(
     JAVA / "com/pix/dayline/widgets/DotMatrixRenderer.kt"
@@ -260,8 +272,8 @@ if "compactTitleUnicode" not in widgets_source:
     fail("Unicode-safe title truncation is missing")
 
 for token in (
-    "Recurrence.SUNDAYS",
-    "Recurrence.EXCEPT_SUNDAY"
+    "Recurrence.WEEKENDS",
+    "Recurrence.CUSTOM"
 ):
     if token not in item_source:
         fail(f"Occurrence logic missing {token}")
@@ -271,6 +283,25 @@ for token in (
         fail(f"Calendar RRULE missing {token}")
     if token not in transfer_source:
         fail(f"ICS recurrence support missing {token}")
+
+if "RepeatDaysDialog(" not in quick_source:
+    fail("Seven-day repeat chooser dialog is missing")
+
+for label in (
+    '"Once"',
+    '"Daily"',
+    '"Weekdays"',
+    '"Weekend"',
+    '"Choose days"'
+):
+    if label not in quick_source:
+        fail(f"Visible repeat option missing: {label}")
+
+if '"Sunday only"' in quick_source:
+    fail("Old Sunday-only repeat option is still visible")
+
+if '"Every day except Sunday"' in quick_source:
+    fail("Old except-Sunday repeat option is still visible")
 
 if "SectionHeader(" not in quick_source:
     fail("Quick Add section spacing hierarchy is missing")
@@ -462,7 +493,7 @@ for path in [*kotlin_files, *ROOT.glob("*.md"), *ROOT.glob("docs/*.md")]:
     if "FIXME" in text:
         fail(f"FIXME left in {path.relative_to(ROOT)}")
 
-print("Dayline v0.12.5 release validation")
+print("Dayline v0.12.6 release validation")
 print(f"  Kotlin files: {len(kotlin_files)}")
 print(f"  XML files: {len(list((APP / 'src/main').rglob('*.xml')))}")
 print(f"  Errors: {len(ERRORS)}")

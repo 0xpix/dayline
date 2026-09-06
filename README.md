@@ -4,8 +4,19 @@
 
 Dayline is an open-source Android calendar and planner built with Kotlin, Jetpack Compose, Material 3 and Glance. It is intentionally local-first, minimal, and designed around Today rather than a dashboard.
 
-Current milestone: **v0.12.5 · Play beta**
+Current milestone: **v0.12.6 · Play beta**
 
+
+## v0.12.6 repeat-day chooser
+
+- Simplified visible Repeat choices to **Once, Daily, Weekdays, Weekend,
+  Choose days**.
+- **Choose days** opens a seven-day checkbox dialog.
+- Added `repeatDays` persistence and Android Calendar / ICS BYDAY support.
+- Migrates the short-lived v0.12.5 `SUNDAYS` and `EXCEPT_SUNDAY` values.
+- Fixed the malformed apostrophe glyph in `DotMatrixRenderer.kt`.
+- Fixed the non-exhaustive `DaylineTransfer.kt` recurrence build failure.
+- Improved Quick Add heading and section spacing.
 
 ## v0.12.5 Unicode widget + recurrence polish
 

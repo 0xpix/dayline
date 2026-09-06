@@ -417,9 +417,24 @@ object AndroidCalendarSync {
         val core = when (item.recurrence) {
             Recurrence.ONCE -> return null
             Recurrence.DAILY -> "FREQ=DAILY"
-            Recurrence.WEEKDAYS -> "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"
-            Recurrence.SUNDAYS -> "FREQ=WEEKLY;BYDAY=SU"
-            Recurrence.EXCEPT_SUNDAY -> "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR,SA"
+            Recurrence.WEEKDAYS ->
+                "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"
+            Recurrence.WEEKENDS ->
+                "FREQ=WEEKLY;BYDAY=SA,SU"
+            Recurrence.CUSTOM -> {
+                val days =
+                    item.repeatDays
+                        .ifEmpty {
+                            setOf(
+                                item.startDate
+                                    .dayOfWeek
+                                    .value
+                            )
+                        }
+
+                "FREQ=WEEKLY;BYDAY=" +
+                    days.toRruleDays()
+            }
             Recurrence.WEEKLY -> {
                 val day = when (item.startDate.dayOfWeek.value) {
                     1 -> "MO"
@@ -444,6 +459,22 @@ object AndroidCalendarSync {
 
         return core + until
     }
+
+    private fun Set<Int>.toRruleDays(): String =
+        sorted()
+            .mapNotNull { value ->
+                when (value) {
+                    1 -> "MO"
+                    2 -> "TU"
+                    3 -> "WE"
+                    4 -> "TH"
+                    5 -> "FR"
+                    6 -> "SA"
+                    7 -> "SU"
+                    else -> null
+                }
+            }
+            .joinToString(",")
 
     private fun recurringEventIds(context: Context): Set<Long> {
         if (!hasReadPermission(context)) return emptySet()

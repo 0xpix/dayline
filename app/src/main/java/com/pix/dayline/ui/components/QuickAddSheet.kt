@@ -23,11 +23,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pix.dayline.model.*
 import com.pix.dayline.ui.theme.composeColor
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -74,7 +78,45 @@ fun QuickAddSheet(
         )
     }
     var kind by remember(editing?.id, initialKind) { mutableStateOf(editing?.kind ?: initialKind) }
-    var recurrence by remember(editing?.id) { mutableStateOf(editing?.recurrence ?: Recurrence.ONCE) }
+    val initialRecurrence =
+        when (editing?.recurrence) {
+            Recurrence.WEEKLY ->
+                Recurrence.CUSTOM
+
+            else ->
+                editing?.recurrence
+                    ?: Recurrence.ONCE
+        }
+
+    val initialRepeatDays =
+        when (editing?.recurrence) {
+            Recurrence.WEEKLY ->
+                setOf(
+                    editing.startDate
+                        .dayOfWeek
+                        .value
+                )
+
+            Recurrence.CUSTOM ->
+                editing.repeatDays
+
+            else ->
+                editing?.repeatDays
+                    ?: emptySet()
+        }
+
+    var recurrence by remember(editing?.id) {
+        mutableStateOf(initialRecurrence)
+    }
+
+    var repeatDays by remember(editing?.id) {
+        mutableStateOf(initialRepeatDays)
+    }
+
+    var showRepeatDayPicker by remember(editing?.id) {
+        mutableStateOf(false)
+    }
+
     var editScope by remember(editing?.id) { mutableStateOf(RecurrenceEditScope.ENTIRE_SERIES) }
     var reminderMinutes by remember(editing?.id) { mutableStateOf(editing?.reminderMinutes) }
     var focusCycle by remember(editing?.id) { mutableStateOf(editing?.focusCycle ?: FocusCycle.OFF) }
@@ -149,9 +191,30 @@ fun QuickAddSheet(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    if (editing == null) "New" else "Edit",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text =
+                        if (editing == null) {
+                            if (
+                                kind ==
+                                AgendaKind.EVENT
+                            ) {
+                                "New event"
+                            } else {
+                                "New task"
+                            }
+                        } else {
+                            if (
+                                kind ==
+                                AgendaKind.EVENT
+                            ) {
+                                "Edit event"
+                            } else {
+                                "Edit task"
+                            }
+                        },
+                    style =
+                        MaterialTheme.typography.headlineSmall,
+                    color =
+                        MaterialTheme.colorScheme.onBackground
                 )
                 if (editing != null && onDelete != null) {
                     Text(
@@ -350,49 +413,109 @@ fun QuickAddSheet(
                     "Once",
                     Recurrence.ONCE,
                     recurrence
-                ) { recurrence = it }
+                ) {
+                    recurrence = it
+                }
 
                 RepeatPill(
                     "Daily",
                     Recurrence.DAILY,
                     recurrence
-                ) { recurrence = it }
+                ) {
+                    recurrence = it
+                }
 
                 RepeatPill(
                     "Weekdays",
                     Recurrence.WEEKDAYS,
                     recurrence
-                ) { recurrence = it }
+                ) {
+                    recurrence = it
+                }
 
                 RepeatPill(
-                    "Sunday only",
-                    Recurrence.SUNDAYS,
+                    "Weekend",
+                    Recurrence.WEEKENDS,
                     recurrence
-                ) { recurrence = it }
+                ) {
+                    recurrence = it
+                }
 
-                RepeatPill(
-                    "Every day except Sunday",
-                    Recurrence.EXCEPT_SUNDAY,
-                    recurrence
-                ) { recurrence = it }
+                ChoicePill(
+                    "Choose days",
+                    recurrence == Recurrence.CUSTOM
+                ) {
+                    recurrence =
+                        Recurrence.CUSTOM
 
-                RepeatPill(
-                    "Weekly",
-                    Recurrence.WEEKLY,
-                    recurrence
-                ) { recurrence = it }
+                    if (repeatDays.isEmpty()) {
+                        repeatDays =
+                            setOf(
+                                date.dayOfWeek.value
+                            )
+                    }
 
-                RepeatPill(
-                    "Monthly",
-                    Recurrence.MONTHLY,
-                    recurrence
-                ) { recurrence = it }
+                    showRepeatDayPicker = true
+                }
             }
-            Spacer(Modifier.height(6.dp))
+
+            if (
+                recurrence ==
+                Recurrence.CUSTOM
+            ) {
+                Spacer(
+                    Modifier.height(9.dp)
+                )
+
+                Surface(
+                    modifier = Modifier.clickable(
+                        interactionSource =
+                            remember {
+                                MutableInteractionSource()
+                            },
+                        indication = null
+                    ) {
+                        showRepeatDayPicker = true
+                    },
+                    shape =
+                        RoundedCornerShape(16.dp),
+                    color =
+                        MaterialTheme.colorScheme.surface
+                ) {
+                    Text(
+                        text =
+                            repeatDaysLabel(
+                                repeatDays
+                            ) + "  ›",
+                        modifier =
+                            Modifier.padding(
+                                horizontal = 14.dp,
+                                vertical = 9.dp
+                            ),
+                        style =
+                            MaterialTheme.typography.bodyMedium,
+                        color =
+                            MaterialTheme.colorScheme
+                                .onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(
+                Modifier.height(8.dp)
+            )
+
             Text(
-                recurrenceDescription(recurrence, date),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                recurrenceDescription(
+                    recurrence,
+                    date,
+                    repeatDays
+                ),
+                style =
+                    MaterialTheme.typography.bodyMedium,
+                color =
+                    MaterialTheme.colorScheme
+                        .onSurfaceVariant
             )
 
             if (editing != null && editing.recurrence != Recurrence.ONCE) {
@@ -510,6 +633,20 @@ fun QuickAddSheet(
                             startTime = startTime,
                             endTime = endTime?.takeIf { startTime != null && it.isAfter(startTime) },
                             recurrence = recurrence,
+                            repeatDays =
+                                if (
+                                    recurrence ==
+                                    Recurrence.CUSTOM
+                                ) {
+                                    repeatDays.ifEmpty {
+                                        setOf(
+                                            date.dayOfWeek
+                                                .value
+                                        )
+                                    }
+                                } else {
+                                    emptySet()
+                                },
                             recurrenceEndDate = editing?.recurrenceEndDate,
                             excludedDates = editing?.excludedDates ?: emptySet(),
                             seriesParentId = editing?.seriesParentId,
@@ -549,12 +686,27 @@ fun QuickAddSheet(
             Spacer(Modifier.height(28.dp))
         }
     }
+
+    if (showRepeatDayPicker) {
+        RepeatDaysDialog(
+            selected = repeatDays,
+            onConfirm = { days ->
+                repeatDays = days
+                recurrence =
+                    Recurrence.CUSTOM
+                showRepeatDayPicker = false
+            },
+            onDismiss = {
+                showRepeatDayPicker = false
+            }
+        )
+    }
 }
 
 @Composable
 private fun SectionHeader(
     label: String,
-    top: Int = 30
+    top: Int = 34
 ) {
     Spacer(
         Modifier.height(top.dp)
@@ -563,14 +715,14 @@ private fun SectionHeader(
     Text(
         text = label.uppercase(),
         style =
-            MaterialTheme.typography.labelMedium,
+            MaterialTheme.typography.labelLarge,
         color =
             MaterialTheme.colorScheme
                 .onSurfaceVariant
     )
 
     Spacer(
-        Modifier.height(12.dp)
+        Modifier.height(14.dp)
     )
 }
 
@@ -673,6 +825,105 @@ private fun RepeatPill(label: String, value: Recurrence, selected: Recurrence, o
 }
 
 @Composable
+private fun RepeatDaysDialog(
+    selected: Set<Int>,
+    onConfirm: (Set<Int>) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var temporary by remember(selected) {
+        mutableStateOf(selected)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                "Repeat on",
+                style =
+                    MaterialTheme.typography
+                        .headlineSmall
+            )
+        },
+        text = {
+            Column {
+                DayOfWeek.values().forEach { day ->
+                    val checked =
+                        day.value in temporary
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(
+                                interactionSource =
+                                    remember {
+                                        MutableInteractionSource()
+                                    },
+                                indication = null
+                            ) {
+                                temporary =
+                                    if (checked) {
+                                        temporary -
+                                            day.value
+                                    } else {
+                                        temporary +
+                                            day.value
+                                    }
+                            }
+                            .padding(vertical = 5.dp),
+                        verticalAlignment =
+                            Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = checked,
+                            onCheckedChange = {
+                                temporary =
+                                    if (checked) {
+                                        temporary -
+                                            day.value
+                                    } else {
+                                        temporary +
+                                            day.value
+                                    }
+                            }
+                        )
+
+                        Spacer(
+                            Modifier.width(8.dp)
+                        )
+
+                        Text(
+                            day.getDisplayName(
+                                TextStyle.FULL,
+                                Locale.getDefault()
+                            ),
+                            style =
+                                MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = temporary.isNotEmpty(),
+                onClick = {
+                    onConfirm(temporary)
+                }
+            ) {
+                Text("Done")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss
+            ) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
 private fun ReminderPill(
     label: String,
     value: Int?,
@@ -724,14 +975,63 @@ private fun ColorSwatch(color: ItemColor, selected: Boolean, onClick: () -> Unit
     )
 }
 
-private fun recurrenceDescription(recurrence: Recurrence, date: LocalDate): String = when (recurrence) {
-    Recurrence.ONCE -> "Only once."
-    Recurrence.DAILY -> "Every day from ${date.format(DateTimeFormatter.ofPattern("MMM d"))}."
-    Recurrence.WEEKDAYS -> "Every Monday to Friday."
-    Recurrence.SUNDAYS -> "Every Sunday."
-    Recurrence.EXCEPT_SUNDAY -> "Every day except Sunday."
-    Recurrence.WEEKLY -> "Every ${date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())}."
-    Recurrence.MONTHLY -> "Every month on the ${ordinal(date.dayOfMonth)}."
+private fun recurrenceDescription(
+    recurrence: Recurrence,
+    date: LocalDate,
+    repeatDays: Set<Int>
+): String = when (recurrence) {
+    Recurrence.ONCE ->
+        "Only once."
+
+    Recurrence.DAILY ->
+        "Every day from ${
+            date.format(
+                DateTimeFormatter.ofPattern(
+                    "MMM d"
+                )
+            )
+        }."
+
+    Recurrence.WEEKDAYS ->
+        "Every Monday to Friday."
+
+    Recurrence.WEEKENDS ->
+        "Every Saturday and Sunday."
+
+    Recurrence.CUSTOM ->
+        "Repeats on ${
+            repeatDaysLabel(
+                repeatDays
+            )
+        }."
+
+    Recurrence.WEEKLY ->
+        "Weekly."
+
+    Recurrence.MONTHLY ->
+        "Monthly."
+}
+
+private fun repeatDaysLabel(
+    repeatDays: Set<Int>
+): String {
+    if (repeatDays.isEmpty()) {
+        return "Choose days"
+    }
+
+    return repeatDays
+        .sorted()
+        .mapNotNull { value ->
+            DayOfWeek.values()
+                .firstOrNull {
+                    it.value == value
+                }
+                ?.getDisplayName(
+                    TextStyle.SHORT,
+                    Locale.getDefault()
+                )
+        }
+        .joinToString(" · ")
 }
 
 private fun nextBuffer(current: Int): Int = when (current) {
@@ -744,12 +1044,3 @@ private fun nextBuffer(current: Int): Int = when (current) {
     else -> 0
 }
 
-private fun ordinal(day: Int): String {
-    val suffix = if (day in 11..13) "th" else when (day % 10) {
-        1 -> "st"
-        2 -> "nd"
-        3 -> "rd"
-        else -> "th"
-    }
-    return "$day$suffix"
-}

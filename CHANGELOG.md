@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.6 — Repeat-day chooser
+
+- Replaced Sunday-specific/weekly/monthly visible choices with Once, Daily,
+  Weekdays, Weekend and Choose days.
+- Added seven-day checkbox picker for custom repeat schedules.
+- Added repeat-day persistence, Android Calendar RRULE support and ICS support.
+- Fixed the v0.12.5 DotMatrixRenderer apostrophe syntax error.
+- Fixed the v0.12.5 non-exhaustive DaylineTransfer recurrence branch.
+- Improved Quick Add section hierarchy.
+
 ## 0.12.5 — Unicode widget and recurrence polish
 
 - Preserved emoji, ampersands and other Unicode in widget event names.

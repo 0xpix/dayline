@@ -88,14 +88,33 @@ object DaylineTransfer {
             endTime = end?.toLocalTime()
         }
 
+        val byDays =
+            parseByDay(rrule)
+
         val recurrence = when {
-            rrule?.contains("FREQ=DAILY") == true -> Recurrence.DAILY
-            rrule?.contains("BYDAY=MO,TU,WE,TH,FR,SA") == true -> Recurrence.EXCEPT_SUNDAY
-            rrule?.contains("BYDAY=MO,TU,WE,TH,FR") == true -> Recurrence.WEEKDAYS
-            rrule?.contains("BYDAY=SU") == true -> Recurrence.SUNDAYS
-            rrule?.contains("FREQ=WEEKLY") == true -> Recurrence.WEEKLY
-            rrule?.contains("FREQ=MONTHLY") == true -> Recurrence.MONTHLY
-            else -> Recurrence.ONCE
+            rrule?.contains("FREQ=DAILY") == true ->
+                Recurrence.DAILY
+
+            rrule?.contains("FREQ=MONTHLY") == true ->
+                Recurrence.MONTHLY
+
+            rrule?.contains("FREQ=WEEKLY") == true &&
+                byDays == setOf(1, 2, 3, 4, 5) ->
+                Recurrence.WEEKDAYS
+
+            rrule?.contains("FREQ=WEEKLY") == true &&
+                byDays == setOf(6, 7) ->
+                Recurrence.WEEKENDS
+
+            rrule?.contains("FREQ=WEEKLY") == true &&
+                byDays.isNotEmpty() ->
+                Recurrence.CUSTOM
+
+            rrule?.contains("FREQ=WEEKLY") == true ->
+                Recurrence.WEEKLY
+
+            else ->
+                Recurrence.ONCE
         }
 
         return DaylineItem(
@@ -105,7 +124,13 @@ object DaylineTransfer {
             startDate = date,
             startTime = startTime,
             endTime = endTime,
-            recurrence = recurrence
+            recurrence = recurrence,
+            repeatDays =
+                if (recurrence == Recurrence.CUSTOM) {
+                    byDays
+                } else {
+                    emptySet()
+                }
         )
     }
 
@@ -120,13 +145,86 @@ object DaylineTransfer {
         }.getOrNull()
     }
 
-    private fun recurrenceRule(item: DaylineItem): String? = when (item.recurrence) {
-        Recurrence.ONCE -> null
-        Recurrence.DAILY -> "FREQ=DAILY"
-        Recurrence.WEEKDAYS -> "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"
-        Recurrence.WEEKLY -> "FREQ=WEEKLY"
-        Recurrence.MONTHLY -> "FREQ=MONTHLY;BYMONTHDAY=${item.startDate.dayOfMonth}"
+    private fun recurrenceRule(
+        item: DaylineItem
+    ): String? = when (item.recurrence) {
+        Recurrence.ONCE ->
+            null
+
+        Recurrence.DAILY ->
+            "FREQ=DAILY"
+
+        Recurrence.WEEKDAYS ->
+            "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"
+
+        Recurrence.WEEKENDS ->
+            "FREQ=WEEKLY;BYDAY=SA,SU"
+
+        Recurrence.CUSTOM -> {
+            val days =
+                item.repeatDays
+                    .ifEmpty {
+                        setOf(
+                            item.startDate
+                                .dayOfWeek
+                                .value
+                        )
+                    }
+
+            "FREQ=WEEKLY;BYDAY=" +
+                days.toRruleDays()
+        }
+
+        Recurrence.WEEKLY ->
+            "FREQ=WEEKLY"
+
+        Recurrence.MONTHLY ->
+            "FREQ=MONTHLY;BYMONTHDAY=" +
+                item.startDate.dayOfMonth
     }
+
+    private fun parseByDay(
+        rrule: String?
+    ): Set<Int> {
+        val raw =
+            rrule
+                ?.substringAfter("BYDAY=", "")
+                ?.substringBefore(';')
+                ?.takeIf { it.isNotBlank() }
+                ?: return emptySet()
+
+        return raw
+            .split(',')
+            .mapNotNull { token ->
+                when (token.trim()) {
+                    "MO" -> 1
+                    "TU" -> 2
+                    "WE" -> 3
+                    "TH" -> 4
+                    "FR" -> 5
+                    "SA" -> 6
+                    "SU" -> 7
+                    else -> null
+                }
+            }
+            .toSet()
+    }
+
+    private fun Set<Int>.toRruleDays(): String =
+        sorted()
+            .mapNotNull { value ->
+                when (value) {
+                    1 -> "MO"
+                    2 -> "TU"
+                    3 -> "WE"
+                    4 -> "TH"
+                    5 -> "FR"
+                    6 -> "SA"
+                    7 -> "SU"
+                    else -> null
+                }
+            }
+            .joinToString(",")
 
     private fun escape(value: String): String = value
         .replace("\\", "\\\\")

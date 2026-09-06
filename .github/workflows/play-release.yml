@@ -12,13 +12,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Static release validation
         run: python3 scripts/validate_release.py
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
@@ -33,7 +33,7 @@ jobs:
           sdkmanager --channel=3 "platform-tools" "platforms;android-37.0" "build-tools;36.0.0"
 
       - name: Set up Gradle 9.4.1
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: "9.4.1"
 
@@ -76,7 +76,7 @@ jobs:
           cp app/build/outputs/bundle/playRelease/app-play-release.aab play-artifacts/dayline-release.aab
 
       - name: Upload Play-ready release
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dayline-play-release
           path: play-artifacts/

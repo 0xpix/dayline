@@ -7,6 +7,8 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import com.pix.dayline.BuildConfig
+import com.pix.dayline.R
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -49,9 +51,9 @@ private enum class SettingsSheet {
 fun SettingsScreen(
     appearance: Appearance,
     fontChoice: FontChoice,
-    widgetFontChoice: WidgetFontChoice,
-    widgetEmojiChoice: WidgetEmojiChoice,
-    widgetAutoSlide: Boolean,
+    widgetFontChoice: WidgetFontChoice = WidgetFontChoice.DOT_BOLD,
+    widgetEmojiChoice: WidgetEmojiChoice = WidgetEmojiChoice.SMILE,
+    widgetAutoSlide: Boolean = false,
     nowActivityEnabled: Boolean,
     calendarSyncEnabled: Boolean,
     calendarPreferences: CalendarPreferences,
@@ -61,9 +63,9 @@ fun SettingsScreen(
     weekStartsMonday: Boolean,
     onAppearance: (Appearance) -> Unit,
     onFontChoice: (FontChoice) -> Unit,
-    onWidgetFontChoice: (WidgetFontChoice) -> Unit,
-    onWidgetEmojiChoice: (WidgetEmojiChoice) -> Unit,
-    onWidgetAutoSlide: (Boolean) -> Unit,
+    onWidgetFontChoice: (WidgetFontChoice) -> Unit = {},
+    onWidgetEmojiChoice: (WidgetEmojiChoice) -> Unit = {},
+    onWidgetAutoSlide: (Boolean) -> Unit = {},
     onNowActivityEnabled: (Boolean) -> Unit,
     onCalendarSyncEnabled: (Boolean) -> Unit,
     onCalendarPreferences: (CalendarPreferences) -> Unit,
@@ -300,12 +302,9 @@ fun SettingsScreen(
         SettingsSheet.APP_FONT -> SelectionSheet(
             "App font",
             fontLabel(fontChoice),
-            listOf(
-                "Pixelify Sans" to { onFontChoice(FontChoice.PIXELIFY) },
-                "Geist · Nothing OS 5" to { onFontChoice(FontChoice.GEIST) },
-                "Geist Pixel" to { onFontChoice(FontChoice.GEIST_PIXEL) },
-                "System" to { onFontChoice(FontChoice.SYSTEM) }
-            )
+            FontChoice.entries.map { choice ->
+                fontLabel(choice) to { onFontChoice(choice) }
+            }
         ) { openSheet = null }
 
         SettingsSheet.WIDGET_FONT -> SelectionSheet(
@@ -440,8 +439,8 @@ private fun EmojiSheet(
                             contentAlignment = Alignment.Center
                         ) {
                             Image(
-                                painter = painterResource(emoji.iconRes),
-                                contentDescription = emoji.label,
+                                painter = painterResource(widgetEmojiIconRes(emoji)),
+                                contentDescription = widgetEmojiLabel(emoji),
                                 modifier = Modifier.size(31.dp),
                                 colorFilter = ColorFilter.tint(
                                     if (emoji == selected) MaterialTheme.colorScheme.onPrimaryContainer
@@ -576,6 +575,28 @@ private fun PrivacySheet(onDismiss: () -> Unit) {
     }
 }
 
+@DrawableRes
+private fun widgetEmojiIconRes(emoji: WidgetEmojiChoice): Int = when (emoji.name) {
+    "SMILE" -> R.drawable.emoji_smile
+    "GRIN" -> R.drawable.emoji_grin
+    "WINK" -> R.drawable.emoji_wink
+    "COOL" -> R.drawable.emoji_cool
+    "NERD" -> R.drawable.emoji_nerd
+    "PARTY" -> R.drawable.emoji_party
+    "SLEEPY" -> R.drawable.emoji_sleepy
+    "MELT" -> R.drawable.emoji_melt
+    "GHOST" -> R.drawable.emoji_ghost
+    "ROBOT" -> R.drawable.emoji_robot
+    "RELAXED" -> R.drawable.emoji_relaxed
+    "HEART_EYES" -> R.drawable.emoji_heart_eyes
+    else -> R.drawable.emoji_smile
+}
+
+private fun widgetEmojiLabel(emoji: WidgetEmojiChoice): String = when (emoji.name) {
+    "HEART_EYES" -> "Heart eyes"
+    else -> emoji.name.lowercase().replace('_', ' ').replaceFirstChar { ch -> ch.titlecase() }
+}
+
 private fun CalendarPreferences.withRule(rule: CalendarRule): CalendarPreferences =
     copy(rules = rules.filterNot { it.calendarId == rule.calendarId } + rule)
 
@@ -595,11 +616,17 @@ private fun appearanceLabel(appearance: Appearance): String = when (appearance) 
     Appearance.DARK -> "OLED dark"
 }
 
-private fun fontLabel(font: FontChoice): String = when (font) {
-    FontChoice.PIXELIFY -> "Pixelify Sans"
-    FontChoice.GEIST -> "Geist"
-    FontChoice.GEIST_PIXEL -> "Geist Pixel"
-    FontChoice.SYSTEM -> "System"
+private fun fontLabel(font: FontChoice): String = when (font.name) {
+    "PIXELIFY" -> "Pixelify Sans"
+    "GEIST" -> "Geist · Nothing OS 5"
+    "GEIST_PIXEL" -> "Geist Pixel"
+    "INTER" -> "Inter"
+    "SPACE_GROTESK" -> "Space Grotesk"
+    "IBM_PLEX_MONO" -> "IBM Plex Mono"
+    "SYSTEM" -> "System"
+    else -> font.name.lowercase().split('_').joinToString(" ") { part ->
+        part.replaceFirstChar { ch -> ch.titlecase() }
+    }
 }
 
 private fun widgetFontLabel(font: WidgetFontChoice): String = when (font) {

@@ -1,6 +1,15 @@
-# Dayline v0.12.1-beta.1 — Validation Report
+# Dayline v0.12.1-beta.2 — Validation Report
 
 ## Release checks completed
+
+## CI repair in beta.2
+
+- Settings widget arguments have safe defaults, so callers from the previous source shape compile.
+- Emoji preview uses a local resource mapper instead of the unresolved `iconRes` extension.
+- Font labels use `FontChoice.name`, so additional enum entries remain exhaustive-safe.
+- GitHub Actions use Node 24-native majors.
+- Pages deployment is conditional until Pages is enabled in repository settings.
+
 
 - Static release validator: **PASS**
 - XML resources across main/beta/play source sets: **PASS**

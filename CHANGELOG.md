@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.12.1-beta.2 — CI + Pages repair
+
+- Fixed Settings compile compatibility for widget font/emoji/auto-slide arguments.
+- Removed Settings dependency on the `WidgetEmojiChoice.iconRes` extension.
+- Made app-font labels forward-compatible with Inter, Space Grotesk, IBM Plex Mono, and future font choices.
+- Upgraded GitHub JavaScript actions to Node 24-native majors.
+- Pages workflow now skips cleanly until GitHub Pages is enabled instead of failing the whole run.
+- Beta versionCode bumped to 32.
+
 ## 0.12.1-beta.1 — GitHub beta updater
 
 - Split distribution into GitHub `beta` and Google Play `play` flavors.

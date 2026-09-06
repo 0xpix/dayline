@@ -160,8 +160,8 @@ for kind, name in re.findall(r"@([A-Za-z0-9_]+)/([A-Za-z0-9_]+)", manifest_text)
 gradle = read(APP / "build.gradle.kts")
 if 'versionName = "0.12.1"' not in gradle:
     fail("app versionName must be 0.12.1")
-if 'versionCode = 31' not in gradle:
-    fail("app versionCode must be 31")
+if 'versionCode = 32' not in gradle:
+    fail("app versionCode must be 32")
 if "targetSdk = 36" not in gradle:
     fail("targetSdk 36 expected")
 if "compileSdk = 37" not in gradle:
@@ -222,6 +222,29 @@ for token in (
 ):
     if token not in build_workflow:
         fail(f"GitHub beta workflow missing {token}")
+
+# GitHub-hosted runners are on Node 24. Keep JavaScript actions on Node 24-native majors.
+all_workflows = "\n".join(read(path) for path in sorted((ROOT / ".github/workflows").glob("*.yml")))
+for forbidden_action in (
+    "actions/checkout@v4",
+    "actions/setup-java@v4",
+    "actions/upload-artifact@v4",
+    "gradle/actions/setup-gradle@v4",
+    "actions/configure-pages@v5",
+    "actions/upload-pages-artifact@v3",
+    "actions/deploy-pages@v4",
+):
+    if forbidden_action in all_workflows:
+        fail(f"Deprecated/Node20-era action still referenced: {forbidden_action}")
+pages_workflow = read(ROOT / ".github/workflows/pages.yml")
+for required_token in (
+    "actions/configure-pages@v6",
+    "actions/upload-pages-artifact@v5",
+    "actions/deploy-pages@v5",
+    "Check whether GitHub Pages is enabled",
+):
+    if required_token not in pages_workflow:
+        fail(f"Pages workflow missing {required_token}")
 updater = read(APP / "src/beta/java/com/pix/dayline/updates/GithubBetaUpdater.kt")
 for token in (
     "api.github.com/repos/0xpix/dayline/releases",
@@ -277,7 +300,7 @@ for path in [*kotlin_files, *ROOT.glob("*.md"), *ROOT.glob("docs/*.md")]:
     if "FIXME" in text:
         fail(f"FIXME left in {path.relative_to(ROOT)}")
 
-print("Dayline v0.12.1-beta.1 release validation")
+print("Dayline v0.12.1-beta.2 release validation")
 print(f"  Kotlin files: {len(kotlin_files)}")
 print(f"  XML files: {len(list(APP.rglob('*.xml')))}")
 print(f"  Errors: {len(ERRORS)}")

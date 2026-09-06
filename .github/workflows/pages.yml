@@ -25,13 +25,36 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+
+      # configure-pages fails with a 404 when Pages has never been enabled.
+      # GITHUB_TOKEN cannot enable Pages itself, so detect that state and keep
+      # normal CI green until the repository owner enables Settings > Pages >
+      # Source: GitHub Actions once.
+      - name: Check whether GitHub Pages is enabled
+        id: pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/pages" >/dev/null 2>&1; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::GitHub Pages is not enabled yet. Enable Settings > Pages > Source: GitHub Actions when you are ready to publish the privacy policy."
+          fi
+
       - name: Configure Pages
-        uses: actions/configure-pages@v5
+        if: steps.pages.outputs.enabled == 'true'
+        uses: actions/configure-pages@v6
+
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        if: steps.pages.outputs.enabled == 'true'
+        uses: actions/upload-pages-artifact@v5
         with:
           path: docs
+
       - name: Deploy Pages
+        if: steps.pages.outputs.enabled == 'true'
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

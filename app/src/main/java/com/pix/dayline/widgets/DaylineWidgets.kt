@@ -9,7 +9,6 @@ import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
 import android.widget.RemoteViews
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -56,7 +55,8 @@ import com.pix.dayline.data.AndroidCalendarSync
 import com.pix.dayline.data.DaylineStore
 import com.pix.dayline.data.WidgetEmojiChoice
 import com.pix.dayline.data.WidgetFontChoice
-import com.pix.dayline.data.iconRes
+import com.pix.dayline.data.symbol
+import com.pix.dayline.data.label
 import com.pix.dayline.notifications.NowActivityScheduler
 import com.pix.dayline.model.*
 import java.time.Duration
@@ -69,8 +69,6 @@ import java.util.Locale
 private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 private val WidgetRefreshKey = longPreferencesKey("dayline_refresh_token")
 
-private val PulseFreeText = ColorProvider(Color(0xFFF8F4F0))
-private val PulseFreeMuted = ColorProvider(Color(0xFFD9D1CB))
 
 
 private fun applyWidgetFilters(
@@ -303,30 +301,22 @@ private fun WidgetText(
 
 @Composable
 private fun ConfiguredWidgetSurface(
-    mode: WidgetBackgroundMode,
     horizontalPadding: Int,
     verticalPadding: Int,
     content: @Composable () -> Unit
 ) {
     GlanceTheme {
-        val base = GlanceModifier
-            .fillMaxSize()
-            .appWidgetBackground()
-            .clickable(actionStartActivity<MainActivity>())
-
-        val surface = if (mode == WidgetBackgroundMode.SYSTEM) {
-            base
-                .background(GlanceTheme.colors.widgetBackground)
-                .cornerRadius(android.R.dimen.system_app_widget_background_radius)
-        } else {
-            base
-        }
-
         Box(
-            modifier = surface.padding(
-                horizontal = horizontalPadding.dp,
-                vertical = verticalPadding.dp
-            )
+            modifier = GlanceModifier
+                .fillMaxSize()
+                .appWidgetBackground()
+                .background(GlanceTheme.colors.background)
+                .cornerRadius(android.R.dimen.system_app_widget_background_radius)
+                .clickable(actionStartActivity<MainActivity>())
+                .padding(
+                    horizontal = horizontalPadding.dp,
+                    vertical = verticalPadding.dp
+                )
         ) {
             content()
         }
@@ -338,21 +328,20 @@ private fun WidgetEmojiMark(
     emoji: WidgetEmojiChoice,
     size: Int
 ) {
-    Box(
-        modifier = GlanceModifier
-            .size(size.dp)
-            .background(GlanceTheme.colors.surfaceVariant)
-            .cornerRadius((size / 2).dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Image(
-            provider = ImageProvider(emoji.iconRes),
-            contentDescription = emoji.name,
-            modifier = GlanceModifier.size((size * 0.56f).dp),
-            contentScale = ContentScale.Fit,
-            colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface)
-        )
-    }
+    val context = LocalContext.current
+    val bitmap = NotoEmojiRenderer.render(
+        context = context,
+        glyph = emoji.symbol,
+        sizeDp = size
+    )
+
+    Image(
+        provider = ImageProvider(bitmap),
+        contentDescription = emoji.label,
+        modifier = GlanceModifier.size(size.dp),
+        contentScale = ContentScale.Fit,
+        colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface)
+    )
 }
 
 
@@ -542,37 +531,22 @@ class DaylineCompactWidget : GlanceAppWidget() {
             val widgetEmoji = resolveWidgetEmoji(instance, store.loadWidgetEmojiChoice())
             val widgetAutoSlide = store.loadWidgetAutoSlide()
 
-            ConfiguredWidgetSurface(instance.backgroundMode, horizontalPadding = 5, verticalPadding = 4) {
-                val freeText = if (instance.backgroundMode == WidgetBackgroundMode.SYSTEM) {
-                    GlanceTheme.colors.onSurface
-                } else {
-                    PulseFreeText
-                }
-                val freeMuted = if (instance.backgroundMode == WidgetBackgroundMode.SYSTEM) {
-                    GlanceTheme.colors.onSurfaceVariant
-                } else {
-                    PulseFreeMuted
-                }
+            ConfiguredWidgetSurface(horizontalPadding = 8, verticalPadding = 6) {
+                val freeText = GlanceTheme.colors.onSurface
+                val freeMuted = GlanceTheme.colors.onSurfaceVariant
 
                 Row(
                     modifier = GlanceModifier.fillMaxSize(),
                     verticalAlignment = Alignment.Vertical.CenterVertically
                 ) {
-                    Column(
-                        modifier = GlanceModifier.width(44.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    Box(
+                        modifier = GlanceModifier.width(40.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        WidgetEmojiMark(widgetEmoji, 36)
-                        Spacer(GlanceModifier.height(2.dp))
-                        WidgetText(
-                            "DAYLINE",
-                            widgetFont,
-                            scale = 0.48f,
-                            color = freeText
-                        )
+                        WidgetEmojiMark(widgetEmoji, 38)
                     }
 
-                    Spacer(GlanceModifier.width(6.dp))
+                    Spacer(GlanceModifier.width(7.dp))
 
                     Box(
                         modifier = GlanceModifier
@@ -639,7 +613,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                     strong = true,
                                     fontChoice = widgetFont,
                                     autoSlide = widgetAutoSlide,
-                                    width = 137,
+                                    width = 144,
                                     overrideText = live.second
                                 )
                                 Spacer(GlanceModifier.width(5.dp))
@@ -753,7 +727,7 @@ class DaylineSquareWidget : GlanceAppWidget() {
             val widgetFont = resolveWidgetFont(instance, store.loadWidgetFontChoice())
             val widgetAutoSlide = store.loadWidgetAutoSlide()
 
-            ConfiguredWidgetSurface(instance.backgroundMode, horizontalPadding = 11, verticalPadding = 11) {
+            ConfiguredWidgetSurface(horizontalPadding = 11, verticalPadding = 11) {
                 Column(GlanceModifier.fillMaxSize()) {
                     Row(
                         modifier = GlanceModifier.fillMaxWidth(),
@@ -894,17 +868,11 @@ class DaylineLockWidget : GlanceAppWidget() {
 
             GlanceTheme {
                 Row(
-                    modifier = (if (instance.backgroundMode == WidgetBackgroundMode.SYSTEM) {
-                        GlanceModifier
-                            .fillMaxSize()
-                            .appWidgetBackground()
-                            .background(GlanceTheme.colors.widgetBackground)
-                            .cornerRadius(android.R.dimen.system_app_widget_background_radius)
-                    } else {
-                        GlanceModifier
-                            .fillMaxSize()
-                            .appWidgetBackground()
-                    })
+                    modifier = GlanceModifier
+                        .fillMaxSize()
+                        .appWidgetBackground()
+                        .background(GlanceTheme.colors.background)
+                        .cornerRadius(android.R.dimen.system_app_widget_background_radius)
                         .clickable(actionStartActivity<MainActivity>())
                         .padding(horizontal = 10.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.Vertical.CenterVertically

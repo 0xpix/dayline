@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.12.1 — Noto widget polish
+
+- Replaced custom widget emoji PNG assets with Google Fonts Noto Emoji glyph rendering.
+- Added downloadable Noto Emoji font preloading through Google Play Services.
+- Removed the `DAYLINE` caption under the Pulse widget emoji.
+- Made widget bodies use a full neutral system surface for reliable light/dark contrast.
+- Removed transparent widget configuration to avoid wallpaper-dependent text contrast.
+
 ## 0.12.0 — Play beta
 
 - Added per-calendar controls and Space-to-calendar routing.

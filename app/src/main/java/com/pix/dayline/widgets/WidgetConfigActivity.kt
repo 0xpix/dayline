@@ -123,13 +123,6 @@ private fun WidgetConfigScreen(
                 val choices = WidgetFontChoice.entries.map { it.name }
                 value = value.copy(font = cycleString(value.font, choices))
             }
-            ConfigCycleRow("Background", value.backgroundMode.name.lowercase()) {
-                value = value.copy(
-                    backgroundMode = if (value.backgroundMode == WidgetBackgroundMode.SYSTEM) {
-                        WidgetBackgroundMode.TRANSPARENT
-                    } else WidgetBackgroundMode.SYSTEM
-                )
-            }
             ConfigCycleRow("Content", value.contentMode.name.lowercase()) {
                 val all = WidgetContentMode.entries
                 value = value.copy(
@@ -143,7 +136,7 @@ private fun WidgetConfigScreen(
             Spacer(Modifier.height(34.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Surface(
-                    modifier = Modifier.clickable { onSave(value) },
+                    modifier = Modifier.clickable { onSave(value.copy(backgroundMode = WidgetBackgroundMode.SYSTEM)) },
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.onBackground,
                     contentColor = MaterialTheme.colorScheme.background

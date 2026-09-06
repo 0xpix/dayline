@@ -155,10 +155,10 @@ for kind, name in re.findall(r"@([A-Za-z0-9_]+)/([A-Za-z0-9_]+)", manifest_text)
 
 # Release and Play configuration.
 gradle = read(APP / "build.gradle.kts")
-if 'versionName = "0.12.0"' not in gradle:
-    fail("app versionName must be 0.12.0")
-if 'versionCode = 30' not in gradle:
-    fail("app versionCode must be 30")
+if 'versionName = "0.12.1"' not in gradle:
+    fail("app versionName must be 0.12.1")
+if 'versionCode = 31' not in gradle:
+    fail("app versionCode must be 31")
 if "targetSdk = 36" not in gradle:
     fail("targetSdk 36 expected")
 if "compileSdk = 37" not in gradle:
@@ -222,6 +222,47 @@ for label, ok in feature_checks.items():
     if not ok:
         fail(f"Feature anchor missing: {label}")
 
+
+# v0.12.1 widget/Noto Emoji checks.
+widget_emoji = read(JAVA / "com/pix/dayline/data/WidgetEmoji.kt")
+widgets_source = read(JAVA / "com/pix/dayline/widgets/DaylineWidgets.kt")
+settings_source = read(JAVA / "com/pix/dayline/ui/settings/SettingsScreen.kt")
+noto_renderer = JAVA / "com/pix/dayline/widgets/NotoEmojiRenderer.kt"
+
+if not (RES / "font/noto_emoji.xml").is_file():
+    fail("Missing downloadable @font/noto_emoji resource")
+else:
+    noto_font_xml = read(RES / "font/noto_emoji.xml")
+    for token in ("com.google.android.gms.fonts", "Noto Emoji", "com_google_android_gms_fonts_certs"):
+        if token not in noto_font_xml:
+            fail(f"Noto Emoji downloadable font is missing {token}")
+
+if not noto_renderer.is_file():
+    fail("Missing NotoEmojiRenderer.kt")
+else:
+    renderer_text = read(noto_renderer)
+    if "ResourcesCompat.getFont(context, R.font.noto_emoji)" not in renderer_text:
+        fail("NotoEmojiRenderer is not loading @font/noto_emoji")
+
+if "iconRes" in widget_emoji or "R.drawable.emoji_" in all_kotlin:
+    fail("Legacy PNG widget emoji references remain")
+
+legacy_emoji_pngs = list((RES / "drawable-nodpi").glob("emoji_*.png")) if (RES / "drawable-nodpi").exists() else []
+if legacy_emoji_pngs:
+    fail(f"Legacy widget emoji PNGs remain: {[p.name for p in legacy_emoji_pngs]}")
+
+if '"DAYLINE"' in widgets_source:
+    fail("Pulse widget still renders DAYLINE under the emoji")
+
+if ".background(GlanceTheme.colors.background)" not in widgets_source:
+    fail("Full neutral widget background is missing")
+
+if 'GoogleFont("Noto Emoji"' not in settings_source:
+    fail("Settings emoji picker is not using Google Noto Emoji")
+
+if 'android:name="preloaded_fonts"' not in manifest_text:
+    fail("Manifest does not preload downloadable fonts")
+
 # Public policy URL should match GitHub Pages workflow/listing.
 settings = read(JAVA / "com/pix/dayline/ui/settings/SettingsScreen.kt")
 policy_url = "https://0xpix.github.io/dayline/privacy-policy.html"
@@ -236,7 +277,7 @@ for path in [*kotlin_files, *ROOT.glob("*.md"), *ROOT.glob("docs/*.md")]:
     if "FIXME" in text:
         fail(f"FIXME left in {path.relative_to(ROOT)}")
 
-print("Dayline v0.12.0 release validation")
+print("Dayline v0.12.1 release validation")
 print(f"  Kotlin files: {len(kotlin_files)}")
 print(f"  XML files: {len(list((APP / 'src/main').rglob('*.xml')))}")
 print(f"  Errors: {len(ERRORS)}")

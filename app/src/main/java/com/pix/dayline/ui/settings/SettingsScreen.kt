@@ -6,7 +6,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -22,13 +21,24 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.googlefonts.Font
+import androidx.compose.ui.text.googlefonts.GoogleFont
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import com.pix.dayline.data.*
 import com.pix.dayline.model.*
 import com.pix.dayline.ui.components.FloatingControls
+
+
+private val NotoEmojiFamily = FontFamily(
+    Font(
+        googleFont = GoogleFont("Noto Emoji", bestEffort = true),
+        weight = FontWeight.Normal
+    )
+)
 
 private enum class SettingsSheet {
     APPEARANCE,
@@ -178,7 +188,7 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(34.dp))
             Text(
-                "Dayline 0.12.0 · Play beta",
+                "Dayline 0.12.1 · Play beta",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -326,7 +336,7 @@ private fun EmojiSheet(
             Text("Widget emoji", style = MaterialTheme.typography.headlineLarge)
             Spacer(Modifier.height(6.dp))
             Text(
-                "Changes stay live while this sheet is open.",
+                "Google Noto Emoji · monochrome · changes stay live while this sheet is open.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -345,14 +355,17 @@ private fun EmojiSheet(
                                 .clickable { onSelect(emoji) },
                             contentAlignment = Alignment.Center
                         ) {
-                            Image(
-                                painter = painterResource(emoji.iconRes),
-                                contentDescription = emoji.label,
-                                modifier = Modifier.size(31.dp),
-                                colorFilter = ColorFilter.tint(
-                                    if (emoji == selected) MaterialTheme.colorScheme.onPrimaryContainer
-                                    else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                            Text(
+                                text = emoji.symbol,
+                                fontFamily = NotoEmojiFamily,
+                                fontWeight = FontWeight.Normal,
+                                fontSize = 31.sp,
+                                lineHeight = 32.sp,
+                                color = if (emoji == selected) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
                             )
                         }
                     }

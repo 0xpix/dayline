@@ -1,7 +1,20 @@
 package com.pix.dayline.data
 
-import androidx.annotation.DrawableRes
-import com.pix.dayline.R
+val WidgetEmojiChoice.symbol: String
+    get() = when (this) {
+        WidgetEmojiChoice.SMILE -> "🙂"
+        WidgetEmojiChoice.GRIN -> "😁"
+        WidgetEmojiChoice.WINK -> "😉"
+        WidgetEmojiChoice.COOL -> "😎"
+        WidgetEmojiChoice.NERD -> "🤓"
+        WidgetEmojiChoice.PARTY -> "🥳"
+        WidgetEmojiChoice.SLEEPY -> "😴"
+        WidgetEmojiChoice.MELT -> "🫠"
+        WidgetEmojiChoice.GHOST -> "👻"
+        WidgetEmojiChoice.ROBOT -> "🤖"
+        WidgetEmojiChoice.RELAXED -> "😌"
+        WidgetEmojiChoice.HEART_EYES -> "😍"
+    }
 
 val WidgetEmojiChoice.label: String
     get() = when (this) {
@@ -18,24 +31,6 @@ val WidgetEmojiChoice.label: String
         WidgetEmojiChoice.RELAXED -> "Relaxed"
         WidgetEmojiChoice.HEART_EYES -> "Heart eyes"
     }
-
-@get:DrawableRes
-val WidgetEmojiChoice.iconRes: Int
-    get() = when (this) {
-        WidgetEmojiChoice.SMILE -> R.drawable.emoji_smile
-        WidgetEmojiChoice.GRIN -> R.drawable.emoji_grin
-        WidgetEmojiChoice.WINK -> R.drawable.emoji_wink
-        WidgetEmojiChoice.COOL -> R.drawable.emoji_cool
-        WidgetEmojiChoice.NERD -> R.drawable.emoji_nerd
-        WidgetEmojiChoice.PARTY -> R.drawable.emoji_party
-        WidgetEmojiChoice.SLEEPY -> R.drawable.emoji_sleepy
-        WidgetEmojiChoice.MELT -> R.drawable.emoji_melt
-        WidgetEmojiChoice.GHOST -> R.drawable.emoji_ghost
-        WidgetEmojiChoice.ROBOT -> R.drawable.emoji_robot
-        WidgetEmojiChoice.RELAXED -> R.drawable.emoji_relaxed
-        WidgetEmojiChoice.HEART_EYES -> R.drawable.emoji_heart_eyes
-    }
-
 
 enum class WidgetEmojiCategory {
     FACES,
@@ -66,11 +61,4 @@ val WidgetEmojiCategory.label: String
         WidgetEmojiCategory.FACES -> "Faces"
         WidgetEmojiCategory.FUN -> "Fun"
         WidgetEmojiCategory.OTHER -> "Other"
-    }
-
-val WidgetEmojiCategory.icon: WidgetEmojiChoice
-    get() = when (this) {
-        WidgetEmojiCategory.FACES -> WidgetEmojiChoice.SMILE
-        WidgetEmojiCategory.FUN -> WidgetEmojiChoice.PARTY
-        WidgetEmojiCategory.OTHER -> WidgetEmojiChoice.ROBOT
     }

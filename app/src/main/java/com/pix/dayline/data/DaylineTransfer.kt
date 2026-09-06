@@ -90,7 +90,9 @@ object DaylineTransfer {
 
         val recurrence = when {
             rrule?.contains("FREQ=DAILY") == true -> Recurrence.DAILY
+            rrule?.contains("BYDAY=MO,TU,WE,TH,FR,SA") == true -> Recurrence.EXCEPT_SUNDAY
             rrule?.contains("BYDAY=MO,TU,WE,TH,FR") == true -> Recurrence.WEEKDAYS
+            rrule?.contains("BYDAY=SU") == true -> Recurrence.SUNDAYS
             rrule?.contains("FREQ=WEEKLY") == true -> Recurrence.WEEKLY
             rrule?.contains("FREQ=MONTHLY") == true -> Recurrence.MONTHLY
             else -> Recurrence.ONCE

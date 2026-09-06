@@ -166,7 +166,25 @@ private fun itemLead(item: DaylineItem): String =
     }
 
 private fun compactTitle(title: String, max: Int): String =
-    if (title.length <= max) title else title.take(max - 1) + "…"
+    compactTitleUnicode(title, max)
+
+private fun compactTitleUnicode(
+    title: String,
+    maxCodePoints: Int
+): String {
+    val count = title.codePointCount(0, title.length)
+
+    if (count <= maxCodePoints) {
+        return title
+    }
+
+    val end = title.offsetByCodePoints(
+        0,
+        (maxCodePoints - 1).coerceAtLeast(1)
+    )
+
+    return title.substring(0, end) + "…"
+}
 
 private fun splitForSlide(text: String, maxChars: Int = 14): List<String> {
     val words = text.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
@@ -476,35 +494,94 @@ private fun SystemEventPill(
     val isTask = item.kind == AgendaKind.TASK
 
     val base = GlanceModifier
-        .background(GlanceTheme.colors.surfaceVariant)
+        .background(
+            ColorProvider(
+                R.color.widget_event_surface
+            )
+        )
         .cornerRadius(30.dp)
-        .padding(horizontal = 8.dp, vertical = 4.dp)
+        .padding(
+            horizontal = 10.dp,
+            vertical = 5.dp
+        )
 
-    val modifier = if (width != null) base.width(width.dp) else base.fillMaxWidth()
+    val modifier =
+        if (width != null) {
+            base.width(width.dp)
+        } else {
+            base.fillMaxWidth()
+        }
+
+    val complete =
+        overrideText
+            ?: "${if (isTask) "+" else ">"} " +
+                "${item.title} ${itemLead(item)}"
+
+    val compact =
+        overrideText
+            ?: "${if (isTask) "+" else ">"} " +
+                "${compactTitleUnicode(item.title, 13)} " +
+                itemLead(item)
+
+    val dotSafe =
+        DotMatrixRenderer.canRender(complete)
 
     Box(
         modifier = modifier,
         contentAlignment = Alignment.CenterStart
     ) {
-        val complete = overrideText ?: "${if (item.kind == AgendaKind.TASK) "+" else ">"} ${item.title} ${itemLead(item)}"
+        when {
+            autoSlide &&
+                complete.length > 18 &&
+                strong &&
+                !isTask &&
+                dotSafe -> {
+                AnimatedEventText(
+                    fullText = complete,
+                    fontChoice = fontChoice,
+                    width = (width ?: 154) - 20
+                )
+            }
 
-        if (autoSlide && complete.length > 18 && strong && !isTask) {
-            AnimatedEventText(
-                fullText = complete,
-                fontChoice = fontChoice,
-                width = (width ?: 148) - 16
-            )
-        } else {
-            WidgetText(
-                text = overrideText ?: "${if (item.kind == AgendaKind.TASK) "+" else ">"} ${compactTitle(item.title, 11)} ${itemLead(item)}",
-                fontChoice = fontChoice,
-                scale = 0.82f,
-                color = GlanceTheme.colors.onSurface,
-                maxChars = 20
-            )
+            dotSafe -> {
+                WidgetText(
+                    text = compact,
+                    fontChoice = fontChoice,
+                    scale = 0.80f,
+                    color =
+                        GlanceTheme.colors.onSurface,
+                    maxChars = 22
+                )
+            }
+
+            else -> {
+                // Native Glance Text preserves &, emoji, accented names,
+                // Arabic/CJK and other Unicode rather than showing '?'.
+                Text(
+                    text = compact,
+                    style = TextStyle(
+                        color =
+                            GlanceTheme.colors.onSurface,
+                        fontSize = 10.sp,
+                        fontWeight =
+                            FontWeight.Medium,
+                        fontFamily =
+                            if (
+                                fontChoice ==
+                                WidgetFontChoice.MONO
+                            ) {
+                                FontFamily.Monospace
+                            } else {
+                                FontFamily.SansSerif
+                            }
+                    ),
+                    maxLines = 1
+                )
+            }
         }
     }
 }
+
 
 
 /**
@@ -537,7 +614,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
             val widgetEmoji = resolveWidgetEmoji(instance, store.loadWidgetEmojiChoice())
             val widgetAutoSlide = instance.autoSlideLongTitles
 
-            ConfiguredWidgetSurface(horizontalPadding = 5, verticalPadding = 6) {
+            ConfiguredWidgetSurface(horizontalPadding = 0, verticalPadding = 6) {
                 val freeText = GlanceTheme.colors.onSurface
                 val freeMuted = GlanceTheme.colors.onSurfaceVariant
 
@@ -546,24 +623,33 @@ class DaylineCompactWidget : GlanceAppWidget() {
                     verticalAlignment = Alignment.Vertical.CenterVertically
                 ) {
                     Box(
-                        modifier = GlanceModifier.width(36.dp),
+                        modifier = GlanceModifier.width(56.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        WidgetEmojiMark(widgetEmoji, 36)
+                        WidgetEmojiMark(
+                            widgetEmoji,
+                            34
+                        )
                     }
-
-                    Spacer(GlanceModifier.width(5.dp))
 
                     Box(
                         modifier = GlanceModifier
                             .width(1.dp)
                             .height(48.dp)
-                            .background(freeMuted)
+                            .background(
+                                freeMuted
+                            )
                     ) { }
 
-                    Spacer(GlanceModifier.width(5.dp))
+                    Spacer(
+                        GlanceModifier.width(11.dp)
+                    )
 
-                    Column {
+                    Column(
+                        modifier = GlanceModifier
+                            .fillMaxWidth()
+                            .padding(end = 11.dp)
+                    ) {
                         Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
                             WidgetText(
                                 today.dayOfWeek
@@ -619,15 +705,17 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                     strong = true,
                                     fontChoice = widgetFont,
                                     autoSlide = widgetAutoSlide,
-                                    width = 164,
+                                    width = null,
                                     overrideText = live.second
                                 )
                             } else if (next == null) {
                                 Box(
                                     modifier = GlanceModifier
-                                        .width(164.dp)
+                                        .fillMaxWidth()
                                         .background(
-                                            GlanceTheme.colors.surfaceVariant
+                                            ColorProvider(
+                                                R.color.widget_event_surface
+                                            )
                                         )
                                         .cornerRadius(30.dp)
                                         .padding(
@@ -649,7 +737,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                     strong = true,
                                     fontChoice = widgetFont,
                                     autoSlide = widgetAutoSlide,
-                                    width = 164
+                                    width = null
                                 )
                             }
                         }

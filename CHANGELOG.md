@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.12.5 — Unicode widget and recurrence polish
+
+- Preserved emoji, ampersands and other Unicode in widget event names.
+- Added a visible system-neutral event-name surface to widgets.
+- Rebalanced Pulse padding around emoji, divider and information.
+- Added Sunday-only and every-day-except-Sunday recurrence modes.
+- Updated Android Calendar and ICS recurrence mappings.
+- Improved Quick Add title/section spacing.
+
 ## 0.12.4 — Settings, sync and Upcoming polish
 
 - Moved all widget settings into the per-widget configuration activity.

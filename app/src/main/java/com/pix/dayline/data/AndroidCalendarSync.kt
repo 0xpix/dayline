@@ -418,6 +418,8 @@ object AndroidCalendarSync {
             Recurrence.ONCE -> return null
             Recurrence.DAILY -> "FREQ=DAILY"
             Recurrence.WEEKDAYS -> "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"
+            Recurrence.SUNDAYS -> "FREQ=WEEKLY;BYDAY=SU"
+            Recurrence.EXCEPT_SUNDAY -> "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR,SA"
             Recurrence.WEEKLY -> {
                 val day = when (item.startDate.dayOfWeek.value) {
                     1 -> "MO"

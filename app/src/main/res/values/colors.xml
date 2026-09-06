@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="widget_system_surface">#EAEAEA</color>
+    <color name="widget_event_surface">#D7D7D7</color>
 </resources>

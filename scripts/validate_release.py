@@ -155,10 +155,10 @@ for kind, name in re.findall(r"@([A-Za-z0-9_]+)/([A-Za-z0-9_]+)", manifest_text)
 
 # Release and Play configuration.
 gradle = read(APP / "build.gradle.kts")
-if 'versionName = "0.12.4"' not in gradle:
-    fail("app versionName must be 0.12.4")
-if 'versionCode = 34' not in gradle:
-    fail("app versionCode must be 34")
+if 'versionName = "0.12.5"' not in gradle:
+    fail("app versionName must be 0.12.5")
+if 'versionCode = 35' not in gradle:
+    fail("app versionCode must be 35")
 if "targetSdk = 36" not in gradle:
     fail("targetSdk 36 expected")
 if "compileSdk = 37" not in gradle:
@@ -225,6 +225,55 @@ for label, ok in feature_checks.items():
 
 
 
+
+
+# v0.12.5 Unicode / recurrence / widget layout checks.
+renderer_source = read(
+    JAVA / "com/pix/dayline/widgets/DotMatrixRenderer.kt"
+)
+widgets_source = read(
+    JAVA / "com/pix/dayline/widgets/DaylineWidgets.kt"
+)
+item_source = read(
+    JAVA / "com/pix/dayline/model/DaylineItem.kt"
+)
+quick_source = read(
+    JAVA / "com/pix/dayline/ui/components/QuickAddSheet.kt"
+)
+calendar_source = read(
+    JAVA / "com/pix/dayline/data/AndroidCalendarSync.kt"
+)
+transfer_source = read(
+    JAVA / "com/pix/dayline/data/DaylineTransfer.kt"
+)
+
+if "fun canRender(rawText: String)" not in renderer_source:
+    fail("DotMatrix Unicode safety check is missing")
+
+if "Native Glance Text preserves" not in widgets_source:
+    fail("Unicode-safe widget title fallback is missing")
+
+if "widget_event_surface" not in widgets_source:
+    fail("Widget event-name contrast surface is missing")
+
+if "compactTitleUnicode" not in widgets_source:
+    fail("Unicode-safe title truncation is missing")
+
+for token in (
+    "Recurrence.SUNDAYS",
+    "Recurrence.EXCEPT_SUNDAY"
+):
+    if token not in item_source:
+        fail(f"Occurrence logic missing {token}")
+    if token not in quick_source:
+        fail(f"Quick Add recurrence option missing {token}")
+    if token not in calendar_source:
+        fail(f"Calendar RRULE missing {token}")
+    if token not in transfer_source:
+        fail(f"ICS recurrence support missing {token}")
+
+if "SectionHeader(" not in quick_source:
+    fail("Quick Add section spacing hierarchy is missing")
 
 # v0.12.4 settings/sync/widget/upcoming checks.
 settings_source = read(
@@ -413,7 +462,7 @@ for path in [*kotlin_files, *ROOT.glob("*.md"), *ROOT.glob("docs/*.md")]:
     if "FIXME" in text:
         fail(f"FIXME left in {path.relative_to(ROOT)}")
 
-print("Dayline v0.12.4 release validation")
+print("Dayline v0.12.5 release validation")
 print(f"  Kotlin files: {len(kotlin_files)}")
 print(f"  XML files: {len(list((APP / 'src/main').rglob('*.xml')))}")
 print(f"  Errors: {len(ERRORS)}")

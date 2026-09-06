@@ -141,7 +141,7 @@ fun QuickAddSheet(
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 28.dp, vertical = 10.dp)
+                .padding(horizontal = 28.dp, vertical = 18.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -170,16 +170,10 @@ fun QuickAddSheet(
                 editing == null &&
                 templates.isNotEmpty()
             ) {
-                Spacer(Modifier.height(22.dp))
-
-                Text(
-                    "Templates",
-                    style = MaterialTheme.typography.labelMedium,
-                    color =
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                SectionHeader(
+                    label = "Templates",
+                    top = 24
                 )
-
-                Spacer(Modifier.height(10.dp))
 
                 FlowRow(
                     horizontalArrangement =
@@ -198,29 +192,71 @@ fun QuickAddSheet(
                 }
             }
 
-            Spacer(Modifier.height(18.dp))
-            BasicTextField(
-                value = title,
-                onValueChange = { title = it },
-                textStyle = MaterialTheme.typography.titleMedium.copy(
-                    color = MaterialTheme.colorScheme.onBackground,
-                    fontSize = 23.sp,
-                    lineHeight = 28.sp
-                ),
-                modifier = Modifier.fillMaxWidth(),
-                decorationBox = { inner ->
-                    Box {
-                        if (title.text.isBlank()) {
-                            Text(
-                                "What are you doing?",
-                                style = MaterialTheme.typography.titleMedium.copy(fontSize = 23.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
-                            )
-                        }
-                        inner()
-                    }
-                }
+            Spacer(
+                Modifier.height(24.dp)
             )
+
+            Text(
+                "TITLE",
+                style =
+                    MaterialTheme.typography.labelMedium,
+                color =
+                    MaterialTheme.colorScheme
+                        .onSurfaceVariant
+            )
+
+            Spacer(
+                Modifier.height(10.dp)
+            )
+
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color =
+                    MaterialTheme.colorScheme.surface
+            ) {
+                BasicTextField(
+                    value = title,
+                    onValueChange = {
+                        title = it
+                    },
+                    textStyle =
+                        MaterialTheme.typography
+                            .titleMedium.copy(
+                                color =
+                                    MaterialTheme.colorScheme
+                                        .onBackground,
+                                fontSize = 23.sp,
+                                lineHeight = 30.sp
+                            ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            horizontal = 18.dp,
+                            vertical = 16.dp
+                        ),
+                    decorationBox = { inner ->
+                        Box {
+                            if (title.text.isBlank()) {
+                                Text(
+                                    "What are you doing?",
+                                    style =
+                                        MaterialTheme.typography
+                                            .titleMedium.copy(
+                                                fontSize = 23.sp,
+                                                lineHeight = 30.sp
+                                            ),
+                                    color =
+                                        MaterialTheme.colorScheme
+                                            .onSurfaceVariant
+                                            .copy(alpha = 0.52f)
+                                )
+                            }
+
+                            inner()
+                        }
+                    }
+                )
+            }
 
             Section("Type") {
                 ChoicePill("Event", kind == AgendaKind.EVENT) { kind = AgendaKind.EVENT }
@@ -236,14 +272,10 @@ fun QuickAddSheet(
             }
 
             if (spaces.isNotEmpty()) {
-                Text(
-                    "Space",
-                    style = MaterialTheme.typography.labelMedium,
-                    color =
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                SectionHeader(
+                    label = "Space",
+                    top = 28
                 )
-
-                Spacer(Modifier.height(10.dp))
 
                 FlowRow(
                     horizontalArrangement =
@@ -268,11 +300,12 @@ fun QuickAddSheet(
                     }
                 }
 
-                Spacer(Modifier.height(22.dp))
             }
 
-            Text("When", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(8.dp))
+            SectionHeader(
+                label = "When",
+                top = 28
+            )
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(9.dp),
                 verticalArrangement = Arrangement.spacedBy(9.dp)
@@ -328,6 +361,18 @@ fun QuickAddSheet(
                 RepeatPill(
                     "Weekdays",
                     Recurrence.WEEKDAYS,
+                    recurrence
+                ) { recurrence = it }
+
+                RepeatPill(
+                    "Sunday only",
+                    Recurrence.SUNDAYS,
+                    recurrence
+                ) { recurrence = it }
+
+                RepeatPill(
+                    "Every day except Sunday",
+                    Recurrence.EXCEPT_SUNDAY,
                     recurrence
                 ) { recurrence = it }
 
@@ -399,8 +444,10 @@ fun QuickAddSheet(
                 ReminderPill("15m", 15, reminderMinutes, startTime != null) { reminderMinutes = it }
             }
 
-            Text("Color", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(10.dp))
+            SectionHeader(
+                label = "Color",
+                top = 28
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
                 ItemColor.entries.forEach { color ->
                     ColorSwatch(color, itemColor == color) { itemColor = color }
@@ -504,25 +551,42 @@ fun QuickAddSheet(
     }
 }
 
+@Composable
+private fun SectionHeader(
+    label: String,
+    top: Int = 30
+) {
+    Spacer(
+        Modifier.height(top.dp)
+    )
+
+    Text(
+        text = label.uppercase(),
+        style =
+            MaterialTheme.typography.labelMedium,
+        color =
+            MaterialTheme.colorScheme
+                .onSurfaceVariant
+    )
+
+    Spacer(
+        Modifier.height(12.dp)
+    )
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Section(
     label: String,
     content: @Composable () -> Unit
 ) {
-    Spacer(Modifier.height(24.dp))
-
-    Text(
-        label,
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-
-    Spacer(Modifier.height(10.dp))
+    SectionHeader(label)
 
     FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(9.dp),
-        verticalArrangement = Arrangement.spacedBy(9.dp)
+        horizontalArrangement =
+            Arrangement.spacedBy(10.dp),
+        verticalArrangement =
+            Arrangement.spacedBy(10.dp)
     ) {
         content()
     }
@@ -587,10 +651,19 @@ private fun PlainPill(label: String, onClick: () -> Unit) {
             indication = null,
             onClick = onClick
         ),
-        shape = CircleShape,
+        shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surface
     ) {
-        Text(label, modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium)
+        Text(
+            text = label,
+            modifier = Modifier.padding(
+                horizontal = 16.dp,
+                vertical = 10.dp
+            ),
+            style =
+                MaterialTheme.typography.bodyLarge,
+            maxLines = 1
+        )
     }
 }
 
@@ -655,6 +728,8 @@ private fun recurrenceDescription(recurrence: Recurrence, date: LocalDate): Stri
     Recurrence.ONCE -> "Only once."
     Recurrence.DAILY -> "Every day from ${date.format(DateTimeFormatter.ofPattern("MMM d"))}."
     Recurrence.WEEKDAYS -> "Every Monday to Friday."
+    Recurrence.SUNDAYS -> "Every Sunday."
+    Recurrence.EXCEPT_SUNDAY -> "Every day except Sunday."
     Recurrence.WEEKLY -> "Every ${date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())}."
     Recurrence.MONTHLY -> "Every month on the ${ordinal(date.dayOfMonth)}."
 }

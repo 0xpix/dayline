@@ -1,4 +1,4 @@
-# Dayline v0.12.4 — Validation
+# Dayline v0.12.5 — Validation
 
 This patch focuses on widget typography and surface polish.
 
@@ -83,3 +83,18 @@ GitHub Actions remains the authoritative Android/Gradle compile gate.
 
 The authoritative Android compile still runs in GitHub Actions because this
 runtime does not include an Android SDK/Gradle build environment.
+
+## v0.12.5 targeted validation
+
+- Dot renderer includes `&` and exposes `canRender()`.
+- Widget event pills fall back to native Unicode Glance text whenever a title
+  contains emoji or another character the dot matrix cannot represent.
+- Compact title truncation uses Unicode code points instead of UTF-16 indices.
+- Event pills use a separate `widget_event_surface` resource in light/dark and
+  dynamic-system resource sets.
+- Pulse left identity width and right content padding were rebalanced around the divider.
+- `SUNDAYS` and `EXCEPT_SUNDAY` recurrence values are implemented in occurrence
+  logic, Android Calendar RRULEs, ICS import/export, Quick Add and descriptions.
+- Quick Add uses a padded title surface and stronger 30dp section spacing.
+
+GitHub Actions remains the authoritative Android/Gradle compile gate.

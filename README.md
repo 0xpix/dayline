@@ -4,8 +4,23 @@
 
 Dayline is an open-source Android calendar and planner built with Kotlin, Jetpack Compose, Material 3 and Glance. It is intentionally local-first, minimal, and designed around Today rather than a dashboard.
 
-Current milestone: **v0.12.4 · Play beta**
+Current milestone: **v0.12.5 · Play beta**
 
+
+## v0.12.5 Unicode widget + recurrence polish
+
+- Widget event titles no longer turn unsupported characters into `?`.
+  Ampersand is supported by the dot renderer; emoji and other Unicode use
+  native Glance text as a safe fallback.
+- Unicode title truncation is code-point safe, so emoji surrogate pairs are not cut.
+- Event-name pills have a dedicated system-neutral contrast surface and remain
+  visible in light mode.
+- Pulse layout now uses symmetric emoji padding, divider spacing, and information
+  padding: emoji · `|` · information.
+- Repeat adds **Sunday only** and **Every day except Sunday**, including Calendar
+  Provider RRULE and ICS import/export support.
+- Quick Add has a clearer padded title field, stronger section hierarchy, and
+  more breathing room between labels and controls.
 
 ## v0.12.4 settings, sync and upcoming polish
 

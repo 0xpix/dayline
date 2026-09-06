@@ -62,11 +62,43 @@ object DotMatrixRenderer {
         '/' to arrayOf("00001","00010","00010","00100","01000","01000","10000"),
         '!' to arrayOf("00100","00100","00100","00100","00100","00000","00100"),
         '?' to arrayOf("01110","10001","00001","00010","00100","00000","00100"),
+        '&' to arrayOf("01100","10010","10100","01000","10101","10010","01101"),
+        ''' to arrayOf("00100","00100","00000","00000","00000","00000","00000"),
+        '(' to arrayOf("00010","00100","01000","01000","01000","00100","00010"),
+        ')' to arrayOf("01000","00100","00010","00010","00010","00100","01000"),
+        ',' to arrayOf("00000","00000","00000","00000","00110","00100","01000"),
         '+' to arrayOf("00000","00100","00100","11111","00100","00100","00000"),
         '>' to arrayOf("10000","01000","00100","00010","00100","01000","10000"),
         '<' to arrayOf("00001","00010","00100","01000","00100","00010","00001"),
         ' ' to arrayOf("00000","00000","00000","00000","00000","00000","00000")
     )
+
+
+    /**
+     * True when every Unicode code point can be represented by the dot grid.
+     * Event titles containing emoji/accented scripts fall back to native
+     * Glance Text instead of being replaced with '?'.
+     */
+    fun canRender(rawText: String): Boolean {
+        val normalized = rawText.uppercase()
+            .replace('↗', '>')
+
+        var index = 0
+        while (index < normalized.length) {
+            val codePoint = normalized.codePointAt(index)
+
+            if (
+                !Character.isBmpCodePoint(codePoint) ||
+                glyphs[codePoint.toChar()] == null
+            ) {
+                return false
+            }
+
+            index += Character.charCount(codePoint)
+        }
+
+        return true
+    }
 
     fun render(
         context: Context,

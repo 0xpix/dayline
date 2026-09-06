@@ -5,7 +5,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 
 enum class AgendaKind { EVENT, TASK }
-enum class Recurrence { ONCE, DAILY, WEEKDAYS, WEEKLY, MONTHLY }
+enum class Recurrence { ONCE, DAILY, WEEKDAYS, SUNDAYS, EXCEPT_SUNDAY, WEEKLY, MONTHLY }
 enum class RecurrenceEditScope { THIS_OCCURRENCE, THIS_AND_FOLLOWING, ENTIRE_SERIES }
 enum class ItemColor { MONO, BLUE, SAGE, AMBER, ROSE, VIOLET }
 enum class FocusCycle { OFF, POMODORO_25_5, FOCUS_50_10, CUSTOM }
@@ -85,6 +85,8 @@ fun DaylineItem.occursOn(date: LocalDate): Boolean {
         Recurrence.ONCE -> date == startDate
         Recurrence.DAILY -> true
         Recurrence.WEEKDAYS -> date.dayOfWeek.value in 1..5
+        Recurrence.SUNDAYS -> date.dayOfWeek.value == 7
+        Recurrence.EXCEPT_SUNDAY -> date.dayOfWeek.value in 1..6
         Recurrence.WEEKLY -> date.dayOfWeek == startDate.dayOfWeek
         Recurrence.MONTHLY -> date.dayOfMonth == startDate.dayOfMonth
     }

@@ -87,9 +87,15 @@ private fun applyWidgetFilters(
 private fun resolveWidgetEmoji(
     preferences: WidgetInstancePrefs,
     fallback: WidgetEmojiChoice
-): WidgetEmojiChoice = runCatching {
-    WidgetEmojiChoice.valueOf(preferences.emoji.orEmpty())
-}.getOrDefault(fallback)
+): String {
+    val saved = preferences.emoji
+        ?.takeIf { it.isNotBlank() }
+        ?: return fallback.symbol
+
+    return runCatching {
+        WidgetEmojiChoice.valueOf(saved).symbol
+    }.getOrDefault(saved)
+}
 
 private fun resolveWidgetFont(
     preferences: WidgetInstancePrefs,
@@ -310,7 +316,7 @@ private fun ConfiguredWidgetSurface(
             modifier = GlanceModifier
                 .fillMaxSize()
                 .appWidgetBackground()
-                .background(GlanceTheme.colors.background)
+                .background(ColorProvider(R.color.widget_system_surface))
                 .cornerRadius(android.R.dimen.system_app_widget_background_radius)
                 .clickable(actionStartActivity<MainActivity>())
                 .padding(
@@ -325,19 +331,19 @@ private fun ConfiguredWidgetSurface(
 
 @Composable
 private fun WidgetEmojiMark(
-    emoji: WidgetEmojiChoice,
+    emoji: String,
     size: Int
 ) {
     val context = LocalContext.current
     val bitmap = NotoEmojiRenderer.render(
         context = context,
-        glyph = emoji.symbol,
+        glyph = emoji,
         sizeDp = size
     )
 
     Image(
         provider = ImageProvider(bitmap),
-        contentDescription = emoji.label,
+        contentDescription = "Widget emoji",
         modifier = GlanceModifier.size(size.dp),
         contentScale = ContentScale.Fit,
         colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface)
@@ -529,7 +535,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
             val next = if (instance.contentMode == WidgetContentMode.CURRENT) null else nextOccurrence(items, now)
             val widgetFont = resolveWidgetFont(instance, store.loadWidgetFontChoice())
             val widgetEmoji = resolveWidgetEmoji(instance, store.loadWidgetEmojiChoice())
-            val widgetAutoSlide = store.loadWidgetAutoSlide()
+            val widgetAutoSlide = instance.autoSlideLongTitles
 
             ConfiguredWidgetSurface(horizontalPadding = 5, verticalPadding = 6) {
                 val freeText = GlanceTheme.colors.onSurface
@@ -711,7 +717,7 @@ class DaylineSquareWidget : GlanceAppWidget() {
             val busyHours = (0..23).count { isHourBusy(items, today, it) }
             val freeHours = 24 - busyHours
             val widgetFont = resolveWidgetFont(instance, store.loadWidgetFontChoice())
-            val widgetAutoSlide = store.loadWidgetAutoSlide()
+            val widgetAutoSlide = instance.autoSlideLongTitles
 
             ConfiguredWidgetSurface(horizontalPadding = 11, verticalPadding = 11) {
                 Column(GlanceModifier.fillMaxSize()) {
@@ -857,7 +863,7 @@ class DaylineLockWidget : GlanceAppWidget() {
                     modifier = GlanceModifier
                         .fillMaxSize()
                         .appWidgetBackground()
-                        .background(GlanceTheme.colors.background)
+                        .background(ColorProvider(R.color.widget_system_surface))
                         .cornerRadius(android.R.dimen.system_app_widget_background_radius)
                         .clickable(actionStartActivity<MainActivity>())
                         .padding(horizontal = 10.dp, vertical = 6.dp),

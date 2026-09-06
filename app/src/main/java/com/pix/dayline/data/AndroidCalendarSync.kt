@@ -172,6 +172,64 @@ object AndroidCalendarSync {
         }.getOrDefault(emptyList())
     }
 
+    /**
+     * Reconcile local Dayline events that were previously published to an
+     * Android calendar. If that provider event was deleted externally, remove
+     * the mapped local event too.
+     *
+     * Provider failures are treated conservatively: a local event is kept
+     * unless the provider explicitly confirms that the row is missing/deleted.
+     */
+    fun reconcileDeletedMappedItems(
+        context: Context,
+        local: List<DaylineItem>
+    ): List<DaylineItem> {
+        if (!hasReadPermission(context)) return local
+
+        val statusCache = mutableMapOf<Long, Boolean?>()
+
+        return local.filter { item ->
+            val eventId = item.calendarEventId ?: return@filter true
+
+            val exists = statusCache.getOrPut(eventId) {
+                providerEventExists(context, eventId)
+            }
+
+            exists != false
+        }
+    }
+
+    private fun providerEventExists(
+        context: Context,
+        eventId: Long
+    ): Boolean? = runCatching {
+        context.contentResolver.query(
+            ContentUris.withAppendedId(
+                CalendarContract.Events.CONTENT_URI,
+                eventId
+            ),
+            arrayOf(
+                CalendarContract.Events._ID,
+                CalendarContract.Events.DELETED
+            ),
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            if (!cursor.moveToFirst()) {
+                false
+            } else {
+                val deletedIndex =
+                    cursor.getColumnIndex(
+                        CalendarContract.Events.DELETED
+                    )
+
+                deletedIndex < 0 ||
+                    cursor.getInt(deletedIndex) == 0
+            }
+        } ?: false
+    }.getOrNull()
+
     fun mergedItems(
         context: Context,
         local: List<DaylineItem>,

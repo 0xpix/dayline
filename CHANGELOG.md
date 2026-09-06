@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.12.4 — Settings, sync and Upcoming polish
+
+- Moved all widget settings into the per-widget configuration activity.
+- Replaced cycling widget selectors with popup/sheet selectors.
+- Added the full AndroidX Emoji 16.0 picker for widget emoji selection.
+- Made long-title sliding a per-widget option.
+- Switched widget light/dark surfaces to Android system-neutral dynamic colors.
+- Reconciled externally deleted synced-calendar events.
+- Cleaned and expanded app font choices.
+- Reworked Quick Add spacing and default templates.
+- Added semantic/calendar/Space filters to Upcoming.
+
 ## 0.12.3 — Interaction and layout polish
 
 - Fixed drag-to-move and drag-to-resize returning to the previous time.

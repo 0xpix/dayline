@@ -22,29 +22,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.googlefonts.Font
-import androidx.compose.ui.text.googlefonts.GoogleFont
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import com.pix.dayline.data.*
 import com.pix.dayline.model.*
 import com.pix.dayline.ui.components.FloatingControls
 
 
-private val NotoEmojiFamily = FontFamily(
-    Font(
-        googleFont = GoogleFont("Noto Emoji", bestEffort = true),
-        weight = FontWeight.Normal
-    )
-)
 
 private enum class SettingsSheet {
     APPEARANCE,
     APP_FONT,
-    WIDGET_FONT,
-    WIDGET_EMOJI,
     CALENDARS,
     PRIVACY
 }
@@ -54,9 +41,6 @@ private enum class SettingsSheet {
 fun SettingsScreen(
     appearance: Appearance,
     fontChoice: FontChoice,
-    widgetFontChoice: WidgetFontChoice,
-    widgetEmojiChoice: WidgetEmojiChoice,
-    widgetAutoSlide: Boolean,
     nowActivityEnabled: Boolean,
     calendarSyncEnabled: Boolean,
     calendarPreferences: CalendarPreferences,
@@ -66,9 +50,6 @@ fun SettingsScreen(
     weekStartsMonday: Boolean,
     onAppearance: (Appearance) -> Unit,
     onFontChoice: (FontChoice) -> Unit,
-    onWidgetFontChoice: (WidgetFontChoice) -> Unit,
-    onWidgetEmojiChoice: (WidgetEmojiChoice) -> Unit,
-    onWidgetAutoSlide: (Boolean) -> Unit,
     onNowActivityEnabled: (Boolean) -> Unit,
     onCalendarSyncEnabled: (Boolean) -> Unit,
     onCalendarPreferences: (CalendarPreferences) -> Unit,
@@ -109,22 +90,6 @@ fun SettingsScreen(
                 SelectorRow("App font", fontLabel(fontChoice)) {
                     openSheet = SettingsSheet.APP_FONT
                 }
-            }
-
-            SectionGap()
-            SettingsGroup("Widgets") {
-                SelectorRow("Widget font", widgetFontLabel(widgetFontChoice)) {
-                    openSheet = SettingsSheet.WIDGET_FONT
-                }
-                SelectorRow("Widget emoji", widgetEmojiChoice.label) {
-                    openSheet = SettingsSheet.WIDGET_EMOJI
-                }
-                ToggleSettingRow("Slide long titles", widgetAutoSlide, onWidgetAutoSlide)
-                Text(
-                    "Each placed widget can also have its own Space, calendar, content and background configuration.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
 
             SectionGap()
@@ -188,7 +153,7 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(34.dp))
             Text(
-                "Dayline 0.12.3 · Play beta",
+                "Dayline 0.12.4 · Play beta",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -217,28 +182,14 @@ fun SettingsScreen(
             "App font",
             fontLabel(fontChoice),
             listOf(
-                "Pixelify Sans" to { onFontChoice(FontChoice.PIXELIFY) },
-                "Geist · Nothing OS 5" to { onFontChoice(FontChoice.GEIST) },
-                "Geist Pixel" to { onFontChoice(FontChoice.GEIST_PIXEL) },
-                "System" to { onFontChoice(FontChoice.SYSTEM) }
+                "System" to { onFontChoice(FontChoice.SYSTEM) },
+                "Geist" to { onFontChoice(FontChoice.GEIST) },
+                "Inter" to { onFontChoice(FontChoice.INTER) },
+                "Space Grotesk" to { onFontChoice(FontChoice.SPACE_GROTESK) },
+                "IBM Plex Mono" to { onFontChoice(FontChoice.IBM_PLEX_MONO) },
+                "Pixelify Sans" to { onFontChoice(FontChoice.PIXELIFY) }
             )
         ) { openSheet = null }
-
-        SettingsSheet.WIDGET_FONT -> SelectionSheet(
-            "Widget font",
-            widgetFontLabel(widgetFontChoice),
-            listOf(
-                "Nothing dots · Bold" to { onWidgetFontChoice(WidgetFontChoice.DOT_BOLD) },
-                "Nothing dots · Fine" to { onWidgetFontChoice(WidgetFontChoice.DOT_FINE) },
-                "Monospace · Bold" to { onWidgetFontChoice(WidgetFontChoice.MONO) }
-            )
-        ) { openSheet = null }
-
-        SettingsSheet.WIDGET_EMOJI -> EmojiSheet(
-            selected = widgetEmojiChoice,
-            onSelect = onWidgetEmojiChoice,
-            onDismiss = { openSheet = null }
-        )
 
         SettingsSheet.CALENDARS -> CalendarControlsSheet(
             calendars = deviceCalendars,
@@ -319,59 +270,6 @@ private fun SelectionSheet(
                     Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                     Text(if (label == selected) "●" else "○", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun EmojiSheet(
-    selected: WidgetEmojiChoice,
-    onSelect: (WidgetEmojiChoice) -> Unit,
-    onDismiss: () -> Unit
-) {
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.background) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 28.dp)) {
-            Text("Widget emoji", style = MaterialTheme.typography.headlineLarge)
-            Spacer(Modifier.height(6.dp))
-            Text(
-                "Google Noto Emoji · monochrome · changes stay live while this sheet is open.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.height(20.dp))
-            WidgetEmojiChoice.entries.chunked(4).forEach { row ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    row.forEach { emoji ->
-                        Box(
-                            modifier = Modifier
-                                .size(68.dp)
-                                .background(
-                                    if (emoji == selected) MaterialTheme.colorScheme.primaryContainer
-                                    else MaterialTheme.colorScheme.surfaceVariant,
-                                    CircleShape
-                                )
-                                .clickable { onSelect(emoji) },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = emoji.symbol,
-                                fontFamily = NotoEmojiFamily,
-                                fontWeight = FontWeight.Normal,
-                                fontSize = 31.sp,
-                                lineHeight = 32.sp,
-                                color = if (emoji == selected) {
-                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                }
-                            )
-                        }
-                    }
-                    repeat(4 - row.size) { Spacer(Modifier.size(68.dp)) }
-                }
-                Spacer(Modifier.height(14.dp))
             }
         }
     }
@@ -515,16 +413,13 @@ private fun appearanceLabel(appearance: Appearance): String = when (appearance) 
 }
 
 private fun fontLabel(font: FontChoice): String = when (font) {
-    FontChoice.PIXELIFY -> "Pixelify Sans"
-    FontChoice.GEIST -> "Geist"
-    FontChoice.GEIST_PIXEL -> "Geist Pixel"
     FontChoice.SYSTEM -> "System"
-}
-
-private fun widgetFontLabel(font: WidgetFontChoice): String = when (font) {
-    WidgetFontChoice.DOT_BOLD -> "Nothing dots · Bold"
-    WidgetFontChoice.DOT_FINE -> "Nothing dots · Fine"
-    WidgetFontChoice.MONO -> "Monospace · Bold"
+    FontChoice.GEIST -> "Geist"
+    FontChoice.INTER -> "Inter"
+    FontChoice.SPACE_GROTESK -> "Space Grotesk"
+    FontChoice.IBM_PLEX_MONO -> "IBM Plex Mono"
+    FontChoice.PIXELIFY -> "Pixelify Sans"
+    FontChoice.GEIST_PIXEL -> "Geist"
 }
 
 private fun preciseStatus(context: Context): String {

@@ -1,4 +1,4 @@
-# Dayline v0.12.3 — Validation
+# Dayline v0.12.4 — Validation
 
 This patch focuses on widget typography and surface polish.
 
@@ -47,3 +47,39 @@ The Now notification now displays:
 - the existing progress bar.
 
 GitHub Actions remains the authoritative Android/Gradle compile gate.
+
+## v0.12.4 checks
+
+- In-app Settings contains no widget section.
+- Per-widget configuration uses modal selection sheets.
+- Emoji selection uses AndroidX EmojiPickerView 1.6.0, which provides the
+  complete Emoji 16.0 picker and variants.
+- Widget emoji preference accepts raw Unicode glyph strings, while old enum-name
+  preferences remain migration-compatible.
+- Widget surfaces use `@android:color/system_neutral1_*` on API 31+ and neutral
+  light/dark fallback resources before API 31.
+- Calendar Provider mappings are queried during overlay refresh; provider rows
+  confirmed missing/deleted are removed from local Dayline state.
+- Quick Add uses FlowRow layout and common non-personal default templates.
+- Upcoming includes semantic, per-calendar and per-Space filters.
+
+GitHub Actions remains the authoritative Android/Gradle compile gate.
+
+## Final v0.12.4 packaging validation
+
+- Release validator: PASS
+- Kotlin files: 41
+- XML resources: parsed successfully
+- High-risk changed Kotlin files: balanced braces/parentheses
+- In-app widget settings: removed
+- AndroidX complete emoji picker dependency + listener: present
+- Raw Unicode widget emoji migration: present
+- System-neutral widget surface: present
+- External Calendar Provider deletion reconciliation: present
+- Quick Add FlowRow layout + common templates: present
+- Upcoming semantic/calendar/Space filters: present
+- Expanded app fonts: present
+- Full/update ZIP integrity: checked during packaging
+
+The authoritative Android compile still runs in GitHub Actions because this
+runtime does not include an Android SDK/Gradle build environment.

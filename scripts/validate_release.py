@@ -155,10 +155,10 @@ for kind, name in re.findall(r"@([A-Za-z0-9_]+)/([A-Za-z0-9_]+)", manifest_text)
 
 # Release and Play configuration.
 gradle = read(APP / "build.gradle.kts")
-if 'versionName = "0.12.3"' not in gradle:
-    fail("app versionName must be 0.12.3")
-if 'versionCode = 33' not in gradle:
-    fail("app versionCode must be 33")
+if 'versionName = "0.12.4"' not in gradle:
+    fail("app versionName must be 0.12.4")
+if 'versionCode = 34' not in gradle:
+    fail("app versionCode must be 34")
 if "targetSdk = 36" not in gradle:
     fail("targetSdk 36 expected")
 if "compileSdk = 37" not in gradle:
@@ -224,6 +224,81 @@ for label, ok in feature_checks.items():
 
 
 
+
+
+# v0.12.4 settings/sync/widget/upcoming checks.
+settings_source = read(
+    JAVA / "com/pix/dayline/ui/settings/SettingsScreen.kt"
+)
+widget_config_source = read(
+    JAVA / "com/pix/dayline/widgets/WidgetConfigActivity.kt"
+)
+widgets_source = read(
+    JAVA / "com/pix/dayline/widgets/DaylineWidgets.kt"
+)
+calendar_source = read(
+    JAVA / "com/pix/dayline/data/AndroidCalendarSync.kt"
+)
+quick_source = read(
+    JAVA / "com/pix/dayline/ui/components/QuickAddSheet.kt"
+)
+upcoming_source = read(
+    JAVA / "com/pix/dayline/ui/upcoming/UpcomingScreen.kt"
+)
+
+if 'SettingsGroup("Widgets")' in settings_source:
+    fail("Widget settings still appear in app Settings")
+
+if "EmojiPickerView" not in widget_config_source:
+    fail("Complete AndroidX emoji picker is missing")
+
+if "WidgetSelectionSheet" not in widget_config_source:
+    fail("Widget selector popups are missing")
+
+if "autoSlideLongTitles" not in widget_config_source:
+    fail("Long-title sliding is not per-widget")
+
+if "widget_system_surface" not in widgets_source:
+    fail("System-neutral widget surface is missing")
+
+if "reconcileDeletedMappedItems" not in calendar_source:
+    fail("Calendar deletion reconciliation is missing")
+
+for font_token in (
+    "FontChoice.INTER",
+    "FontChoice.SPACE_GROTESK",
+    "FontChoice.IBM_PLEX_MONO"
+):
+    if font_token not in settings_source:
+        fail(f"New font option is missing: {font_token}")
+
+if "FlowRow" not in quick_source:
+    fail("Quick Add still uses cramped fixed rows")
+
+for template in (
+    "Meeting",
+    "Focus block",
+    "Workout",
+    "Appointment",
+    "Errand"
+):
+    if template not in read(
+        JAVA / "com/pix/dayline/data/DaylineStore.kt"
+    ):
+        fail(f"Common template missing: {template}")
+
+for filter_token in (
+    "Meetings",
+    "Holidays",
+    "UpcomingFilter.Calendar",
+    "UpcomingFilter.Space"
+):
+    if filter_token not in upcoming_source:
+        fail(f"Upcoming filter missing: {filter_token}")
+
+gradle_text = read(ROOT / "app/build.gradle.kts")
+if "androidx.emoji2:emoji2-emojipicker:1.6.0" not in gradle_text:
+    fail("AndroidX Emoji Picker dependency is missing")
 
 # v0.12.3 interaction/polish checks.
 timeline_source = read(
@@ -310,11 +385,16 @@ if legacy_emoji_pngs:
 if '"DAYLINE"' in widgets_source:
     fail("Pulse widget still renders DAYLINE under the emoji")
 
-if ".background(GlanceTheme.colors.background)" not in widgets_source:
-    fail("Full neutral widget background is missing")
+if "ColorProvider(R.color.widget_system_surface)" not in widgets_source:
+    fail("System-neutral widget background is missing")
 
-if 'GoogleFont("Noto Emoji"' not in settings_source:
-    fail("Settings emoji picker is not using Google Noto Emoji")
+widget_config_for_noto = read(
+    JAVA / "com/pix/dayline/widgets/WidgetConfigActivity.kt"
+)
+if "EmojiPickerView" not in widget_config_for_noto:
+    fail("Widget emoji picker is not using AndroidX EmojiPickerView")
+if "NotoEmojiRenderer.render" not in widget_config_for_noto:
+    fail("Widget preview is not rendering the selected emoji through Noto Emoji")
 
 if 'android:name="preloaded_fonts"' not in manifest_text:
     fail("Manifest does not preload downloadable fonts")
@@ -333,7 +413,7 @@ for path in [*kotlin_files, *ROOT.glob("*.md"), *ROOT.glob("docs/*.md")]:
     if "FIXME" in text:
         fail(f"FIXME left in {path.relative_to(ROOT)}")
 
-print("Dayline v0.12.3 release validation")
+print("Dayline v0.12.4 release validation")
 print(f"  Kotlin files: {len(kotlin_files)}")
 print(f"  XML files: {len(list((APP / 'src/main').rglob('*.xml')))}")
 print(f"  Errors: {len(ERRORS)}")

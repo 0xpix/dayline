@@ -82,7 +82,7 @@ class DaylineStore(context: Context) {
         val raw = prefs.getString(KEY_TEMPLATES, null) ?: return defaultTemplates()
         return runCatching {
             val array = JSONArray(raw)
-            buildList {
+            val loaded = buildList {
                 for (index in 0 until array.length()) {
                     val json = array.getJSONObject(index)
                     add(
@@ -105,6 +105,22 @@ class DaylineStore(context: Context) {
                         )
                     )
                 }
+            }
+
+            val legacyIds = setOf(
+                "template-gym",
+                "template-deep-work",
+                "template-cs2",
+                "template-0x00"
+            )
+
+            if (
+                loaded.size == legacyIds.size &&
+                loaded.map { it.id }.toSet() == legacyIds
+            ) {
+                defaultTemplates()
+            } else {
+                loaded
             }
         }.getOrDefault(defaultTemplates())
     }
@@ -183,7 +199,10 @@ class DaylineStore(context: Context) {
 
     fun loadWidgetInstancePrefs(appWidgetId: Int): WidgetInstancePrefs {
         val raw = prefs.getString(widgetKey(appWidgetId), null)
-            ?: return WidgetInstancePrefs(appWidgetId)
+            ?: return WidgetInstancePrefs(
+                appWidgetId = appWidgetId,
+                autoSlideLongTitles = loadWidgetAutoSlide()
+            )
         return runCatching {
             val json = JSONObject(raw)
             WidgetInstancePrefs(
@@ -202,7 +221,11 @@ class DaylineStore(context: Context) {
                     json.optString("contentMode"),
                     WidgetContentMode.SMART
                 ),
-                showFocusState = json.optBoolean("showFocusState", true)
+                showFocusState = json.optBoolean("showFocusState", true),
+                autoSlideLongTitles = json.optBoolean(
+                    "autoSlideLongTitles",
+                    loadWidgetAutoSlide()
+                )
             )
         }.getOrDefault(WidgetInstancePrefs(appWidgetId))
     }
@@ -218,6 +241,7 @@ class DaylineStore(context: Context) {
             .put("backgroundMode", value.backgroundMode.name)
             .put("contentMode", value.contentMode.name)
             .put("showFocusState", value.showFocusState)
+            .put("autoSlideLongTitles", value.autoSlideLongTitles)
 
         prefs.edit().putString(widgetKey(value.appWidgetId), json.toString()).apply()
     }
@@ -455,28 +479,34 @@ class DaylineStore(context: Context) {
 
     private fun defaultTemplates(): List<EventTemplate> = listOf(
         EventTemplate(
-            id = "template-gym",
-            title = "Gym",
-            durationMinutes = 90,
-            color = ItemColor.SAGE
-        ),
-        EventTemplate(
-            id = "template-deep-work",
-            title = "PhD deep work",
-            durationMinutes = 120,
-            color = ItemColor.VIOLET,
-            focusCycle = FocusCycle.POMODORO_25_5
-        ),
-        EventTemplate(
-            id = "template-cs2",
-            title = "CS2 training",
-            durationMinutes = 90,
+            id = "template-meeting",
+            title = "Meeting",
+            durationMinutes = 60,
             color = ItemColor.BLUE
         ),
         EventTemplate(
-            id = "template-0x00",
-            title = "0x00",
-            durationMinutes = 120,
+            id = "template-focus",
+            title = "Focus block",
+            durationMinutes = 90,
+            color = ItemColor.VIOLET,
+            focusCycle = FocusCycle.FOCUS_50_10
+        ),
+        EventTemplate(
+            id = "template-workout",
+            title = "Workout",
+            durationMinutes = 60,
+            color = ItemColor.SAGE
+        ),
+        EventTemplate(
+            id = "template-appointment",
+            title = "Appointment",
+            durationMinutes = 60,
+            color = ItemColor.AMBER
+        ),
+        EventTemplate(
+            id = "template-errand",
+            title = "Errand",
+            durationMinutes = 45,
             color = ItemColor.ROSE
         )
     )
@@ -505,7 +535,7 @@ class DaylineStore(context: Context) {
 }
 
 enum class Appearance { SYSTEM, LIGHT, DARK }
-enum class FontChoice { PIXELIFY, GEIST, GEIST_PIXEL, SYSTEM }
+enum class FontChoice { SYSTEM, GEIST, INTER, SPACE_GROTESK, IBM_PLEX_MONO, PIXELIFY, GEIST_PIXEL }
 enum class WidgetFontChoice { DOT_BOLD, DOT_FINE, MONO }
 
 enum class WidgetEmojiChoice {

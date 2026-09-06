@@ -21,13 +21,19 @@ private fun downloadableFamily(name: String): FontFamily {
 
 private val PixelifySansFamily = downloadableFamily("Pixelify Sans")
 private val GeistFamily = downloadableFamily("Geist")
-private val GeistPixelFamily = downloadableFamily("Geist Pixel")
+private val InterFamily = downloadableFamily("Inter")
+private val SpaceGroteskFamily = downloadableFamily("Space Grotesk")
+private val IbmPlexMonoFamily = downloadableFamily("IBM Plex Mono")
 
 private fun familyFor(choice: FontChoice): FontFamily = when (choice) {
-    FontChoice.PIXELIFY -> PixelifySansFamily
-    FontChoice.GEIST -> GeistFamily
-    FontChoice.GEIST_PIXEL -> GeistPixelFamily
     FontChoice.SYSTEM -> FontFamily.SansSerif
+    FontChoice.GEIST -> GeistFamily
+    FontChoice.INTER -> InterFamily
+    FontChoice.SPACE_GROTESK -> SpaceGroteskFamily
+    FontChoice.IBM_PLEX_MONO -> IbmPlexMonoFamily
+    FontChoice.PIXELIFY -> PixelifySansFamily
+    // Migration path for users who previously selected Geist Pixel.
+    FontChoice.GEIST_PIXEL -> GeistFamily
 }
 
 fun daylineTypography(choice: FontChoice): Typography {

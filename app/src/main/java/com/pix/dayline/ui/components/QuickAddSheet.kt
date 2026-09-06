@@ -9,6 +9,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -45,7 +48,7 @@ import java.time.format.TextStyle
 import java.util.Locale
 import java.util.UUID
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun QuickAddSheet(
     initialDate: LocalDate,
@@ -163,17 +166,35 @@ fun QuickAddSheet(
                 }
             }
 
-            if (editing == null && templates.isNotEmpty()) {
-                Spacer(Modifier.height(18.dp))
-                Text("Templates", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(8.dp))
-                templates.chunked(3).take(2).forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        row.forEach { template ->
-                            ChoicePill(template.title, false) { applyTemplate(template) }
+            if (
+                editing == null &&
+                templates.isNotEmpty()
+            ) {
+                Spacer(Modifier.height(22.dp))
+
+                Text(
+                    "Templates",
+                    style = MaterialTheme.typography.labelMedium,
+                    color =
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(Modifier.height(10.dp))
+
+                FlowRow(
+                    horizontalArrangement =
+                        Arrangement.spacedBy(9.dp),
+                    verticalArrangement =
+                        Arrangement.spacedBy(9.dp)
+                ) {
+                    templates.forEach { template ->
+                        ChoicePill(
+                            template.title,
+                            false
+                        ) {
+                            applyTemplate(template)
                         }
                     }
-                    Spacer(Modifier.height(7.dp))
                 }
             }
 
@@ -215,23 +236,47 @@ fun QuickAddSheet(
             }
 
             if (spaces.isNotEmpty()) {
-                Text("Space", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(8.dp))
-                spaces.chunked(3).take(2).forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        row.forEach { space ->
-                            ChoicePill(space.name, spaceId == space.id) { spaceId = space.id }
+                Text(
+                    "Space",
+                    style = MaterialTheme.typography.labelMedium,
+                    color =
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(Modifier.height(10.dp))
+
+                FlowRow(
+                    horizontalArrangement =
+                        Arrangement.spacedBy(9.dp),
+                    verticalArrangement =
+                        Arrangement.spacedBy(9.dp)
+                ) {
+                    spaces.forEach { space ->
+                        ChoicePill(
+                            space.name,
+                            spaceId == space.id
+                        ) {
+                            spaceId = space.id
                         }
                     }
-                    Spacer(Modifier.height(7.dp))
+
+                    ChoicePill(
+                        "No space",
+                        spaceId == null
+                    ) {
+                        spaceId = null
+                    }
                 }
-                ChoicePill("No space", spaceId == null) { spaceId = null }
-                Spacer(Modifier.height(20.dp))
+
+                Spacer(Modifier.height(22.dp))
             }
 
             Text("When", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(9.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
                 PlainPill(date.format(DateTimeFormatter.ofPattern("EEE, MMM d"))) {
                     DatePickerDialog(
                         context,
@@ -268,13 +313,35 @@ fun QuickAddSheet(
             }
 
             Section("Repeat") {
-                RepeatPill("Once", Recurrence.ONCE, recurrence) { recurrence = it }
-                RepeatPill("Daily", Recurrence.DAILY, recurrence) { recurrence = it }
-                RepeatPill("Weekdays", Recurrence.WEEKDAYS, recurrence) { recurrence = it }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RepeatPill("Weekly", Recurrence.WEEKLY, recurrence) { recurrence = it }
-                RepeatPill("Monthly", Recurrence.MONTHLY, recurrence) { recurrence = it }
+                RepeatPill(
+                    "Once",
+                    Recurrence.ONCE,
+                    recurrence
+                ) { recurrence = it }
+
+                RepeatPill(
+                    "Daily",
+                    Recurrence.DAILY,
+                    recurrence
+                ) { recurrence = it }
+
+                RepeatPill(
+                    "Weekdays",
+                    Recurrence.WEEKDAYS,
+                    recurrence
+                ) { recurrence = it }
+
+                RepeatPill(
+                    "Weekly",
+                    Recurrence.WEEKLY,
+                    recurrence
+                ) { recurrence = it }
+
+                RepeatPill(
+                    "Monthly",
+                    Recurrence.MONTHLY,
+                    recurrence
+                ) { recurrence = it }
             }
             Spacer(Modifier.height(6.dp))
             Text(
@@ -437,12 +504,26 @@ fun QuickAddSheet(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Section(label: String, content: @Composable () -> Unit) {
-    Spacer(Modifier.height(20.dp))
-    Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    Spacer(Modifier.height(8.dp))
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+private fun Section(
+    label: String,
+    content: @Composable () -> Unit
+) {
+    Spacer(Modifier.height(24.dp))
+
+    Text(
+        label,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
+    Spacer(Modifier.height(10.dp))
+
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(9.dp),
+        verticalArrangement = Arrangement.spacedBy(9.dp)
+    ) {
         content()
     }
 }
@@ -472,11 +553,29 @@ private fun ChoicePill(label: String, selected: Boolean, onClick: () -> Unit) {
             indication = null,
             onClick = onClick
         ),
-        shape = CircleShape,
-        color = if (selected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.surface,
-        contentColor = if (selected) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onSurface
+        shape = RoundedCornerShape(18.dp),
+        color =
+            if (selected) {
+                MaterialTheme.colorScheme.onBackground
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
+        contentColor =
+            if (selected) {
+                MaterialTheme.colorScheme.background
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            }
     ) {
-        Text(label, modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp), style = MaterialTheme.typography.bodyMedium)
+        Text(
+            text = label,
+            modifier = Modifier.padding(
+                horizontal = 16.dp,
+                vertical = 10.dp
+            ),
+            style = MaterialTheme.typography.bodyLarge,
+            maxLines = 1
+        )
     }
 }
 

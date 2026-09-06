@@ -86,16 +86,54 @@ fun DaylineApp() {
     }
 
     fun refreshCalendarOverlay() {
-        if (calendarSyncEnabled && AndroidCalendarSync.hasReadPermission(appContext)) {
-            deviceCalendars = AndroidCalendarSync.listCalendars(appContext)
-            calendarItems = AndroidCalendarSync.loadOccurrences(
-                appContext,
-                calendarPreferences
-            )
+        if (
+            calendarSyncEnabled &&
+            AndroidCalendarSync.hasReadPermission(appContext)
+        ) {
+            // A Dayline-created event can also be deleted from Google Calendar,
+            // Outlook, etc. Remove the local mapped copy when its provider row
+            // no longer exists so it cannot "come back" inside Dayline.
+            val reconciled =
+                AndroidCalendarSync.reconcileDeletedMappedItems(
+                    appContext,
+                    items
+                )
+
+            if (reconciled.size != items.size) {
+                val removedIds =
+                    items.map { it.id }.toSet() -
+                        reconciled.map { it.id }.toSet()
+
+                items
+                    .filter { it.id in removedIds }
+                    .forEach {
+                        NotificationScheduler.cancel(
+                            appContext,
+                            it
+                        )
+                        NowActivityScheduler.cancel(
+                            appContext,
+                            it
+                        )
+                    }
+
+                items = reconciled
+                store.saveItems(reconciled)
+            }
+
+            deviceCalendars =
+                AndroidCalendarSync.listCalendars(appContext)
+
+            calendarItems =
+                AndroidCalendarSync.loadOccurrences(
+                    appContext,
+                    calendarPreferences
+                )
         } else {
             deviceCalendars = emptyList()
             calendarItems = emptyList()
         }
+
         updateWidgets()
     }
 
@@ -571,9 +609,6 @@ fun DaylineApp() {
                     DaylineScreen.SETTINGS -> SettingsScreen(
                         appearance = appearance,
                         fontChoice = fontChoice,
-                        widgetFontChoice = widgetFontChoice,
-                        widgetEmojiChoice = widgetEmojiChoice,
-                        widgetAutoSlide = widgetAutoSlide,
                         nowActivityEnabled = nowActivityEnabled,
                         calendarSyncEnabled = calendarSyncEnabled,
                         calendarPreferences = calendarPreferences,
@@ -588,21 +623,6 @@ fun DaylineApp() {
                         onFontChoice = {
                             fontChoice = it
                             store.saveFontChoice(it)
-                        },
-                        onWidgetFontChoice = {
-                            widgetFontChoice = it
-                            store.saveWidgetFontChoice(it)
-                            updateWidgets()
-                        },
-                        onWidgetEmojiChoice = {
-                            widgetEmojiChoice = it
-                            store.saveWidgetEmojiChoice(it)
-                            updateWidgets()
-                        },
-                        onWidgetAutoSlide = {
-                            widgetAutoSlide = it
-                            store.saveWidgetAutoSlide(it)
-                            updateWidgets()
                         },
                         onNowActivityEnabled = {
                             nowActivityEnabled = it

@@ -56,5 +56,6 @@ data class WidgetInstancePrefs(
     val showEvents: Boolean = true,
     val backgroundMode: WidgetBackgroundMode = WidgetBackgroundMode.SYSTEM,
     val contentMode: WidgetContentMode = WidgetContentMode.SMART,
-    val showFocusState: Boolean = true
+    val showFocusState: Boolean = true,
+    val autoSlideLongTitles: Boolean = true
 )

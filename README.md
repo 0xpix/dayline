@@ -4,8 +4,27 @@
 
 Dayline is an open-source Android calendar and planner built with Kotlin, Jetpack Compose, Material 3 and Glance. It is intentionally local-first, minimal, and designed around Today rather than a dashboard.
 
-Current milestone: **v0.12.3 · Play beta**
+Current milestone: **v0.12.4 · Play beta**
 
+
+## v0.12.4 settings, sync and upcoming polish
+
+- Removed widget controls from the in-app Settings screen. Widget options now
+  live only in each widget's Android configuration screen.
+- Widget configuration rows now open real chooser sheets instead of cycling values.
+- Emoji selection uses AndroidX EmojiPickerView with the complete Emoji 16.0
+  picker/categories/variants; the chosen glyph is rendered with Dayline's Noto Emoji path.
+- "Slide long titles" is now stored per widget.
+- Widget backgrounds use Android's dynamic neutral system palette on Android 12+
+  with neutral fallbacks on older Android versions.
+- Synced Dayline events are reconciled with Calendar Provider deletion, so deleting
+  a mapped event from Google Calendar/another calendar removes it from Dayline.
+- App font list is cleaned up: System, Geist, Inter, Space Grotesk, IBM Plex Mono,
+  and Pixelify Sans. Legacy Geist Pixel migrates visually to Geist.
+- Quick Add now uses wrapping, roomier controls and common templates:
+  Meeting, Focus block, Workout, Appointment and Errand.
+- Upcoming now supports All, Meetings, Holidays, Events, Tasks, individual
+  calendar, and Space filters.
 
 ## v0.12.3 interaction + layout polish
 

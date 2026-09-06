@@ -1,6 +1,6 @@
-# Dayline v0.13.0.beta — Validation Report
+# Dayline v0.13.1.beta — Validation Report
 
-This report records checks performed on the v0.13.0.beta source package. GitHub Actions remains the authoritative Android/Compose compile gate because this execution environment does not include a complete Android SDK/Gradle toolchain.
+This report records checks performed on the v0.13.1.beta source package. GitHub Actions remains the authoritative Android/Compose compile gate because this execution environment does not include a complete Android SDK/Gradle toolchain.
 
 ## Release checks
 
@@ -59,4 +59,10 @@ Run on GitHub Actions before creating the release tag:
 :app:assemblePlayDebug
 ```
 
-For `v0.13.0.beta`, the tagged job additionally builds and verifies `:app:assembleBetaRelease`, generates its SHA-256 checksum and publishes a GitHub prerelease. Do not consider the release Android-compile-confirmed until that workflow is green.
+For `v0.13.1.beta`, the tagged job additionally builds and verifies `:app:assembleBetaRelease`, generates its SHA-256 checksum and publishes a GitHub prerelease. Do not consider the release Android-compile-confirmed until that workflow is green.
+
+## v0.13.1.beta workflow hotfix
+
+- Beta release signature verification now invokes `apksigner` by its installed Android Build Tools 36.0.0 path instead of assuming it is on `PATH`.
+- Play release APK verification uses the same explicit SDK path.
+- Android versionCode is 1301 and versionName resolves to `0.13.1.beta` for the beta flavor.

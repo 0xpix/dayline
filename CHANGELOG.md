@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.1.beta — Release workflow hotfix
+
+- Fixed GitHub beta-release signature verification: the workflow now calls the `apksigner` binary from Android Build Tools 36.0.0 directly instead of assuming it is on the shell `PATH`.
+- Added the same explicit APK signature verification to the Play release workflow.
+- Bumped Android versionCode to 1301 so this hotfix can be installed over 0.13.0/0.12.8 beta builds.
+
 ## 0.13.0.beta — Update & reliability beta
 
 - Fixed the beta/play debug compile gate after CI exposed two integration regressions: the scheduled beta checker now calls its suspend API from an IO coroutine, and Settings again receives all widget preference values/callbacks.

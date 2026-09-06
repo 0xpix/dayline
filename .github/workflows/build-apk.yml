@@ -119,7 +119,10 @@ jobs:
         run: gradle :app:assembleBetaRelease --no-daemon --stacktrace
 
       - name: Verify beta APK signature
-        run: apksigner verify --verbose app/build/outputs/apk/beta/release/app-beta-release.apk
+        run: |
+          APKSIGNER="$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" verify --verbose app/build/outputs/apk/beta/release/app-beta-release.apk
 
       - name: Prepare beta APK + checksum
         id: beta

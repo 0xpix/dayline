@@ -4,9 +4,9 @@
 
 Dayline is an open-source Android calendar and planner built with Kotlin, Jetpack Compose, Material 3 and Glance. It is local-first, deliberately minimal, and designed around **Today** instead of a dashboard.
 
-Current milestone: **v0.13.0.beta · update & reliability beta**
+Current milestone: **v0.13.1.beta · update & reliability beta**
 
-## What v0.13.0.beta adds
+## What v0.13.1.beta adds
 
 This beta is focused on reliability, direct manipulation and making the GitHub beta channel usable before Play testing:
 
@@ -48,7 +48,7 @@ Requirements: JDK 17, Gradle 9.4.1, Android SDK API 37 and Build Tools 36.0.0.
 gradle :app:assembleBetaDebug :app:assemblePlayDebug --no-daemon
 ```
 
-GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.13.0.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
+GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.13.1.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
 
 ## Google Play build
 

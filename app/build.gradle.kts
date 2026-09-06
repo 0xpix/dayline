@@ -13,8 +13,8 @@ android {
         targetSdk = 36
         // v0.12.8.beta used versionCode 33. Keep a large monotonic code so
         // Android accepts this beta and leaves room for 0.13.x follow-ups.
-        versionCode = 1300
-        versionName = "0.13.0"
+        versionCode = 1301
+        versionName = "0.13.1"
 
         val commit = (System.getenv("GITHUB_SHA") ?: "local").take(7)
         buildConfigField("String", "GIT_COMMIT", "\"$commit\"")

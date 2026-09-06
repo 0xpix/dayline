@@ -158,8 +158,8 @@ for kind, name in re.findall(r"@([A-Za-z0-9_]+)/([A-Za-z0-9_]+)", manifest_text)
 # Build/release config.
 gradle = read(APP / "build.gradle.kts")
 for token, label in (
-    ('versionName = "0.13.0"', "app versionName must be 0.13.0 before beta suffix"),
-    ('versionCode = 1300', "app versionCode must be 1300"),
+    ('versionName = "0.13.1"', "app versionName must be 0.13.1 before beta suffix"),
+    ('versionCode = 1301', "app versionCode must be 1301"),
     ('targetSdk = 36', "targetSdk 36 expected"),
     ('compileSdk = 37', "compileSdk 37 expected"),
     ('create("beta")', "beta product flavor missing"),
@@ -222,7 +222,7 @@ for token in (
     "DAYLINE_BETA_KEYSTORE_BASE64",
     "DAYLINE_BETA_KEY_ALIAS",
     "keytool -list",
-    "apksigner verify",
+    "apksigner",
     "--prerelease",
     "sha256sum",
 ):
@@ -306,7 +306,7 @@ for path in [*kotlin_files, *ROOT.glob("*.md"), *ROOT.glob("docs/*.md")]:
     if any(marker in text for marker in ("<<<<<<<", ">>>>>>>")):
         fail(f"Merge marker left in {path.relative_to(ROOT)}")
 
-print("Dayline v0.13.0.beta release validation")
+print("Dayline v0.13.1.beta release validation")
 print(f"  Kotlin files: {len(kotlin_files)}")
 print(f"  XML files: {len(list((APP / 'src').rglob('*.xml')))}")
 print(f"  Errors: {len(ERRORS)}")

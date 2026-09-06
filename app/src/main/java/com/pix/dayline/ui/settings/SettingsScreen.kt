@@ -97,7 +97,7 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 30.dp, end = 30.dp, top = 56.dp, bottom = 138.dp)
+                .padding(start = 30.dp, end = 30.dp, top = 112.dp, bottom = 138.dp)
         ) {
             Text("Settings", style = MaterialTheme.typography.displayMedium)
             Spacer(Modifier.height(34.dp))
@@ -188,7 +188,7 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(34.dp))
             Text(
-                "Dayline 0.12.2 · Play beta",
+                "Dayline 0.12.3 · Play beta",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

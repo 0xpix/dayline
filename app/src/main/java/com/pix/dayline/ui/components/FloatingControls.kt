@@ -17,11 +17,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * A quiet Dawn-like action rail.
+ *
+ * The menu/today controls are intentionally small and airy. The primary add
+ * action is the only visually heavy control.
+ */
 @Composable
 fun FloatingControls(
     modifier: Modifier = Modifier,
@@ -34,16 +41,34 @@ fun FloatingControls(
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        CircleAction(label = "≡", filled = false, onClick = onMenu)
+        CircleAction(
+            filled = false,
+            size = 42,
+            onClick = onMenu
+        ) { color ->
+            MenuLinesIcon(color)
+        }
+
         if (showToday) {
-            CircleAction(filled = false, onClick = onToday) { color ->
+            CircleAction(
+                filled = false,
+                size = 42,
+                onClick = onToday
+            ) { color ->
                 TodayGlyphIcon(color)
             }
         }
+
         if (showAdd) {
-            CircleAction(label = "+", filled = true, size = 54, textSize = 31, onClick = onAdd)
+            CircleAction(
+                label = "+",
+                filled = true,
+                size = 50,
+                textSize = 28,
+                onClick = onAdd
+            )
         }
     }
 }
@@ -53,25 +78,39 @@ private fun CircleAction(
     label: String? = null,
     filled: Boolean,
     onClick: () -> Unit,
-    size: Int = 48,
-    textSize: Int = 23,
+    size: Int = 42,
+    textSize: Int = 22,
     content: (@Composable (Color) -> Unit)? = null
 ) {
-    val background = if (filled) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.surface
-    val foreground = if (filled) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onSurface
+    val background =
+        if (filled) {
+            MaterialTheme.colorScheme.onBackground
+        } else {
+            MaterialTheme.colorScheme.surface
+        }
+
+    val foreground =
+        if (filled) {
+            MaterialTheme.colorScheme.background
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        }
 
     Surface(
         modifier = Modifier
             .size(size.dp)
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = remember {
+                    MutableInteractionSource()
+                },
                 indication = null,
                 onClick = onClick
             ),
         shape = CircleShape,
         color = background,
         contentColor = foreground,
-        shadowElevation = if (filled) 0.dp else 1.dp
+        tonalElevation = 0.dp,
+        shadowElevation = if (filled) 1.dp else 3.dp
     ) {
         Box(contentAlignment = Alignment.Center) {
             if (content != null) {
@@ -81,7 +120,7 @@ private fun CircleAction(
                     text = label,
                     color = foreground,
                     fontSize = textSize.sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Normal
                 )
             }
         }
@@ -89,13 +128,46 @@ private fun CircleAction(
 }
 
 @Composable
+private fun MenuLinesIcon(color: Color) {
+    Canvas(modifier = Modifier.size(18.dp)) {
+        val stroke = 1.55.dp.toPx()
+        val left = size.width * 0.22f
+        val right = size.width * 0.78f
+        val shortRight = size.width * 0.66f
+
+        drawLine(
+            color,
+            Offset(left, size.height * 0.34f),
+            Offset(right, size.height * 0.34f),
+            stroke,
+            StrokeCap.Round
+        )
+        drawLine(
+            color,
+            Offset(left, size.height * 0.50f),
+            Offset(shortRight, size.height * 0.50f),
+            stroke,
+            StrokeCap.Round
+        )
+        drawLine(
+            color,
+            Offset(left, size.height * 0.66f),
+            Offset(right, size.height * 0.66f),
+            stroke,
+            StrokeCap.Round
+        )
+    }
+}
+
+@Composable
 private fun TodayGlyphIcon(color: Color) {
-    Canvas(modifier = Modifier.size(21.dp)) {
-        val center = Offset(size.width / 2f, size.height / 2f)
-        val stroke = 1.7.dp.toPx()
-        val radius = size.minDimension * 0.31f
-        val tickInner = size.minDimension * 0.38f
-        val tickOuter = size.minDimension * 0.47f
+    Canvas(modifier = Modifier.size(19.dp)) {
+        val center = Offset(
+            size.width / 2f,
+            size.height / 2f
+        )
+        val stroke = 1.45.dp.toPx()
+        val radius = size.minDimension * 0.30f
 
         drawCircle(
             color = color,
@@ -103,11 +175,19 @@ private fun TodayGlyphIcon(color: Color) {
             center = center,
             style = Stroke(width = stroke)
         )
-        drawCircle(color = color, radius = 1.45.dp.toPx(), center = center)
 
-        drawLine(color, Offset(center.x, center.y - tickOuter), Offset(center.x, center.y - tickInner), stroke)
-        drawLine(color, Offset(center.x, center.y + tickInner), Offset(center.x, center.y + tickOuter), stroke)
-        drawLine(color, Offset(center.x - tickOuter, center.y), Offset(center.x - tickInner, center.y), stroke)
-        drawLine(color, Offset(center.x + tickInner, center.y), Offset(center.x + tickOuter, center.y), stroke)
+        drawCircle(
+            color = color,
+            radius = 1.25.dp.toPx(),
+            center = center
+        )
+
+        drawLine(
+            color = color,
+            start = Offset(center.x, size.height * 0.11f),
+            end = Offset(center.x, size.height * 0.20f),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
     }
 }

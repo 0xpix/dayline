@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.12.3 — Interaction and layout polish
+
+- Fixed drag-to-move and drag-to-resize returning to the previous time.
+- Fixed drag scheduling for unscheduled tasks.
+- Undo snackbar now auto-dismisses.
+- Added lower Dawn-inspired vertical staging to Today, Tasks, Spaces, Settings and Task detail.
+- Refined floating controls and navigation sheet.
+- Added a live widget configuration preview.
+- Reduced awkward Pulse right-side whitespace.
+- Made event end time explicit in Now notifications.
+
 ## 0.12.2 — Build repair
 
 - Fixed `DayTimeline.kt` compilation: a `Long` value was incorrectly used with

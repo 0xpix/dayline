@@ -255,29 +255,57 @@ private fun TimelineItem(
                 .zIndex(if (dragging || resizing) 2f else 0f)
                 .pointerInput(item.id, item.startTime, item.endTime, item.calendarReadOnly) {
                     if (item.calendarReadOnly) return@pointerInput
+
+                    // Keep gesture-local values inside the pointerInput coroutine.
+                    // A derived Compose value such as dragStep can be stale when
+                    // onDragEnd runs because this pointerInput block stays alive
+                    // across recompositions.
+                    var gestureOffsetPx = 0f
+                    var gestureStep = 0
+
                     detectDragGesturesAfterLongPress(
                         onDragStart = {
+                            gestureOffsetPx = 0f
+                            gestureStep = 0
                             dragging = true
                             dragOffsetPx = 0f
                             lastDragStep = 0
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         },
                         onDragCancel = {
+                            gestureOffsetPx = 0f
+                            gestureStep = 0
                             dragging = false
                             dragOffsetPx = 0f
                         },
                         onDragEnd = {
-                            if (dragStep != 0) onReschedule(shiftItem(item, dragStep * 15))
+                            val commitStep = gestureStep
                             dragging = false
                             dragOffsetPx = 0f
+
+                            if (commitStep != 0) {
+                                onReschedule(
+                                    shiftItem(
+                                        item,
+                                        commitStep * 15
+                                    )
+                                )
+                            }
                         }
                     ) { change, dragAmount ->
                         change.consume()
-                        dragOffsetPx += dragAmount.y
-                        val step = (dragOffsetPx / pixelsPer15Minutes).roundToInt()
-                        if (step != lastDragStep) {
-                            lastDragStep = step
-                            haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+
+                        gestureOffsetPx += dragAmount.y
+                        gestureStep =
+                            (gestureOffsetPx / pixelsPer15Minutes).roundToInt()
+
+                        dragOffsetPx = gestureOffsetPx
+
+                        if (gestureStep != lastDragStep) {
+                            lastDragStep = gestureStep
+                            haptics.performHapticFeedback(
+                                HapticFeedbackType.SegmentFrequentTick
+                            )
                         }
                     }
                 }
@@ -351,29 +379,55 @@ private fun TimelineItem(
                             .width(42.dp)
                             .height(14.dp)
                             .pointerInput(item.id, item.endTime) {
+                                var gestureOffsetPx = 0f
+                                var gestureStep = 0
+
                                 detectDragGesturesAfterLongPress(
                                     onDragStart = {
+                                        gestureOffsetPx = 0f
+                                        gestureStep = 0
                                         resizing = true
                                         resizeOffsetPx = 0f
                                         lastResizeStep = 0
-                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        haptics.performHapticFeedback(
+                                            HapticFeedbackType.LongPress
+                                        )
                                     },
                                     onDragCancel = {
+                                        gestureOffsetPx = 0f
+                                        gestureStep = 0
                                         resizing = false
                                         resizeOffsetPx = 0f
                                     },
                                     onDragEnd = {
-                                        if (resizeStep != 0) onResize(shiftEnd(item, resizeStep * 15))
+                                        val commitStep = gestureStep
                                         resizing = false
                                         resizeOffsetPx = 0f
+
+                                        if (commitStep != 0) {
+                                            onResize(
+                                                shiftEnd(
+                                                    item,
+                                                    commitStep * 15
+                                                )
+                                            )
+                                        }
                                     }
                                 ) { change, amount ->
                                     change.consume()
-                                    resizeOffsetPx += amount.y
-                                    val step = (resizeOffsetPx / pixelsPer15Minutes).roundToInt()
-                                    if (step != lastResizeStep) {
-                                        lastResizeStep = step
-                                        haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+
+                                    gestureOffsetPx += amount.y
+                                    gestureStep =
+                                        (gestureOffsetPx / pixelsPer15Minutes)
+                                            .roundToInt()
+
+                                    resizeOffsetPx = gestureOffsetPx
+
+                                    if (gestureStep != lastResizeStep) {
+                                        lastResizeStep = gestureStep
+                                        haptics.performHapticFeedback(
+                                            HapticFeedbackType.SegmentFrequentTick
+                                        )
                                     }
                                 }
                             },
@@ -516,34 +570,66 @@ private fun AnytimeItem(
         modifier = Modifier
             .fillMaxWidth()
             .pointerInput(item.id, item.calendarReadOnly) {
-                if (item.kind != AgendaKind.TASK || item.calendarReadOnly) return@pointerInput
+                if (
+                    item.kind != AgendaKind.TASK ||
+                    item.calendarReadOnly
+                ) {
+                    return@pointerInput
+                }
+
+                var gestureOffsetPx = 0f
+                var gestureStep = 0
+
                 detectDragGesturesAfterLongPress(
                     onDragStart = {
+                        gestureOffsetPx = 0f
+                        gestureStep = 0
                         dragging = true
                         drag = 0f
                         lastStep = 0
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        haptics.performHapticFeedback(
+                            HapticFeedbackType.LongPress
+                        )
                     },
                     onDragCancel = {
+                        gestureOffsetPx = 0f
+                        gestureStep = 0
                         dragging = false
                         drag = 0f
                     },
                     onDragEnd = {
+                        val targetTime = LocalTime.of(9, 0)
+                            .plusMinutes((gestureStep * 15).toLong())
+                            .let {
+                                if (it.isBefore(LocalTime.of(0, 15))) {
+                                    LocalTime.of(0, 15)
+                                } else {
+                                    it
+                                }
+                            }
+
                         val scheduled = item.copy(
-                            startTime = previewTime,
-                            endTime = previewTime.plusHours(1)
+                            startTime = targetTime,
+                            endTime = targetTime.plusHours(1)
                         )
-                        onScheduleTask(scheduled)
+
                         dragging = false
                         drag = 0f
+                        onScheduleTask(scheduled)
                     }
                 ) { change, amount ->
                     change.consume()
-                    drag += amount.y
-                    val next = (drag / pixelsPer15).roundToInt()
-                    if (next != lastStep) {
-                        lastStep = next
-                        haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+
+                    gestureOffsetPx += amount.y
+                    gestureStep =
+                        (gestureOffsetPx / pixelsPer15).roundToInt()
+                    drag = gestureOffsetPx
+
+                    if (gestureStep != lastStep) {
+                        lastStep = gestureStep
+                        haptics.performHapticFeedback(
+                            HapticFeedbackType.SegmentFrequentTick
+                        )
                     }
                 }
             }

@@ -155,10 +155,10 @@ for kind, name in re.findall(r"@([A-Za-z0-9_]+)/([A-Za-z0-9_]+)", manifest_text)
 
 # Release and Play configuration.
 gradle = read(APP / "build.gradle.kts")
-if 'versionName = "0.12.2"' not in gradle:
-    fail("app versionName must be 0.12.2")
-if 'versionCode = 32' not in gradle:
-    fail("app versionCode must be 32")
+if 'versionName = "0.12.3"' not in gradle:
+    fail("app versionName must be 0.12.3")
+if 'versionCode = 33' not in gradle:
+    fail("app versionCode must be 33")
 if "targetSdk = 36" not in gradle:
     fail("targetSdk 36 expected")
 if "compileSdk = 37" not in gradle:
@@ -223,6 +223,47 @@ for label, ok in feature_checks.items():
         fail(f"Feature anchor missing: {label}")
 
 
+
+
+# v0.12.3 interaction/polish checks.
+timeline_source = read(
+    JAVA / "com/pix/dayline/ui/components/DayTimeline.kt"
+)
+app_source = read(
+    JAVA / "com/pix/dayline/ui/DaylineApp.kt"
+)
+widget_config_source = read(
+    JAVA / "com/pix/dayline/widgets/WidgetConfigActivity.kt"
+)
+now_source = read(
+    JAVA / "com/pix/dayline/notifications/NowActivityScheduler.kt"
+)
+floating_source = read(
+    JAVA / "com/pix/dayline/ui/components/FloatingControls.kt"
+)
+
+for token in (
+    "var gestureOffsetPx = 0f",
+    "var gestureStep = 0",
+    "commitStep * 15"
+):
+    if token not in timeline_source:
+        fail(f"Drag commit repair is missing {token}")
+
+if "duration = SnackbarDuration.Short" not in app_source:
+    fail("Undo snackbar is not configured to auto-dismiss")
+
+if "WidgetPreview(" not in widget_config_source:
+    fail("Widget settings live preview is missing")
+
+if ".setSubText(eventRange)" not in now_source:
+    fail("Now notification START → END range is missing")
+
+if 'append("END ")' not in now_source:
+    fail("Now notification does not lead with event end time")
+
+if "MenuLinesIcon" not in floating_source:
+    fail("Refined floating menu icon is missing")
 
 # Compose Dp sanity: Kotlin/Compose provides .dp for Int/Float/Double, not Long.
 # Catch the exact regression that broke v0.12.1.
@@ -292,7 +333,7 @@ for path in [*kotlin_files, *ROOT.glob("*.md"), *ROOT.glob("docs/*.md")]:
     if "FIXME" in text:
         fail(f"FIXME left in {path.relative_to(ROOT)}")
 
-print("Dayline v0.12.2 release validation")
+print("Dayline v0.12.3 release validation")
 print(f"  Kotlin files: {len(kotlin_files)}")
 print(f"  XML files: {len(list((APP / 'src/main').rglob('*.xml')))}")
 print(f"  Errors: {len(ERRORS)}")

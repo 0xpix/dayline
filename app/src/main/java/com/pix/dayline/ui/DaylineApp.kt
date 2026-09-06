@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -398,7 +399,11 @@ fun DaylineApp() {
             persistItems(items.map { if (it.id == updated.id) saved else it })
             if (calendarSyncEnabled) refreshCalendarOverlay()
             scope.launch {
-                val result = snackbarHostState.showSnackbar(message, actionLabel = "UNDO")
+                val result = snackbarHostState.showSnackbar(
+                    message = message,
+                    actionLabel = "UNDO",
+                    duration = SnackbarDuration.Short
+                )
                 if (result == SnackbarResult.ActionPerformed) {
                     val restored = publishIfNeeded(previous)
                     persistItems(items.map { if (it.id == previous.id) restored else it })
@@ -426,7 +431,11 @@ fun DaylineApp() {
             taskDetail = null
 
             scope.launch {
-                val result = snackbarHostState.showSnackbar("Deleted ${item.title}", "UNDO")
+                val result = snackbarHostState.showSnackbar(
+                    message = "Deleted ${item.title}",
+                    actionLabel = "UNDO",
+                    duration = SnackbarDuration.Short
+                )
                 if (result == SnackbarResult.ActionPerformed) {
                     persistItems(items + snapshot)
                 } else if (calendarSyncEnabled) {

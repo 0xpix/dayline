@@ -406,9 +406,11 @@ object NowActivityScheduler {
 
             title = item.title
             content = buildString {
-                append(compactRemaining(remainingMinutes))
-                append(" LEFT  ·  ENDS ")
+                append("END ")
                 append(occurrence.end.toLocalTime().format(format))
+                append("  ·  ")
+                append(compactRemaining(remainingMinutes))
+                append(" LEFT")
             }
             progressMax = 100
             progressValue = ((elapsedMinutes * 100L) / totalMinutes).toInt().coerceIn(0, 100)
@@ -436,6 +438,9 @@ object NowActivityScheduler {
 
             title = "${if (runtime.paused) "PAUSED" else mode} · ${item.title}"
             content = buildString {
+                append("END ")
+                append(occurrence.end.toLocalTime().format(format))
+                append("  ·  ")
                 append(compactRemaining(remainingMinutes))
                 append("  ·  SESSION ")
                 append(currentSession)
@@ -450,10 +455,16 @@ object NowActivityScheduler {
             }
         }
 
+        val eventRange =
+            occurrence.start.toLocalTime().format(format) +
+                "  →  " +
+                occurrence.end.toLocalTime().format(format)
+
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_dayline_notification)
             .setContentTitle(title)
             .setContentText(content)
+            .setSubText(eventRange)
             .setContentIntent(contentIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)

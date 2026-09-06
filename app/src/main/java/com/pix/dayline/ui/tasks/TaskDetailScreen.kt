@@ -67,7 +67,7 @@ fun TaskDetailScreen(
             Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 32.dp, end = 32.dp, top = 54.dp, bottom = 110.dp)
+                .padding(start = 32.dp, end = 32.dp, top = 92.dp, bottom = 110.dp)
         ) {
             Text(
                 "‹ Tasks",

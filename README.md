@@ -4,8 +4,22 @@
 
 Dayline is an open-source Android calendar and planner built with Kotlin, Jetpack Compose, Material 3 and Glance. It is intentionally local-first, minimal, and designed around Today rather than a dashboard.
 
-Current milestone: **v0.12.2 · Play beta**
+Current milestone: **v0.12.3 · Play beta**
 
+
+## v0.12.3 interaction + layout polish
+
+- Fixed drag-to-move and drag-to-resize commit behavior. Gesture end now uses
+  gesture-local snapped values instead of stale recomposition-derived values.
+- Fixed the same stale-value issue for dragging unscheduled tasks onto the timeline.
+- Undo snackbars now dismiss automatically after the normal short duration.
+- Today, Tasks, Spaces, Settings and Task detail use lower Dawn-like vertical staging.
+  Calendar, Upcoming and Search retain their denser top layout.
+- Refined the floating right-side controls and navigation sheet.
+- Widget configuration now includes a live preview that reacts to emoji, font,
+  Space/calendar filters, events/tasks and content mode.
+- Pulse uses more of its right edge and removes the awkward NEXT/NOW tail.
+- Now notifications show the event end first and include a clear START → END range.
 
 ## v0.12.2 build repair
 

@@ -503,7 +503,7 @@ private fun SystemEventPill(
 
 /**
  * Pulse 3×1
- * Transparent body + system-colored pills + Nothing-style dot-matrix typography.
+ * Full neutral system surface + Noto Emoji + dot-matrix typography.
  */
 class DaylineCompactWidget : GlanceAppWidget() {
     override val stateDefinition = PreferencesGlanceStateDefinition
@@ -531,7 +531,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
             val widgetEmoji = resolveWidgetEmoji(instance, store.loadWidgetEmojiChoice())
             val widgetAutoSlide = store.loadWidgetAutoSlide()
 
-            ConfiguredWidgetSurface(horizontalPadding = 8, verticalPadding = 6) {
+            ConfiguredWidgetSurface(horizontalPadding = 5, verticalPadding = 6) {
                 val freeText = GlanceTheme.colors.onSurface
                 val freeMuted = GlanceTheme.colors.onSurfaceVariant
 
@@ -540,13 +540,13 @@ class DaylineCompactWidget : GlanceAppWidget() {
                     verticalAlignment = Alignment.Vertical.CenterVertically
                 ) {
                     Box(
-                        modifier = GlanceModifier.width(40.dp),
+                        modifier = GlanceModifier.width(36.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        WidgetEmojiMark(widgetEmoji, 38)
+                        WidgetEmojiMark(widgetEmoji, 36)
                     }
 
-                    Spacer(GlanceModifier.width(7.dp))
+                    Spacer(GlanceModifier.width(5.dp))
 
                     Box(
                         modifier = GlanceModifier
@@ -555,7 +555,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
                             .background(freeMuted)
                     ) { }
 
-                    Spacer(GlanceModifier.width(7.dp))
+                    Spacer(GlanceModifier.width(5.dp))
 
                     Column {
                         Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
@@ -613,20 +613,22 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                     strong = true,
                                     fontChoice = widgetFont,
                                     autoSlide = widgetAutoSlide,
-                                    width = 144,
+                                    width = 164,
                                     overrideText = live.second
                                 )
-                                Spacer(GlanceModifier.width(5.dp))
-                                Column {
-                                    WidgetText(
-                                        if (live.second.startsWith("FOCUS")) "FOCUS" else if (live.second.startsWith("REST")) "REST" else "NOW",
-                                        widgetFont,
-                                        scale = 0.44f,
-                                        color = freeMuted
-                                    )
-                                }
                             } else if (next == null) {
-                                SystemPill(strong = true, horizontalPadding = 8, verticalPadding = 4) {
+                                Box(
+                                    modifier = GlanceModifier
+                                        .width(164.dp)
+                                        .background(
+                                            GlanceTheme.colors.surfaceVariant
+                                        )
+                                        .cornerRadius(30.dp)
+                                        .padding(
+                                            horizontal = 8.dp,
+                                            vertical = 4.dp
+                                        )
+                                ) {
                                     WidgetText(
                                         "YOUR DAY IS CLEAR",
                                         widgetFont,
@@ -641,24 +643,8 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                     strong = true,
                                     fontChoice = widgetFont,
                                     autoSlide = widgetAutoSlide,
-                                    width = 137
+                                    width = 164
                                 )
-                                Spacer(GlanceModifier.width(5.dp))
-                                Column {
-                                    WidgetText(
-                                        "NEXT",
-                                        widgetFont,
-                                        scale = 0.44f,
-                                        color = freeMuted
-                                    )
-                                    Spacer(GlanceModifier.height(1.dp))
-                                    WidgetText(
-                                        "UP",
-                                        widgetFont,
-                                        scale = 0.44f,
-                                        color = freeMuted
-                                    )
-                                }
                             }
                         }
 

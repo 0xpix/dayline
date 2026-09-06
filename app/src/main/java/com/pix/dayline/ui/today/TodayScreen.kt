@@ -77,7 +77,7 @@ fun TodayScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 32.dp, end = 32.dp, top = 60.dp, bottom = 138.dp)
+                .padding(start = 32.dp, end = 32.dp, top = 116.dp, bottom = 138.dp)
         ) {
             if (showOrb) {
                 DayGlyph(items = todaysItems, date = today)

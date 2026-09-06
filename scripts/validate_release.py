@@ -155,10 +155,10 @@ for kind, name in re.findall(r"@([A-Za-z0-9_]+)/([A-Za-z0-9_]+)", manifest_text)
 
 # Release and Play configuration.
 gradle = read(APP / "build.gradle.kts")
-if 'versionName = "0.12.1"' not in gradle:
-    fail("app versionName must be 0.12.1")
-if 'versionCode = 31' not in gradle:
-    fail("app versionCode must be 31")
+if 'versionName = "0.12.2"' not in gradle:
+    fail("app versionName must be 0.12.2")
+if 'versionCode = 32' not in gradle:
+    fail("app versionCode must be 32")
 if "targetSdk = 36" not in gradle:
     fail("targetSdk 36 expected")
 if "compileSdk = 37" not in gradle:
@@ -223,6 +223,21 @@ for label, ok in feature_checks.items():
         fail(f"Feature anchor missing: {label}")
 
 
+
+# Compose Dp sanity: Kotlin/Compose provides .dp for Int/Float/Double, not Long.
+# Catch the exact regression that broke v0.12.1.
+for kt in kotlin_files:
+    text = read(kt)
+    suspicious_long_dp = re.findall(
+        r'(?:\d+L|toMinutes\(\)|coerceIn\(\s*\d+L\s*,\s*\d+L\s*\))\.dp\b',
+        text
+    )
+    if suspicious_long_dp:
+        fail(
+            f"{kt.relative_to(ROOT)} contains a likely Long.dp expression: "
+            f"{suspicious_long_dp}"
+        )
+
 # v0.12.1 widget/Noto Emoji checks.
 widget_emoji = read(JAVA / "com/pix/dayline/data/WidgetEmoji.kt")
 widgets_source = read(JAVA / "com/pix/dayline/widgets/DaylineWidgets.kt")
@@ -277,7 +292,7 @@ for path in [*kotlin_files, *ROOT.glob("*.md"), *ROOT.glob("docs/*.md")]:
     if "FIXME" in text:
         fail(f"FIXME left in {path.relative_to(ROOT)}")
 
-print("Dayline v0.12.1 release validation")
+print("Dayline v0.12.2 release validation")
 print(f"  Kotlin files: {len(kotlin_files)}")
 print(f"  XML files: {len(list((APP / 'src/main').rglob('*.xml')))}")
 print(f"  Errors: {len(ERRORS)}")

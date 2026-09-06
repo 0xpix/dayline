@@ -409,7 +409,7 @@ private fun TimelineGap(
     onCreateAt: (LocalDate, LocalTime) -> Unit
 ) {
     val total = Duration.between(from, to).toMinutes().coerceAtLeast(15L)
-    val height = (total / 15L * 5L).coerceIn(16L, 52L).dp
+    val height = (total / 15L * 5L).coerceIn(16L, 52L).toInt().dp
 
     Box(
         modifier = Modifier

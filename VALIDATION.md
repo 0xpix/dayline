@@ -1,4 +1,4 @@
-# Dayline v0.12.1 — Validation
+# Dayline v0.12.2 — Validation
 
 This patch focuses on widget typography and surface polish.
 
@@ -17,3 +17,14 @@ The Google Noto Emoji font file is **not bundled** with Dayline. Android request
 from the Google Play Services downloadable-font provider and caches it on the device.
 
 GitHub Actions remains the authoritative full Android/Gradle compile gate.
+
+## v0.12.2 GitHub Actions repair
+
+GitHub Actions reported one Kotlin compilation error:
+
+`DayTimeline.kt:412` attempted to call `.dp` on a `Long`.
+
+The calculation now ends in `.toInt().dp`.
+
+The Node 20 / punycode lines in the uploaded Actions output are post-action
+deprecation warnings and are not the cause of the Android build failure.

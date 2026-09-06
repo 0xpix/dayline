@@ -4,8 +4,15 @@
 
 Dayline is an open-source Android calendar and planner built with Kotlin, Jetpack Compose, Material 3 and Glance. It is intentionally local-first, minimal, and designed around Today rather than a dashboard.
 
-Current milestone: **v0.12.1 · Play beta**
+Current milestone: **v0.12.2 · Play beta**
 
+
+## v0.12.2 build repair
+
+- Fixed the Today empty-gap height calculation in `DayTimeline.kt`.
+- `Duration.toMinutes()` returns `Long`; the value is now converted to `Int`
+  before applying Compose's `.dp` extension.
+- No v0.12.1 widget/Noto Emoji behavior was changed.
 
 ## v0.12.1 widget polish
 

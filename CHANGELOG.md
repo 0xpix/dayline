@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.2 — Build repair
+
+- Fixed `DayTimeline.kt` compilation: a `Long` value was incorrectly used with
+  Compose's `.dp` extension.
+- Preserved all v0.12.1 Noto Emoji and widget-surface changes.
+
 ## 0.12.1 — Noto widget polish
 
 - Replaced custom widget emoji PNG assets with Google Fonts Noto Emoji glyph rendering.

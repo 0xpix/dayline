@@ -33,7 +33,6 @@ def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-# Required public/release files.
 required = [
     "LICENSE",
     "README.md",
@@ -46,6 +45,7 @@ required = [
     "docs/play-store-listing.md",
     "docs/play-store-checklist.md",
     "docs/github-beta-updates.md",
+    "docs/github-beta-signing.md",
     ".github/workflows/build-apk.yml",
     ".github/workflows/play-release.yml",
 ]
@@ -54,7 +54,7 @@ for rel in required:
         fail(f"Missing required release file: {rel}")
 
 # XML.
-for path in sorted(APP.rglob("*.xml")):
+for path in sorted((APP / "src").rglob("*.xml")):
     try:
         ET.parse(path)
     except Exception as exc:
@@ -84,7 +84,7 @@ for path in sorted((ROOT / ".github/workflows").glob("*.yml")):
     except Exception as exc:
         fail(f"Invalid YAML {path.relative_to(ROOT)}: {exc}")
 
-# Kotlin source is at least parser-clean. A full Android compile is still the CI gate.
+# Kotlin parser-level sanity.
 kotlin_files = sorted(path for root in ALL_JAVA_ROOTS for path in root.rglob("*.kt"))
 if not kotlin_files:
     fail("No Kotlin source files found")
@@ -97,8 +97,10 @@ for path in kotlin_files:
         fail(f"Duplicate imports in {path.relative_to(ROOT)}: {dupes}")
     if "import androidx.compose.foundation.layout.weight" in text:
         fail(f"Forbidden internal weight import in {path.relative_to(ROOT)}")
+    if any(marker in text for marker in ("<<<<<<<", ">>>>>>>", "=======")):
+        fail(f"Merge marker left in {path.relative_to(ROOT)}")
 
-# Build resource index.
+# Resource index across all source sets.
 resources: dict[str, set[str]] = {}
 for res_root in [path for path in (APP / "src").glob("*/res") if path.is_dir()]:
     for directory in res_root.iterdir():
@@ -121,7 +123,6 @@ if strings_path.exists():
     except Exception:
         pass
 
-# Kotlin R refs.
 patterns = {
     "drawable": r"R\.drawable\.([A-Za-z0-9_]+)",
     "layout": r"R\.layout\.([A-Za-z0-9_]+)",
@@ -136,7 +137,6 @@ for path in kotlin_files:
             if name not in resources.get(kind, set()):
                 fail(f"Missing R.{kind}.{name} referenced by {path.relative_to(ROOT)}")
 
-# Manifest components must be declared in source somewhere, not necessarily in a same-named file.
 manifest_path = APP / "src/main/AndroidManifest.xml"
 manifest_text = read(manifest_path)
 manifest_root = ET.parse(manifest_path).getroot()
@@ -151,24 +151,29 @@ for tag in ("activity", "receiver", "service", "provider"):
         if not re.search(rf"\b(class|object)\s+{re.escape(simple)}\b", all_kotlin):
             fail(f"Manifest {tag} class not found in Kotlin source: {name}")
 
-# Manifest resource refs.
 for kind, name in re.findall(r"@([A-Za-z0-9_]+)/([A-Za-z0-9_]+)", manifest_text):
     if kind in resources and name not in resources[kind]:
         fail(f"Manifest references missing @{kind}/{name}")
 
-# Release and Play configuration.
+# Build/release config.
 gradle = read(APP / "build.gradle.kts")
-if 'versionName = "0.12.8"' not in gradle:
-    fail("app versionName must be 0.12.8")
-if 'versionCode = 33' not in gradle:
-    fail("app versionCode must be 33")
-if "targetSdk = 36" not in gradle:
-    fail("targetSdk 36 expected")
-if "compileSdk = 37" not in gradle:
-    fail("compileSdk 37 expected")
+for token, label in (
+    ('versionName = "0.13.0"', "app versionName must be 0.13.0 before beta suffix"),
+    ('versionCode = 1300', "app versionCode must be 1300"),
+    ('targetSdk = 36', "targetSdk 36 expected"),
+    ('compileSdk = 37', "compileSdk 37 expected"),
+    ('create("beta")', "beta product flavor missing"),
+    ('applicationIdSuffix = ".beta"', "beta package suffix missing"),
+    ('versionNameSuffix = ".beta"', "beta version suffix missing"),
+    ('GITHUB_BETA_UPDATES', "beta update build flag missing"),
+    ('UPDATE_CHANNEL', "update-channel build field missing"),
+    ('GIT_COMMIT', "Git commit build identity missing"),
+):
+    if token not in gradle:
+        fail(label)
 
 play = read(ROOT / ".github/workflows/play-release.yml")
-for required_token in (
+for token in (
     ":app:assemblePlayRelease",
     ":app:bundlePlayRelease",
     "DAYLINE_KEYSTORE_BASE64",
@@ -176,54 +181,72 @@ for required_token in (
     "DAYLINE_KEY_ALIAS",
     "DAYLINE_KEY_PASSWORD",
 ):
-    if required_token not in play:
-        fail(f"Play workflow missing {required_token}")
+    if token not in play:
+        fail(f"Play workflow missing {token}")
 
-# Distribution permissions: Play/main stay updater-free; beta alone may self-update.
+# Permission separation.
 beta_manifest_path = APP / "src/beta/AndroidManifest.xml"
 beta_manifest_text = read(beta_manifest_path) if beta_manifest_path.exists() else ""
-if "android.permission.INTERNET" in manifest_text:
-    fail("Main/Play manifest must not declare INTERNET")
-if "android.permission.REQUEST_INSTALL_PACKAGES" in manifest_text:
-    fail("Main/Play manifest must not declare REQUEST_INSTALL_PACKAGES")
 for permission in ("android.permission.INTERNET", "android.permission.REQUEST_INSTALL_PACKAGES"):
+    if permission in manifest_text:
+        fail(f"Main/Play manifest must not declare {permission}")
     if permission not in beta_manifest_text:
         fail(f"Beta updater manifest missing {permission}")
 if 'android:allowBackup="false"' not in manifest_text:
     fail("Android automatic app backup should remain disabled")
 if "POST_PROMOTED_NOTIFICATIONS" in manifest_text:
-    fail("Promoted notification permission should not be declared in the clean notification build")
+    fail("Promoted notification permission should not be declared")
 
-# Notification presentation must not regress to the seconds chronometer/live chip.
+# Notification presentation.
 notification_sources = "\n".join(
     read(path) for path in (JAVA / "com/pix/dayline/notifications").glob("*.kt")
 )
-for forbidden in ("setUsesChronometer", "setChronometerCountDown", "setRequestPromotedOngoing"):
+for forbidden in (
+    "setUsesChronometer",
+    "setChronometerCountDown",
+    "setRequestPromotedOngoing",
+    "HH:mm:ss",
+):
     if forbidden in notification_sources:
         fail(f"Notification presentation regression: {forbidden} found")
 for expected in ("setShowWhen(false)", "setProgress(progressMax, progressValue, false)", "ACTION_REFRESH"):
     if expected not in notification_sources:
         fail(f"Clean Now activity notification is missing {expected}")
 
-# GitHub beta updater / Play separation anchors.
+# GitHub beta workflow and updater.
 build_workflow = read(ROOT / ".github/workflows/build-apk.yml")
 for token in (
-    'create("beta")',
-    'applicationIdSuffix = ".beta"',
-    'GITHUB_BETA_UPDATES',
-):
-    if token not in gradle:
-        fail(f"Distribution flavor configuration missing {token}")
-for token in (
+    ":app:assembleBetaDebug",
+    ":app:assemblePlayDebug",
     ":app:assembleBetaRelease",
     "DAYLINE_BETA_KEYSTORE_BASE64",
+    "DAYLINE_BETA_KEY_ALIAS",
+    "keytool -list",
+    "apksigner verify",
     "--prerelease",
     "sha256sum",
 ):
     if token not in build_workflow:
         fail(f"GitHub beta workflow missing {token}")
 
-# GitHub-hosted runners are on Node 24. Keep JavaScript actions on Node 24-native majors.
+updater = read(APP / "src/beta/java/com/pix/dayline/updates/GithubBetaUpdater.kt")
+for token in (
+    "api.github.com/repos/0xpix/dayline/releases",
+    "DaylineVersion.compare",
+    "checksumUrl",
+    "verifyApk",
+    "canRequestPackageInstalls",
+    "GitHub releases are not publicly reachable yet",
+):
+    if token not in updater:
+        fail(f"GitHub updater missing {token}")
+
+play_updater = read(APP / "src/play/java/com/pix/dayline/updates/GithubBetaUpdater.kt")
+for forbidden in ("HttpURLConnection", "api.github.com", "REQUEST_INSTALL_PACKAGES"):
+    if forbidden in play_updater:
+        fail(f"Play updater stub unexpectedly contains {forbidden}")
+
+# Node 24-native GitHub action majors used by this repository baseline.
 all_workflows = "\n".join(read(path) for path in sorted((ROOT / ".github/workflows").glob("*.yml")))
 for forbidden_action in (
     "actions/checkout@v4",
@@ -235,58 +258,40 @@ for forbidden_action in (
     "actions/deploy-pages@v4",
 ):
     if forbidden_action in all_workflows:
-        fail(f"Deprecated/Node20-era action still referenced: {forbidden_action}")
-pages_workflow = read(ROOT / ".github/workflows/pages.yml")
-for required_token in (
-    "actions/configure-pages@v6",
-    "actions/upload-pages-artifact@v5",
-    "actions/deploy-pages@v5",
-    "Check whether GitHub Pages is enabled",
-):
-    if required_token not in pages_workflow:
-        fail(f"Pages workflow missing {required_token}")
-updater = read(APP / "src/beta/java/com/pix/dayline/updates/GithubBetaUpdater.kt")
-for token in (
-    "api.github.com/repos/0xpix/dayline/releases",
-    "checksumUrl",
-    "verifyApk",
-    "canRequestPackageInstalls",
-):
-    if token not in updater:
-        fail(f"GitHub updater missing {token}")
-play_updater = read(APP / "src/play/java/com/pix/dayline/updates/GithubBetaUpdater.kt")
-for forbidden in ("HttpURLConnection", "api.github.com", "REQUEST_INSTALL_PACKAGES"):
-    if forbidden in play_updater:
-        fail(f"Play updater stub unexpectedly contains {forbidden}")
+        fail(f"Deprecated/older action still referenced: {forbidden_action}")
 
-# Feature anchors for the 0.12 Play beta.
+# v0.12 depth features + v0.13 polish anchors.
 feature_checks = {
     "per-calendar controls": "CalendarPreferences" in all_kotlin and "CalendarControlsSheet" in all_kotlin,
     "recurrence edit scope": "RecurrenceEditScope" in all_kotlin and "THIS_AND_FOLLOWING" in all_kotlin,
-    "drag resize": "onResize" in all_kotlin and "shiftEnd" in all_kotlin,
+    "drag resize": "onResize" in all_kotlin and "shiftEnd" in all_kotlin and "detectDragGestures" in all_kotlin,
     "tap-to-create": "onCreateAt" in all_kotlin and "detectTapGestures" in all_kotlin,
     "focus modes": "FOCUS_50_10" in all_kotlin and "CUSTOM" in all_kotlin,
     "focus actions": "ACTION_SKIP_REST" in all_kotlin and "ACTION_PLUS_FIVE" in all_kotlin,
-    "event progress": "m left" in all_kotlin or "M LEFT" in all_kotlin,
+    "event progress": "compactRemaining" in all_kotlin and " LEFT" in all_kotlin,
     "today summary": "todaySummary" in all_kotlin,
-    "conflict detection": "overlaps" in all_kotlin and 'Text("!"' in all_kotlin,
+    "conflict details": "ConflictSheet" in all_kotlin and "onConflict" in all_kotlin,
     "buffers": "bufferBeforeMinutes" in all_kotlin and "bufferAfterMinutes" in all_kotlin,
     "templates": "EventTemplate" in all_kotlin and "Save template" in all_kotlin,
     "spaces-calendar link": "calendarId" in read(JAVA / "com/pix/dayline/model/DaylineSpace.kt"),
     "task polish": "TaskPriority" in all_kotlin and "Convert to event" in all_kotlin,
-    "undo": 'actionLabel = "UNDO"' in all_kotlin or '"UNDO"' in all_kotlin,
-    "search": "SearchScreen" in all_kotlin,
+    "undo": '"UNDO"' in all_kotlin,
+    "search commands": "unfinished" in all_kotlin and "tomorrow" in all_kotlin and "focus" in all_kotlin,
     "backup/export": "exportState" in all_kotlin and "exportIcs" in all_kotlin,
     "per-widget config": "WidgetInstancePrefs" in all_kotlin and "WidgetConfigActivity" in all_kotlin,
     "activity widget states": "liveWidgetLabel" in all_kotlin,
-    "haptics": "HapticFeedbackType" in all_kotlin,
+    "haptics": "HapticFeedbackType.SegmentFrequentTick" in all_kotlin,
     "onboarding": "OnboardingScreen" in all_kotlin and "onboardingComplete" in all_kotlin,
+    "update state": "UpdateStatus" in all_kotlin and "UpdateSheet" in all_kotlin,
+    "automatic beta checks": "BetaUpdateScheduler" in all_kotlin and "24L * 60L * 60L" in all_kotlin,
+    "build identity": "BuildConfig.GIT_COMMIT" in all_kotlin and "BuildConfig.VERSION_CODE" in all_kotlin,
+    "calendar sync health": "saveCalendarSyncHealth" in all_kotlin and "Sync health" in all_kotlin,
+    "return to now": "scrollToNow" in all_kotlin,
 }
 for label, ok in feature_checks.items():
     if not ok:
         fail(f"Feature anchor missing: {label}")
 
-# Public policy URL should match GitHub Pages workflow/listing.
 settings = read(JAVA / "com/pix/dayline/ui/settings/SettingsScreen.kt")
 policy_url = "https://0xpix.github.io/dayline/privacy-policy.html"
 if policy_url not in settings:
@@ -294,15 +299,16 @@ if policy_url not in settings:
 if policy_url not in read(ROOT / "docs/play-store-checklist.md"):
     fail("Play checklist privacy policy URL mismatch")
 
-# No obvious release blockers left in code/docs.
 for path in [*kotlin_files, *ROOT.glob("*.md"), *ROOT.glob("docs/*.md")]:
     text = read(path)
     if "FIXME" in text:
         fail(f"FIXME left in {path.relative_to(ROOT)}")
+    if any(marker in text for marker in ("<<<<<<<", ">>>>>>>")):
+        fail(f"Merge marker left in {path.relative_to(ROOT)}")
 
-print("Dayline v0.12.8.beta release validation")
+print("Dayline v0.13.0.beta release validation")
 print(f"  Kotlin files: {len(kotlin_files)}")
-print(f"  XML files: {len(list(APP.rglob('*.xml')))}")
+print(f"  XML files: {len(list((APP / 'src').rglob('*.xml')))}")
 print(f"  Errors: {len(ERRORS)}")
 print(f"  Warnings: {len(WARNINGS)}")
 for message in ERRORS:

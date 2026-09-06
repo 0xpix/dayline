@@ -35,6 +35,25 @@ object AndroidCalendarSync {
     fun hasPermissions(context: Context): Boolean =
         hasReadPermission(context) && hasWritePermission(context)
 
+
+    fun probe(context: Context): Result<Unit> {
+        if (!hasReadPermission(context)) {
+            return Result.failure(SecurityException("Calendar permission is not granted."))
+        }
+        return runCatching {
+            context.contentResolver.query(
+                CalendarContract.Calendars.CONTENT_URI,
+                arrayOf(CalendarContract.Calendars._ID),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getLong(0)
+            }
+            Unit
+        }
+    }
+
     fun listCalendars(context: Context): List<DeviceCalendar> {
         if (!hasReadPermission(context)) return emptyList()
 

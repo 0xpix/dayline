@@ -22,13 +22,20 @@ Dayline can schedule reminders, ongoing event/focus notifications, and exact ala
 
 Backup, restore, ICS import, and ICS export happen only when you explicitly choose a file/location using Android's system file picker. Dayline does not automatically upload backups. Android automatic app-data backup is disabled; backup and restore are explicit Dayline actions.
 
+
+## GitHub beta update checks
+
+GitHub beta builds include an optional in-app update checker. When you manually check for an update, or enable the automatic daily beta check, Dayline requests the public `0xpix/dayline` GitHub Releases feed to learn whether a newer beta APK exists. Dayline does not send your events, tasks, calendars, Spaces, focus data, widget settings, or backups in that request. GitHub may process ordinary connection metadata according to GitHub's own privacy practices.
+
+The Google Play release build does not expose the GitHub beta update channel and its Play/main manifest does not request Internet access for this feature. Google Play handles stable-app updates.
+
 ## Analytics, advertising, accounts, and sale of data
 
 Dayline does not include a Dayline account system, advertising SDK, analytics SDK, or Dayline-operated cloud service. Dayline does not sell personal data.
 
 ## Permissions
 
-Dayline may request calendar, notification, exact-alarm, and boot-completed permissions when required by enabled features. You can deny or revoke optional permissions in Android settings.
+Dayline may request calendar, notification, exact-alarm, boot-completed, and (for GitHub beta builds only) Internet permissions when required by enabled features. You can deny or revoke optional permissions in Android settings.
 
 ## Open source
 

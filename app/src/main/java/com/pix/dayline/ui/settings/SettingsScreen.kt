@@ -6,8 +6,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import com.pix.dayline.BuildConfig
-import com.pix.dayline.R
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -23,19 +21,23 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.pix.dayline.BuildConfig
+import com.pix.dayline.R
 import com.pix.dayline.data.*
 import com.pix.dayline.model.*
 import com.pix.dayline.ui.components.FloatingControls
 import com.pix.dayline.updates.GithubBetaUpdater
 import kotlinx.coroutines.launch
 import java.io.File
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 private enum class SettingsSheet {
     APPEARANCE,
@@ -43,6 +45,7 @@ private enum class SettingsSheet {
     WIDGET_FONT,
     WIDGET_EMOJI,
     CALENDARS,
+    UPDATE,
     PRIVACY
 }
 
@@ -51,24 +54,30 @@ private enum class SettingsSheet {
 fun SettingsScreen(
     appearance: Appearance,
     fontChoice: FontChoice,
-    widgetFontChoice: WidgetFontChoice = WidgetFontChoice.DOT_BOLD,
-    widgetEmojiChoice: WidgetEmojiChoice = WidgetEmojiChoice.SMILE,
-    widgetAutoSlide: Boolean = false,
+    widgetFontChoice: WidgetFontChoice,
+    widgetEmojiChoice: WidgetEmojiChoice,
+    widgetAutoSlide: Boolean,
     nowActivityEnabled: Boolean,
     calendarSyncEnabled: Boolean,
     calendarPreferences: CalendarPreferences,
     deviceCalendars: List<DeviceCalendar>,
     spaces: List<DaylineSpace>,
+    lastCalendarSyncAt: Long?,
+    calendarSyncError: String?,
+    autoBetaUpdates: Boolean,
+    updateState: UpdateUiState,
     showOrb: Boolean,
     weekStartsMonday: Boolean,
     onAppearance: (Appearance) -> Unit,
     onFontChoice: (FontChoice) -> Unit,
-    onWidgetFontChoice: (WidgetFontChoice) -> Unit = {},
-    onWidgetEmojiChoice: (WidgetEmojiChoice) -> Unit = {},
-    onWidgetAutoSlide: (Boolean) -> Unit = {},
+    onWidgetFontChoice: (WidgetFontChoice) -> Unit,
+    onWidgetEmojiChoice: (WidgetEmojiChoice) -> Unit,
+    onWidgetAutoSlide: (Boolean) -> Unit,
     onNowActivityEnabled: (Boolean) -> Unit,
     onCalendarSyncEnabled: (Boolean) -> Unit,
     onCalendarPreferences: (CalendarPreferences) -> Unit,
+    onAutoBetaUpdates: (Boolean) -> Unit,
+    onCheckUpdates: () -> Unit,
     onBackup: () -> Unit,
     onRestore: () -> Unit,
     onExportIcs: () -> Unit,
@@ -79,26 +88,12 @@ fun SettingsScreen(
     onToday: () -> Unit
 ) {
     val context = LocalContext.current
-    val updateScope = rememberCoroutineScope()
     var openSheet by remember { mutableStateOf<SettingsSheet?>(null) }
-    var betaCheck by remember { mutableStateOf<GithubBetaUpdater.CheckResult?>(null) }
-    var betaChecking by remember { mutableStateOf(false) }
-    var betaDownloading by remember { mutableStateOf(false) }
-    var betaApk by remember { mutableStateOf<File?>(null) }
-    var betaMessage by remember { mutableStateOf<String?>(null) }
 
-    fun checkBetaUpdates() {
-        if (!BuildConfig.GITHUB_BETA_UPDATES || betaChecking) return
-        betaChecking = true
-        betaMessage = null
-        updateScope.launch {
-            betaCheck = GithubBetaUpdater.check()
-            betaChecking = false
+    LaunchedEffect(updateState.status, updateState.release?.tagName) {
+        if (updateState.status == UpdateStatus.AVAILABLE && updateState.release != null) {
+            openSheet = SettingsSheet.UPDATE
         }
-    }
-
-    LaunchedEffect(BuildConfig.GITHUB_BETA_UPDATES) {
-        if (BuildConfig.GITHUB_BETA_UPDATES && betaCheck == null) checkBetaUpdates()
     }
 
     Box(
@@ -175,6 +170,18 @@ fun SettingsScreen(
             SectionGap()
             SettingsGroup("Calendar") {
                 ToggleSettingRow("Android Calendar sync", calendarSyncEnabled, onCalendarSyncEnabled)
+                InfoRow(
+                    "Sync health",
+                    calendarHealthLabel(calendarSyncEnabled, lastCalendarSyncAt, calendarSyncError)
+                )
+                if (!calendarSyncError.isNullOrBlank()) {
+                    Text(
+                        calendarSyncError,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(Modifier.height(6.dp))
+                }
                 SelectorRow(
                     "Calendars",
                     if (deviceCalendars.isEmpty()) "None" else "${deviceCalendars.size} found"
@@ -190,72 +197,40 @@ fun SettingsScreen(
                 SelectorRow("Import calendar", ".ics") { onImportIcs() }
             }
 
-            if (BuildConfig.GITHUB_BETA_UPDATES) {
+            if (BuildConfig.UPDATE_CHANNEL == "GitHub beta") {
                 SectionGap()
                 SettingsGroup("Beta updates") {
-                    SelectorRow("Channel", "GitHub beta") {
-                        context.startActivity(
-                            Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/0xpix/dayline/releases"))
-                        )
-                    }
-
-                    when (val result = betaCheck) {
-                        is GithubBetaUpdater.CheckResult.Available -> {
-                            val downloaded = betaApk
-                            if (downloaded == null) {
-                                SelectorRow(
-                                    "Update to ${result.release.displayVersion}",
-                                    if (betaDownloading) "Downloading…" else "Download"
-                                ) {
-                                    if (!betaDownloading) {
-                                        betaDownloading = true
-                                        betaMessage = null
-                                        updateScope.launch {
-                                            GithubBetaUpdater.download(context.applicationContext, result.release)
-                                                .onSuccess { betaApk = it }
-                                                .onFailure { betaMessage = it.message ?: "Download failed" }
-                                            betaDownloading = false
-                                        }
-                                    }
-                                }
-                            } else {
-                                SelectorRow("Install ${result.release.displayVersion}", "Ready") {
-                                    when (val install = GithubBetaUpdater.install(context, downloaded)) {
-                                        GithubBetaUpdater.InstallResult.Started -> betaMessage = "Android installer opened"
-                                        GithubBetaUpdater.InstallResult.PermissionRequested ->
-                                            betaMessage = "Allow Dayline β to install apps, then tap Install again"
-                                        is GithubBetaUpdater.InstallResult.Error -> betaMessage = install.message
-                                    }
-                                }
-                            }
-                            if (result.release.notes.isNotBlank()) {
-                                SelectorRow("Release notes", result.release.displayVersion) {
-                                    GithubBetaUpdater.openRelease(context, result.release)
-                                }
-                            }
+                    InfoRow("Channel", "GitHub beta")
+                    ToggleSettingRow("Automatic daily check", autoBetaUpdates, onAutoBetaUpdates)
+                    SelectorRow("Check for updates", updateActionLabel(updateState)) {
+                        if (updateState.status == UpdateStatus.AVAILABLE && updateState.release != null) {
+                            openSheet = SettingsSheet.UPDATE
+                        } else {
+                            onCheckUpdates()
                         }
-                        GithubBetaUpdater.CheckResult.UpToDate ->
-                            SelectorRow("Check for updates", "Up to date") { checkBetaUpdates() }
-                        GithubBetaUpdater.CheckResult.NoBetaRelease ->
-                            SelectorRow("Check for updates", "No beta yet") { checkBetaUpdates() }
-                        is GithubBetaUpdater.CheckResult.Error ->
-                            SelectorRow("Check for updates", "Retry") { checkBetaUpdates() }
-                        null ->
-                            SelectorRow("Check for updates", if (betaChecking) "Checking…" else "Check") { checkBetaUpdates() }
                     }
-
-                    betaMessage?.let {
+                    updateState.checkedAtMillis?.let {
                         Text(
-                            it,
+                            "Last checked ${relativeCheckTime(it)}",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Text(
-                        "Beta APKs are checked directly against GitHub Releases. Stable Play builds do not contain this update channel.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    if (updateState.status == UpdateStatus.ERROR && !updateState.error.isNullOrBlank()) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            updateState.error,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    } else {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "Beta releases are checked directly against the public Dayline GitHub Releases feed.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
@@ -270,11 +245,14 @@ fun SettingsScreen(
                         )
                     )
                 }
+                InfoRow("Version", BuildConfig.VERSION_NAME)
+                InfoRow("Build", BuildConfig.VERSION_CODE.toString())
+                InfoRow("Commit", BuildConfig.GIT_COMMIT)
             }
 
             Spacer(Modifier.height(34.dp))
             Text(
-                "Dayline ${BuildConfig.VERSION_NAME} · ${if (BuildConfig.GITHUB_BETA_UPDATES) "GitHub beta" else "Play"}",
+                "Dayline ${BuildConfig.VERSION_NAME} · ${BuildConfig.UPDATE_CHANNEL}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -302,9 +280,12 @@ fun SettingsScreen(
         SettingsSheet.APP_FONT -> SelectionSheet(
             "App font",
             fontLabel(fontChoice),
-            FontChoice.entries.map { choice ->
-                fontLabel(choice) to { onFontChoice(choice) }
-            }
+            listOf(
+                "Pixelify Sans" to { onFontChoice(FontChoice.PIXELIFY) },
+                "Geist · Nothing OS 5" to { onFontChoice(FontChoice.GEIST) },
+                "Geist Pixel" to { onFontChoice(FontChoice.GEIST_PIXEL) },
+                "System" to { onFontChoice(FontChoice.SYSTEM) }
+            )
         ) { openSheet = null }
 
         SettingsSheet.WIDGET_FONT -> SelectionSheet(
@@ -330,6 +311,12 @@ fun SettingsScreen(
             onChange = onCalendarPreferences,
             onDismiss = { openSheet = null }
         )
+
+        SettingsSheet.UPDATE -> {
+            updateState.release?.let { release ->
+                UpdateSheet(release = release, onDismiss = { openSheet = null })
+            }
+        }
 
         SettingsSheet.PRIVACY -> PrivacySheet { openSheet = null }
         null -> Unit
@@ -365,6 +352,17 @@ private fun SelectorRow(title: String, value: String, onClick: () -> Unit) {
         Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.width(8.dp))
         Text("›", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun InfoRow(title: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -493,7 +491,16 @@ private fun CalendarControlsSheet(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(calendar.name, style = MaterialTheme.typography.bodyLarge)
-                            Text(calendar.accountName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                buildString {
+                                    append(calendar.accountName)
+                                    append(" · ")
+                                    append(if (rule.visible) "SYNCED" else "HIDDEN")
+                                    if (!calendar.writable) append(" · READ ONLY")
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                         Text(
                             if (rule.visible) "●" else "○",
@@ -545,6 +552,126 @@ private fun TinyAction(label: String, onClick: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun UpdateSheet(release: BetaRelease, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var downloading by remember(release.tagName) { mutableStateOf(false) }
+    var downloadedApk by remember(release.tagName) { mutableStateOf<File?>(null) }
+    var message by remember(release.tagName) { mutableStateOf<String?>(null) }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.background) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 26.dp)
+                .padding(bottom = 34.dp)
+        ) {
+            Text("Dayline update", style = MaterialTheme.typography.headlineLarge)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                release.versionName,
+                style = MaterialTheme.typography.displayMedium,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                release.title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(24.dp))
+            Text(
+                "RELEASE NOTES",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                release.notes.ifBlank { "Bug fixes and Dayline polish." },
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(Modifier.height(28.dp))
+
+            val actionLabel = when {
+                release.apkUrl.isNullOrBlank() -> "OPEN GITHUB RELEASE  ›"
+                downloading -> "DOWNLOADING…"
+                downloadedApk != null -> "INSTALL UPDATE  ›"
+                else -> "DOWNLOAD UPDATE  ›"
+            }
+            Text(
+                actionLabel,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = !downloading) {
+                        if (release.apkUrl.isNullOrBlank()) {
+                            GithubBetaUpdater.openRelease(context, release)
+                        } else {
+                            val apk = downloadedApk
+                            if (apk == null) {
+                                downloading = true
+                                message = null
+                                scope.launch {
+                                    GithubBetaUpdater.download(context.applicationContext, release)
+                                        .onSuccess {
+                                            downloadedApk = it
+                                            message = "Download verified · ready to install"
+                                        }
+                                        .onFailure {
+                                            message = it.message ?: "Download failed"
+                                        }
+                                    downloading = false
+                                }
+                            } else {
+                                when (val result = GithubBetaUpdater.install(context, apk)) {
+                                    GithubBetaUpdater.InstallResult.Started ->
+                                        message = "Android installer opened"
+                                    GithubBetaUpdater.InstallResult.PermissionRequested ->
+                                        message = "Allow Dayline β to install apps, then tap Install update again"
+                                    is GithubBetaUpdater.InstallResult.Error ->
+                                        message = result.message
+                                }
+                            }
+                        }
+                    }
+                    .padding(vertical = 12.dp),
+                style = MaterialTheme.typography.titleMedium,
+                color = if (downloading) MaterialTheme.colorScheme.onSurfaceVariant
+                else MaterialTheme.colorScheme.onBackground
+            )
+
+            if (release.htmlUrl.isNotBlank()) {
+                Text(
+                    "OPEN RELEASE NOTES",
+                    modifier = Modifier
+                        .clickable { GithubBetaUpdater.openRelease(context, release) }
+                        .padding(vertical = 8.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            message?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Dayline verifies the downloaded APK package, version code and published SHA-256 checksum when available. Android still performs the final signature check before replacing the installed beta.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun PrivacySheet(onDismiss: () -> Unit) {
     val context = LocalContext.current
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.background) {
@@ -552,7 +679,7 @@ private fun PrivacySheet(onDismiss: () -> Unit) {
             Text("Privacy", style = MaterialTheme.typography.headlineLarge)
             Spacer(Modifier.height(16.dp))
             Text(
-                "Dayline has no account, advertising SDK, analytics SDK, or Dayline cloud service. Events, tasks, settings and focus state are stored on your device. If Android Calendar sync is enabled, Dayline reads and writes through Android's Calendar Provider; the calendar provider you choose may independently sync that calendar according to its own settings. Backup/export only writes data to a location you explicitly choose.",
+                "Dayline has no account, advertising SDK, analytics SDK, or Dayline cloud service. Events, tasks, settings and focus state are stored on your device. If Android Calendar sync is enabled, Dayline reads and writes through Android's Calendar Provider; the calendar provider you choose may independently sync that calendar according to its own settings. Backup/export only writes data to a location you explicitly choose. GitHub beta builds can contact the public Dayline GitHub Releases API when you check for updates, or once per day if automatic beta checks are enabled. Play builds hide that update channel and do not request Internet access for it.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -609,6 +736,33 @@ private fun nextSpace(current: String?, spaces: List<DaylineSpace>): String? {
 
 private fun spaceName(id: String?, spaces: List<DaylineSpace>): String =
     spaces.firstOrNull { it.id == id }?.name ?: "NONE"
+
+private fun updateActionLabel(state: UpdateUiState): String = when (state.status) {
+    UpdateStatus.IDLE -> "Check"
+    UpdateStatus.CHECKING -> "Checking…"
+    UpdateStatus.UP_TO_DATE -> "Up to date"
+    UpdateStatus.AVAILABLE -> state.release?.versionName ?: "Available"
+    UpdateStatus.ERROR -> "Retry"
+}
+
+private fun relativeCheckTime(epochMillis: Long): String {
+    val elapsed = (System.currentTimeMillis() - epochMillis).coerceAtLeast(0L)
+    return when {
+        elapsed < 60_000L -> "just now"
+        elapsed < 3_600_000L -> "${elapsed / 60_000L}m ago"
+        elapsed < 86_400_000L -> "${elapsed / 3_600_000L}h ago"
+        else -> DateTimeFormatter.ofPattern("MMM d · HH:mm")
+            .withZone(ZoneId.systemDefault())
+            .format(Instant.ofEpochMilli(epochMillis))
+    }
+}
+
+private fun calendarHealthLabel(enabled: Boolean, lastSyncAt: Long?, error: String?): String {
+    if (!enabled) return "Off"
+    if (!error.isNullOrBlank()) return "Needs attention"
+    if (lastSyncAt == null) return "Waiting"
+    return "Synced ${DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault()).format(Instant.ofEpochMilli(lastSyncAt))}"
+}
 
 private fun appearanceLabel(appearance: Appearance): String = when (appearance) {
     Appearance.SYSTEM -> "System"

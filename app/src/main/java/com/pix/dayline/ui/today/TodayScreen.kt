@@ -20,6 +20,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,11 +31,14 @@ import com.pix.dayline.ui.components.DayGlyph
 import com.pix.dayline.ui.components.DayTimeline
 import com.pix.dayline.ui.components.FloatingControls
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlin.math.roundToInt
 
 @Composable
 fun TodayScreen(
@@ -51,6 +55,15 @@ fun TodayScreen(
 ) {
     var now by remember { mutableStateOf(LocalTime.now()) }
     var today by remember { mutableStateOf(LocalDate.now()) }
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+
+    fun scrollToNow() {
+        val minute = now.hour * 60 + now.minute
+        val fraction = ((minute - 360).coerceIn(0, 960) / 960f)
+        val target = (fraction * scrollState.maxValue.coerceAtLeast(1)).roundToInt()
+        scope.launch { scrollState.animateScrollTo(target) }
+    }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -76,13 +89,20 @@ fun TodayScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(start = 32.dp, end = 32.dp, top = 116.dp, bottom = 138.dp)
+                .verticalScroll(scrollState)
+                .padding(start = 32.dp, end = 32.dp, top = 60.dp, bottom = 138.dp)
         ) {
             if (showOrb) {
                 DayGlyph(items = todaysItems, date = today)
                 Spacer(Modifier.height(22.dp))
             }
+
+            Text(
+                text = today.format(DateTimeFormatter.ofPattern("EEE · dd MMM", Locale.getDefault())).uppercase(Locale.getDefault()),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(10.dp))
 
             Text(
                 text = greetingText(now, today),
@@ -107,7 +127,8 @@ fun TodayScreen(
                 onReschedule = onReschedule,
                 onResize = onResize,
                 onCreateAt = onAddAt,
-                onScheduleTask = onScheduleTask
+                onScheduleTask = onScheduleTask,
+                onCurrentTimeTap = ::scrollToNow
             )
         }
 
@@ -116,7 +137,7 @@ fun TodayScreen(
                 .align(Alignment.BottomEnd)
                 .padding(end = 20.dp, bottom = 28.dp),
             onMenu = onMenu,
-            onToday = {},
+            onToday = ::scrollToNow,
             onAdd = { onAdd(today) }
         )
     }

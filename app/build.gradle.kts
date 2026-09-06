@@ -11,8 +11,13 @@ android {
         applicationId = "com.pix.dayline"
         minSdk = 26
         targetSdk = 36
-        versionCode = 33
-        versionName = "0.12.8"
+        // v0.12.8.beta used versionCode 33. Keep a large monotonic code so
+        // Android accepts this beta and leaves room for 0.13.x follow-ups.
+        versionCode = 1300
+        versionName = "0.13.0"
+
+        val commit = (System.getenv("GITHUB_SHA") ?: "local").take(7)
+        buildConfigField("String", "GIT_COMMIT", "\"$commit\"")
     }
 
     flavorDimensions += "distribution"
@@ -22,10 +27,12 @@ android {
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
             buildConfigField("boolean", "GITHUB_BETA_UPDATES", "true")
+            buildConfigField("String", "UPDATE_CHANNEL", "\"GitHub beta\"")
         }
         create("play") {
             dimension = "distribution"
             buildConfigField("boolean", "GITHUB_BETA_UPDATES", "false")
+            buildConfigField("String", "UPDATE_CHANNEL", "\"Play\"")
         }
     }
 

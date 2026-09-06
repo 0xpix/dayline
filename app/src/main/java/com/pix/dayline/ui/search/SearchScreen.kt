@@ -17,22 +17,30 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pix.dayline.model.AgendaKind
 import com.pix.dayline.model.DaylineItem
+import com.pix.dayline.model.DaylineSpace
+import com.pix.dayline.model.FocusCycle
 import com.pix.dayline.model.isCompletedOn
+import com.pix.dayline.model.occursOn
 import com.pix.dayline.ui.components.FloatingControls
 import java.time.LocalDate
 import java.time.Month
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
 import java.util.Locale
+
+private data class SearchHit(val item: DaylineItem, val occurrenceDate: LocalDate)
 
 @Composable
 fun SearchScreen(
     items: List<DaylineItem>,
+    spaces: List<DaylineSpace>,
     onMenu: () -> Unit,
     onToday: () -> Unit,
-    onOpen: (DaylineItem) -> Unit
+    onOpen: (DaylineItem, LocalDate) -> Unit
 ) {
     var query by remember { mutableStateOf(TextFieldValue("")) }
-    val results = remember(items, query.text) { search(items, query.text) }
+    val results = remember(items, spaces, query.text) { search(items, spaces, query.text) }
 
     Box(
         Modifier
@@ -65,7 +73,7 @@ fun SearchScreen(
                     Box {
                         if (query.text.isBlank()) {
                             Text(
-                                "gym · tomorrow · unfinished · September",
+                                "PhD · tomorrow · unfinished · focus",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .45f)
                             )
@@ -75,24 +83,37 @@ fun SearchScreen(
                 }
             )
 
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "today   tomorrow   unfinished   focus   September",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(24.dp))
+
             if (query.text.isBlank()) {
                 Text(
-                    "Search titles, dates, calendar names, spaces, or commands like tomorrow and unfinished.",
+                    "Combine names, Spaces, calendar names and commands. Tap a result to open that exact occurrence.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else if (results.isEmpty()) {
-                Text("Nothing found.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "Nothing found.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             } else {
-                results.take(80).forEach { item ->
+                results.take(80).forEach { hit ->
+                    val item = hit.item
+                    val space = spaces.firstOrNull { it.id == item.spaceId }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
-                            ) { onOpen(item) }
+                            ) { onOpen(item, hit.occurrenceDate) }
                             .padding(vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -100,8 +121,11 @@ fun SearchScreen(
                             Text(item.title, style = MaterialTheme.typography.bodyLarge)
                             Text(
                                 buildString {
-                                    append(item.startDate.format(DateTimeFormatter.ofPattern("EEE, MMM d")))
-                                    item.startTime?.let { append(" · ${it.format(DateTimeFormatter.ofPattern("HH:mm"))}") }
+                                    append(hit.occurrenceDate.format(DateTimeFormatter.ofPattern("EEE, MMM d")))
+                                    item.startTime?.let {
+                                        append(" · ${it.format(DateTimeFormatter.ofPattern("HH:mm"))}")
+                                    }
+                                    space?.let { append(" · ${it.name}") }
                                     item.calendarName?.let { append(" · $it") }
                                 },
                                 style = MaterialTheme.typography.bodyMedium,
@@ -109,7 +133,11 @@ fun SearchScreen(
                             )
                         }
                         Text(
-                            if (item.kind == AgendaKind.TASK) "TASK" else "EVENT",
+                            when {
+                                item.focusCycle != FocusCycle.OFF -> "FOCUS"
+                                item.kind == AgendaKind.TASK -> "TASK"
+                                else -> "EVENT"
+                            },
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -127,29 +155,88 @@ fun SearchScreen(
     }
 }
 
-private fun search(items: List<DaylineItem>, raw: String): List<DaylineItem> {
-    val q = raw.trim().lowercase(Locale.getDefault())
-    if (q.isBlank()) return emptyList()
+private fun search(
+    items: List<DaylineItem>,
+    spaces: List<DaylineSpace>,
+    raw: String
+): List<SearchHit> {
+    val locale = Locale.getDefault()
+    val tokens = raw.trim()
+        .lowercase(locale)
+        .split(Regex("\\s+"))
+        .filter { it.isNotBlank() }
+    if (tokens.isEmpty()) return emptyList()
+
     val today = LocalDate.now()
-
-    val month = Month.entries.firstOrNull { month ->
-        month.name.lowercase(Locale.getDefault()).startsWith(q.take(3)) ||
-            month.getDisplayName(java.time.format.TextStyle.FULL, Locale.getDefault())
-                .lowercase(Locale.getDefault()) == q
+    val requestedDate = when {
+        "tomorrow" in tokens -> today.plusDays(1)
+        "today" in tokens -> today
+        else -> null
     }
+    val requestedMonth = tokens.firstNotNullOfOrNull(::monthToken)
+    val spacesById = spaces.associateBy { it.id }
 
-    return items.filter { item ->
-        when (q) {
-            "tomorrow" -> item.startDate == today.plusDays(1)
-            "today" -> item.startDate == today
-            "unfinished", "todo" ->
-                item.kind == AgendaKind.TASK && !item.isCompletedOn(today)
-            else -> {
-                item.title.lowercase(Locale.getDefault()).contains(q) ||
-                    item.calendarName?.lowercase(Locale.getDefault())?.contains(q) == true ||
-                    item.startDate.toString().contains(q) ||
-                    month?.let { item.startDate.month == it } == true
+    return items.mapNotNull { item ->
+        if (requestedDate != null && !item.occursOn(requestedDate)) return@mapNotNull null
+        val monthOccurrence = requestedMonth?.let { findMonthOccurrence(item, it, today) }
+        if (requestedMonth != null && monthOccurrence == null) return@mapNotNull null
+        val occurrenceDate = requestedDate ?: monthOccurrence ?: item.startDate
+
+        val searchable = buildString {
+            append(item.title.lowercase(locale))
+            append(' ')
+            append(item.calendarName?.lowercase(locale).orEmpty())
+            append(' ')
+            append(spacesById[item.spaceId]?.name?.lowercase(locale).orEmpty())
+            append(' ')
+            append(item.startDate)
+        }
+
+        val matchesAll = tokens.all { token ->
+            when {
+                token == "today" -> item.occursOn(today)
+                token == "tomorrow" -> item.occursOn(today.plusDays(1))
+                token == "unfinished" || token == "todo" ->
+                    item.kind == AgendaKind.TASK && !item.isCompletedOn(requestedDate ?: today)
+                token == "focus" || token == "pomodoro" -> item.focusCycle != FocusCycle.OFF
+                token == "task" || token == "tasks" -> item.kind == AgendaKind.TASK
+                token == "event" || token == "events" -> item.kind == AgendaKind.EVENT
+                monthToken(token) != null -> monthOccurrence != null
+                else -> searchable.contains(token)
             }
         }
-    }.sortedWith(compareBy<DaylineItem> { it.startDate }.thenBy { it.startTime })
+
+        if (!matchesAll) return@mapNotNull null
+        SearchHit(item, occurrenceDate)
+    }.sortedWith(
+        compareBy<SearchHit> { it.occurrenceDate }
+            .thenBy { it.item.startTime == null }
+            .thenBy { it.item.startTime }
+            .thenBy { it.item.title }
+    )
+}
+
+private fun findMonthOccurrence(item: DaylineItem, month: Month, today: LocalDate): LocalDate? {
+    val yearCandidates = listOf(today.year, today.year + 1, item.startDate.year).distinct()
+    for (year in yearCandidates) {
+        val ym = YearMonth.of(year, month)
+        var date = maxOf(item.startDate, ym.atDay(1))
+        val end = ym.atEndOfMonth()
+        while (!date.isAfter(end)) {
+            if (item.occursOn(date)) return date
+            date = date.plusDays(1)
+        }
+    }
+    return null
+}
+
+private fun monthToken(token: String): Month? {
+    if (token.length < 3) return null
+    val locale = Locale.getDefault()
+    return Month.entries.firstOrNull { month ->
+        val full = month.getDisplayName(TextStyle.FULL, locale).lowercase(locale)
+        val short = month.getDisplayName(TextStyle.SHORT, locale).lowercase(locale)
+        token == full || token == short || token == month.name.lowercase(locale) ||
+            (token.length >= 3 && full.startsWith(token))
+    }
 }

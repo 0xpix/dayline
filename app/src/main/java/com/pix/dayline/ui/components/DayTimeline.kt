@@ -1,7 +1,9 @@
 package com.pix.dayline.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -17,7 +19,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,6 +57,7 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DayTimeline(
     items: List<DaylineItem>,
@@ -63,7 +68,8 @@ fun DayTimeline(
     onReschedule: (DaylineItem) -> Unit,
     onResize: (DaylineItem) -> Unit = onReschedule,
     onCreateAt: (LocalDate, LocalTime) -> Unit = { _, _ -> },
-    onScheduleTask: (DaylineItem) -> Unit = onReschedule
+    onScheduleTask: (DaylineItem) -> Unit = onReschedule,
+    onCurrentTimeTap: () -> Unit = {}
 ) {
     var now by remember(date) { mutableStateOf(LocalTime.now()) }
     LaunchedEffect(date) {
@@ -77,18 +83,19 @@ fun DayTimeline(
         .filter { it.startTime != null }
         .sortedWith(compareBy<DaylineItem> { it.startTime }.thenBy { it.title })
     val anytime = items.filter { it.startTime == null }
-    val conflictIds = remember(scheduled) {
-        buildSet {
-            scheduled.forEachIndexed { i, first ->
-                scheduled.drop(i + 1).forEach { second ->
+    val conflictsById = remember(scheduled) {
+        buildMap<String, MutableList<DaylineItem>> {
+            scheduled.forEachIndexed { index, first ->
+                scheduled.drop(index + 1).forEach { second ->
                     if (first.overlaps(second)) {
-                        add(first.id)
-                        add(second.id)
+                        getOrPut(first.id) { mutableListOf() }.add(second)
+                        getOrPut(second.id) { mutableListOf() }.add(first)
                     }
                 }
             }
-        }
+        }.mapValues { it.value.toList() }
     }
+    var conflictSelection by remember { mutableStateOf<Pair<DaylineItem, List<DaylineItem>>?>(null) }
 
     if (scheduled.isEmpty() && anytime.isEmpty()) {
         Column {
@@ -133,7 +140,7 @@ fun DayTimeline(
                     (!now.isBefore(start) && now.isBefore(eventEnd))
                 )
             ) {
-                CurrentTimeMarker(now)
+                CurrentTimeMarker(now, onCurrentTimeTap)
                 Spacer(Modifier.height(8.dp))
                 nowPlaced = true
             }
@@ -142,7 +149,8 @@ fun DayTimeline(
                 item = item,
                 date = date,
                 now = now,
-                conflict = item.id in conflictIds,
+                conflictItems = conflictsById[item.id].orEmpty(),
+                onConflict = { conflictSelection = item to conflictsById[item.id].orEmpty() },
                 onEdit = onEdit,
                 onToggleTask = onToggleTask,
                 onReschedule = onReschedule,
@@ -161,7 +169,7 @@ fun DayTimeline(
             !now.isBefore(previousEnd)
         ) {
             Spacer(Modifier.height(10.dp))
-            CurrentTimeMarker(now)
+            CurrentTimeMarker(now, onCurrentTimeTap)
         }
 
         if (previousEnd.isBefore(LocalTime.of(22, 0))) {
@@ -195,6 +203,14 @@ fun DayTimeline(
             }
         }
     }
+
+    conflictSelection?.let { (selected, peers) ->
+        ConflictSheet(
+            selected = selected,
+            peers = peers,
+            onDismiss = { conflictSelection = null }
+        )
+    }
 }
 
 @Composable
@@ -202,7 +218,8 @@ private fun TimelineItem(
     item: DaylineItem,
     date: LocalDate,
     now: LocalTime,
-    conflict: Boolean,
+    conflictItems: List<DaylineItem>,
+    onConflict: () -> Unit,
     onEdit: (DaylineItem) -> Unit,
     onToggleTask: (DaylineItem, LocalDate) -> Unit,
     onReschedule: (DaylineItem) -> Unit,
@@ -216,6 +233,23 @@ private fun TimelineItem(
     val density = LocalDensity.current
     val haptics = LocalHapticFeedback.current
     val pixelsPer15Minutes = with(density) { 18.dp.toPx() }
+    val conflict = conflictItems.isNotEmpty()
+
+    var hasRendered by remember(item.id) { mutableStateOf(false) }
+    var changedPulse by remember(item.id) { mutableStateOf(false) }
+    LaunchedEffect(item.startTime, item.endTime) {
+        if (hasRendered) {
+            changedPulse = true
+            delay(420L)
+            changedPulse = false
+        } else {
+            hasRendered = true
+        }
+    }
+    val railAlpha by animateFloatAsState(
+        targetValue = if (changedPulse) 0.45f else 1f,
+        label = "timeline-change"
+    )
 
     var dragging by remember(item.id, item.startTime) { mutableStateOf(false) }
     var dragOffsetPx by remember(item.id, item.startTime) { mutableFloatStateOf(0f) }
@@ -336,7 +370,7 @@ private fun TimelineItem(
                     .padding(top = 2.dp, end = 14.dp)
                     .width(if (dragging || resizing) 6.dp else 4.dp)
                     .height(height)
-                    .background(accent, RoundedCornerShape(99.dp))
+                    .background(accent.copy(alpha = railAlpha), RoundedCornerShape(99.dp))
             )
 
             Column(modifier = Modifier.padding(top = 1.dp)) {
@@ -349,7 +383,18 @@ private fun TimelineItem(
                     )
                     if (conflict) {
                         Spacer(Modifier.width(8.dp))
-                        Text("!", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+                        Text(
+                            "!",
+                            modifier = Modifier
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = onConflict
+                                )
+                                .padding(horizontal = 5.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
                     }
                     if (item.kind == AgendaKind.TASK) {
                         Spacer(Modifier.width(10.dp))
@@ -376,22 +421,22 @@ private fun TimelineItem(
                     Spacer(Modifier.height(9.dp))
                     Box(
                         modifier = Modifier
-                            .width(42.dp)
-                            .height(14.dp)
+                            .width(64.dp)
+                            .height(28.dp)
                             .pointerInput(item.id, item.endTime) {
+                                // The handle responds immediately, but commit from gesture-local
+                                // state so the final 15-minute step cannot be lost to recomposition.
                                 var gestureOffsetPx = 0f
                                 var gestureStep = 0
 
-                                detectDragGesturesAfterLongPress(
+                                detectDragGestures(
                                     onDragStart = {
                                         gestureOffsetPx = 0f
                                         gestureStep = 0
                                         resizing = true
                                         resizeOffsetPx = 0f
                                         lastResizeStep = 0
-                                        haptics.performHapticFeedback(
-                                            HapticFeedbackType.LongPress
-                                        )
+                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                     },
                                     onDragCancel = {
                                         gestureOffsetPx = 0f
@@ -403,26 +448,16 @@ private fun TimelineItem(
                                         val commitStep = gestureStep
                                         resizing = false
                                         resizeOffsetPx = 0f
-
                                         if (commitStep != 0) {
-                                            onResize(
-                                                shiftEnd(
-                                                    item,
-                                                    commitStep * 15
-                                                )
-                                            )
+                                            onResize(shiftEnd(item, commitStep * 15))
                                         }
                                     }
                                 ) { change, amount ->
                                     change.consume()
-
                                     gestureOffsetPx += amount.y
                                     gestureStep =
-                                        (gestureOffsetPx / pixelsPer15Minutes)
-                                            .roundToInt()
-
+                                        (gestureOffsetPx / pixelsPer15Minutes).roundToInt()
                                     resizeOffsetPx = gestureOffsetPx
-
                                     if (gestureStep != lastResizeStep) {
                                         lastResizeStep = gestureStep
                                         haptics.performHapticFeedback(
@@ -435,8 +470,8 @@ private fun TimelineItem(
                     ) {
                         Box(
                             Modifier
-                                .width(28.dp)
-                                .height(2.dp)
+                                .width(38.dp)
+                                .height(3.dp)
                                 .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f), CircleShape)
                         )
                     }
@@ -522,8 +557,21 @@ private fun EmptyDayRail(
 }
 
 @Composable
-private fun CurrentTimeMarker(now: LocalTime) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+private fun CurrentTimeMarker(now: LocalTime, onClick: () -> Unit) {
+    val haptics = LocalHapticFeedback.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                onClick()
+            }
+            .padding(vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Text(
             now.format(DateTimeFormatter.ofPattern("HH:mm")),
             style = MaterialTheme.typography.labelMedium,
@@ -544,6 +592,55 @@ private fun CurrentTimeMarker(now: LocalTime) {
                 .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
         )
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ConflictSheet(
+    selected: DaylineItem,
+    peers: List<DaylineItem>,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.background
+    ) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 26.dp).padding(bottom = 32.dp)) {
+            Text("Overlap", style = MaterialTheme.typography.headlineLarge)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "These blocks occupy the same time. Dayline keeps both and marks the collision instead of moving anything silently.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(22.dp))
+            (listOf(selected) + peers).distinctBy { it.id }.forEach { item ->
+                Row(Modifier.fillMaxWidth().padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .width(5.dp)
+                            .height(28.dp)
+                            .background(item.color.composeColor(), RoundedCornerShape(99.dp))
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(item.title, style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            conflictTime(item),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun conflictTime(item: DaylineItem): String {
+    val start = item.startTime ?: return "Anytime"
+    val end = item.endTime?.takeIf { it.isAfter(start) } ?: start.plusHours(1)
+    return "${start.format(DateTimeFormatter.ofPattern("HH:mm"))}–${end.format(DateTimeFormatter.ofPattern("HH:mm"))}"
 }
 
 @Composable

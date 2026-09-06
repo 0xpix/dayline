@@ -8,42 +8,30 @@ import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.pix.dayline.BuildConfig
+import com.pix.dayline.data.BetaRelease
+import com.pix.dayline.data.DaylineVersion
+import com.pix.dayline.data.UpdateStatus
+import com.pix.dayline.data.UpdateUiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.io.File
 import java.net.HttpURLConnection
+import java.net.SocketTimeoutException
 import java.net.URL
+import java.net.UnknownHostException
 import java.security.MessageDigest
+import java.time.Instant
 
 /**
  * GitHub beta update channel.
  *
- * This code is only surfaced by the beta flavor. The Play flavor has no INTERNET or
- * REQUEST_INSTALL_PACKAGES permission and therefore remains Play-managed.
+ * Only the beta flavor gets this network/download implementation. The Play flavor
+ * supplies an offline stub and does not request INTERNET or install-package access.
  */
 object GithubBetaUpdater {
-    private const val RELEASES_API = "https://api.github.com/repos/0xpix/dayline/releases?per_page=20"
-    private const val USER_AGENT = "Dayline-Beta-Updater/${BuildConfig.VERSION_NAME}"
-
-    data class Release(
-        val tag: String,
-        val name: String,
-        val notes: String,
-        val htmlUrl: String,
-        val apkName: String,
-        val apkUrl: String,
-        val checksumUrl: String?
-    ) {
-        val displayVersion: String = tag.removePrefix("v")
-    }
-
-    sealed interface CheckResult {
-        data class Available(val release: Release) : CheckResult
-        data object UpToDate : CheckResult
-        data object NoBetaRelease : CheckResult
-        data class Error(val message: String) : CheckResult
-    }
+    private const val RELEASES_API = "https://api.github.com/repos/0xpix/dayline/releases?per_page=30"
+    private const val USER_AGENT_PREFIX = "Dayline-Beta-Updater/"
 
     sealed interface InstallResult {
         data object Started : InstallResult
@@ -51,92 +39,131 @@ object GithubBetaUpdater {
         data class Error(val message: String) : InstallResult
     }
 
-    suspend fun check(): CheckResult = withContext(Dispatchers.IO) {
-        runCatching {
-            val releases = JSONArray(getText(RELEASES_API))
-            val current = BuildConfig.VERSION_NAME
+    suspend fun check(currentVersion: String = BuildConfig.VERSION_NAME): UpdateUiState =
+        withContext(Dispatchers.IO) {
+            val checkedAt = System.currentTimeMillis()
+            runCatching {
+                val releases = JSONArray(getText(RELEASES_API, currentVersion))
+                val parsed = buildList {
+                    for (index in 0 until releases.length()) {
+                        val json = releases.optJSONObject(index) ?: continue
+                        if (json.optBoolean("draft", false)) continue
 
-            for (i in 0 until releases.length()) {
-                val release = releases.getJSONObject(i)
-                if (release.optBoolean("draft", false)) continue
+                        val tag = json.optString("tag_name").trim()
+                        val version = tag.removePrefix("v").removePrefix("V")
+                        if (version.isBlank() || !DaylineVersion.hasNumericVersion(version)) continue
 
-                val tag = release.optString("tag_name")
-                val isBeta = release.optBoolean("prerelease", false) ||
-                    tag.contains("beta", ignoreCase = true)
-                if (!isBeta) continue
+                        // Beta users can move to a newer beta or a newer stable build.
+                        // Drafts are ignored. GitHub prereleases are intentionally included.
+                        val assets = json.optJSONArray("assets") ?: JSONArray()
+                        var apkName: String? = null
+                        var apkUrl: String? = null
+                        var checksumUrl: String? = null
 
-                val assets = release.optJSONArray("assets") ?: continue
-                var apkName: String? = null
-                var apkUrl: String? = null
-                var checksumUrl: String? = null
+                        // Prefer a beta/tag-matching APK when a release carries several APKs.
+                        val apkCandidates = buildList {
+                            for (assetIndex in 0 until assets.length()) {
+                                val asset = assets.optJSONObject(assetIndex) ?: continue
+                                val name = asset.optString("name")
+                                val url = asset.optString("browser_download_url")
+                                if (name.endsWith(".apk", ignoreCase = true) && url.isNotBlank()) {
+                                    add(name to url)
+                                }
+                            }
+                        }
+                        val selected = apkCandidates.firstOrNull {
+                            it.first.contains(tag, ignoreCase = true)
+                        } ?: apkCandidates.firstOrNull {
+                            it.first.contains("beta", ignoreCase = true)
+                        } ?: apkCandidates.firstOrNull()
 
-                for (j in 0 until assets.length()) {
-                    val asset = assets.getJSONObject(j)
-                    val name = asset.optString("name")
-                    val url = asset.optString("browser_download_url")
-                    if (name.endsWith(".apk", ignoreCase = true) &&
-                        (name.contains("beta", ignoreCase = true) || apkName == null)
-                    ) {
-                        apkName = name
-                        apkUrl = url
+                        if (selected != null) {
+                            apkName = selected.first
+                            apkUrl = selected.second
+                            for (assetIndex in 0 until assets.length()) {
+                                val asset = assets.optJSONObject(assetIndex) ?: continue
+                                if (asset.optString("name") == "$apkName.sha256") {
+                                    checksumUrl = asset.optString("browser_download_url")
+                                        .takeIf { it.isNotBlank() }
+                                    break
+                                }
+                            }
+                        }
+
+                        add(
+                            BetaRelease(
+                                tagName = tag,
+                                versionName = version,
+                                title = json.optString("name").ifBlank { "Dayline $tag" },
+                                notes = cleanNotes(json.optString("body")),
+                                publishedAt = json.optString("published_at")
+                                    .takeIf { it.isNotBlank() }
+                                    ?.let { runCatching { Instant.parse(it) }.getOrNull() },
+                                htmlUrl = json.optString("html_url"),
+                                apkName = apkName,
+                                apkUrl = apkUrl,
+                                checksumUrl = checksumUrl
+                            )
+                        )
                     }
                 }
 
-                if (apkName == null || apkUrl == null) continue
+                val newest = parsed
+                    .filter { DaylineVersion.compare(it.versionName, currentVersion) > 0 }
+                    .maxWithOrNull(
+                        Comparator { left, right ->
+                            DaylineVersion.compare(left.versionName, right.versionName)
+                        }
+                    )
 
-                for (j in 0 until assets.length()) {
-                    val asset = assets.getJSONObject(j)
-                    val name = asset.optString("name")
-                    if (name == "$apkName.sha256") {
-                        checksumUrl = asset.optString("browser_download_url")
-                        break
-                    }
-                }
-
-                val parsed = Release(
-                    tag = tag,
-                    name = release.optString("name").ifBlank { tag },
-                    notes = release.optString("body"),
-                    htmlUrl = release.optString("html_url"),
-                    apkName = apkName,
-                    apkUrl = apkUrl,
-                    checksumUrl = checksumUrl
-                )
-
-                return@runCatching if (isNewer(parsed.displayVersion, current)) {
-                    CheckResult.Available(parsed)
+                if (newest == null) {
+                    UpdateUiState(
+                        status = UpdateStatus.UP_TO_DATE,
+                        checkedAtMillis = checkedAt
+                    )
                 } else {
-                    CheckResult.UpToDate
+                    UpdateUiState(
+                        status = UpdateStatus.AVAILABLE,
+                        release = newest,
+                        checkedAtMillis = checkedAt
+                    )
                 }
+            }.getOrElse { error ->
+                UpdateUiState(
+                    status = UpdateStatus.ERROR,
+                    error = friendlyError(error),
+                    checkedAtMillis = checkedAt
+                )
             }
-            CheckResult.NoBetaRelease
-        }.getOrElse { error ->
-            CheckResult.Error(error.message ?: "Could not reach GitHub")
         }
-    }
 
-    suspend fun download(context: Context, release: Release): Result<File> = withContext(Dispatchers.IO) {
-        runCatching {
-            val updateDir = File(context.cacheDir, "updates").apply { mkdirs() }
-            updateDir.listFiles()?.forEach { old -> if (old.isFile) old.delete() }
-            val apk = File(updateDir, safeFileName(release.apkName))
-            downloadTo(release.apkUrl, apk)
+    suspend fun download(context: Context, release: BetaRelease): Result<File> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val url = release.apkUrl ?: error("This release does not contain an APK")
+                val updateDir = File(context.cacheDir, "updates").apply { mkdirs() }
+                updateDir.listFiles()?.forEach { old -> if (old.isFile) old.delete() }
+                val apk = File(
+                    updateDir,
+                    safeFileName(release.apkName ?: "dayline-${release.tagName}.apk")
+                )
+                downloadTo(url, apk, release.versionName)
 
-            release.checksumUrl?.let { checksumUrl ->
-                val expected = getText(checksumUrl)
-                    .trim()
-                    .substringBefore(' ')
-                    .lowercase()
-                val actual = sha256(apk)
-                check(expected.length == 64 && expected == actual) {
-                    "Downloaded APK checksum did not match the GitHub release"
+                release.checksumUrl?.let { checksumUrl ->
+                    val expected = getText(checksumUrl, release.versionName)
+                        .trim()
+                        .substringBefore(' ')
+                        .lowercase()
+                    val actual = sha256(apk)
+                    check(expected.length == 64 && expected == actual) {
+                        "Downloaded APK checksum did not match the GitHub release"
+                    }
                 }
-            }
 
-            verifyApk(context, apk)
-            apk
+                verifyApk(context, apk)
+                apk
+            }
         }
-    }
 
     fun install(context: Context, apk: File): InstallResult {
         if (!apk.isFile) return InstallResult.Error("The downloaded APK is missing")
@@ -144,11 +171,12 @@ object GithubBetaUpdater {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
                 !context.packageManager.canRequestPackageInstalls()
             ) {
-                val settingsIntent = Intent(
-                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                    Uri.parse("package:${context.packageName}")
-                ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                context.startActivity(settingsIntent)
+                context.startActivity(
+                    Intent(
+                        Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:${context.packageName}")
+                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
                 return InstallResult.PermissionRequested
             }
 
@@ -157,20 +185,24 @@ object GithubBetaUpdater {
                 "${context.packageName}.updates",
                 apk
             )
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(intent)
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, "application/vnd.android.package-archive")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
             InstallResult.Started
-        }.getOrElse { InstallResult.Error(it.message ?: "Could not open the Android installer") }
+        }.getOrElse {
+            InstallResult.Error(it.message ?: "Could not open the Android installer")
+        }
     }
 
-    fun openRelease(context: Context, release: Release) {
+    fun openRelease(context: Context, release: BetaRelease) {
+        val url = release.htmlUrl.takeIf { it.isNotBlank() } ?: return
         runCatching {
             context.startActivity(
-                Intent(Intent.ACTION_VIEW, Uri.parse(release.htmlUrl))
+                Intent(Intent.ACTION_VIEW, Uri.parse(url))
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
         }
@@ -199,8 +231,33 @@ object GithubBetaUpdater {
         }
     }
 
-    private fun getText(url: String): String {
-        val connection = open(url)
+    private fun cleanNotes(value: String): String {
+        if (value.isBlank()) return "Bug fixes and Dayline polish."
+        return value
+            .lineSequence()
+            .map { line ->
+                line.trim()
+                    .removePrefix("### ")
+                    .removePrefix("## ")
+                    .removePrefix("# ")
+                    .removePrefix("- ")
+                    .removePrefix("* ")
+            }
+            .filter { it.isNotBlank() }
+            .take(12)
+            .joinToString("\n")
+            .take(1_500)
+    }
+
+    private fun friendlyError(error: Throwable): String = when (error) {
+        is UnknownHostException -> "Couldn't reach GitHub. Check your connection."
+        is SocketTimeoutException -> "GitHub took too long to respond."
+        else -> error.message?.takeIf { it.isNotBlank() }
+            ?: "Couldn't check for updates."
+    }
+
+    private fun getText(url: String, version: String): String {
+        val connection = open(url, version)
         return try {
             connection.inputStream.bufferedReader().use { it.readText() }
         } finally {
@@ -208,8 +265,8 @@ object GithubBetaUpdater {
         }
     }
 
-    private fun downloadTo(url: String, destination: File) {
-        val connection = open(url)
+    private fun downloadTo(url: String, destination: File, version: String) {
+        val connection = open(url, version)
         try {
             connection.inputStream.use { input ->
                 destination.outputStream().buffered().use { output -> input.copyTo(output) }
@@ -219,17 +276,24 @@ object GithubBetaUpdater {
         }
     }
 
-    private fun open(url: String): HttpURLConnection {
+    private fun open(url: String, version: String): HttpURLConnection {
         val connection = URL(url).openConnection() as HttpURLConnection
         connection.connectTimeout = 12_000
         connection.readTimeout = 30_000
         connection.instanceFollowRedirects = true
-        connection.setRequestProperty("User-Agent", USER_AGENT)
+        connection.setRequestProperty("User-Agent", "$USER_AGENT_PREFIX$version")
         connection.setRequestProperty("Accept", "application/vnd.github+json")
         connection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
         connection.connect()
-        check(connection.responseCode in 200..299) {
-            "GitHub returned HTTP ${connection.responseCode}"
+        val code = connection.responseCode
+        if (code !in 200..299) {
+            val message = when (code) {
+                404 -> "GitHub releases are not publicly reachable yet. Make the Dayline repository public to use anonymous beta updates."
+                403 -> "GitHub rate limit reached. Try again later."
+                else -> "GitHub returned HTTP $code"
+            }
+            connection.disconnect()
+            error(message)
         }
         return connection
     }
@@ -249,20 +313,4 @@ object GithubBetaUpdater {
 
     private fun safeFileName(name: String): String =
         name.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "dayline-beta.apk" }
-
-    /** Numeric semantic-ish comparison that also handles tags such as 0.12.2-beta.1. */
-    internal fun isNewer(candidate: String, current: String): Boolean {
-        val candidateParts = versionParts(candidate)
-        val currentParts = versionParts(current)
-        val size = maxOf(candidateParts.size, currentParts.size)
-        for (i in 0 until size) {
-            val left = candidateParts.getOrElse(i) { 0 }
-            val right = currentParts.getOrElse(i) { 0 }
-            if (left != right) return left > right
-        }
-        return false
-    }
-
-    private fun versionParts(value: String): List<Int> =
-        Regex("\\d+").findAll(value).map { it.value.toIntOrNull() ?: 0 }.toList()
 }

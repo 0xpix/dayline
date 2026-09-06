@@ -425,19 +425,9 @@ object NowActivityScheduler {
 
             title = item.title
             content = buildString {
-                append("END ")
-                append(
-                    occurrence.end
-                        .toLocalTime()
-                        .format(format)
-                )
-                append("  ·  ")
-                append(
-                    compactRemaining(
-                        remainingMinutes
-                    )
-                )
-                append(" LEFT")
+                append(compactRemaining(remainingMinutes))
+                append(" LEFT  ·  ENDS ")
+                append(occurrence.end.toLocalTime().format(format))
             }
 
             progressMax = 100
@@ -470,11 +460,13 @@ object NowActivityScheduler {
 
             title = "${if (runtime.paused) "PAUSED" else mode} · ${item.title}"
             content = buildString {
-                append("END ")
-                append(occurrence.end.toLocalTime().format(format))
-                append("  ·  ")
                 append(compactRemaining(remainingMinutes))
-                append("  ·  SESSION ")
+                val dots = sessionDots(currentSession, totalSessions)
+                if (dots.isNotBlank()) {
+                    append("  ·  ")
+                    append(dots)
+                }
+                append("  ·  ")
                 append(currentSession)
                 append("/")
                 append(totalSessions)
@@ -585,14 +577,23 @@ object NowActivityScheduler {
         else -> "${minutes / 60L}H ${minutes % 60L}M"
     }
 
+    private fun sessionDots(currentSession: Int, totalSessions: Int): String {
+        if (totalSessions !in 1..6) return ""
+        val active = currentSession.coerceIn(1, totalSessions)
+        return buildString(totalSessions) {
+            repeat(totalSessions) { index -> append(if (index < active) '●' else '○') }
+        }
+    }
+
     private fun scheduleDisplayRefresh(
         context: Context,
         itemId: String,
         eventEndMillis: Long,
         phaseEndMillis: Long?
     ) {
-        val nowMillis =
-            System.currentTimeMillis()
+        // Keep the text useful without the ugly second-by-second Android chronometer.
+        // Refresh on the next minute boundary; phase/end alarms still fire exactly.
+        val nowMillis = System.currentTimeMillis()
 
         val nextMinute =
             (

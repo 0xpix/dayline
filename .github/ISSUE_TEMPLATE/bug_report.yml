@@ -6,7 +6,7 @@ body:
     id: version
     attributes:
       label: Dayline version
-      placeholder: 0.12.8.beta
+      placeholder: 0.13.0.beta
     validations:
       required: true
   - type: input

@@ -3,6 +3,7 @@ package com.pix.dayline.notifications
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.pix.dayline.data.BetaUpdateScheduler
 import com.pix.dayline.data.DaylineStore
 
 class BootReceiver : BroadcastReceiver() {
@@ -22,6 +23,8 @@ class BootReceiver : BroadcastReceiver() {
             } else {
                 NowActivityScheduler.cancelAll(appContext, items)
             }
+
+            BetaUpdateScheduler.sync(appContext)
         }
     }
 }

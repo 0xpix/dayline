@@ -7,6 +7,8 @@ Dayline now has two distribution flavors:
 
 This keeps the open-source beta channel independent from the stable Play install and lets both apps coexist on one phone.
 
+The updater is anonymous and intentionally contains no GitHub token, so the repository/releases must be publicly readable for update checks to work.
+
 ## First beta signing setup
 
 GitHub beta APKs must always use the same signing key or Android will reject updates.
@@ -31,12 +33,12 @@ The existing Play secrets remain separate:
 Use beta tags, for example:
 
 ```text
-v0.12.8.beta
+v0.13.0.beta
 ```
 
 The GitHub workflow builds `assembleBetaRelease`, creates a SHA-256 checksum and publishes both as a GitHub **prerelease**.
 
-Inside Dayline β, **Settings → Beta updates** checks GitHub Releases, downloads the newest beta APK, validates its checksum and package name, then opens Android's package installer.
+Inside Dayline β, **Settings → Beta updates** checks the full GitHub Releases list (including prereleases), compares versions, downloads the newest compatible APK, validates its checksum/package/version, then opens Android's package installer.
 
 On Android 8+, the first in-app installation requires granting **Install unknown apps** to Dayline β. Android shows the system confirmation screen; Dayline never bypasses it.
 

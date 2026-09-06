@@ -1,34 +1,29 @@
 # Changelog
 
+## 0.13.0.beta — Update & reliability beta
+
+- Rebuilt the GitHub beta updater around the public Releases list so prereleases are detected correctly.
+- Added update states, release notes sheet, verified APK download/install, last-checked state and friendly network errors.
+- Added optional once-daily beta checks with a low-impact AlarmManager schedule.
+- Added build/channel/commit identity in Settings while preserving the beta/play flavor split.
+- Added a keystore-alias preflight and APK signature verification to the tagged beta workflow.
+- Added calendar sync health and per-calendar SYNCED / HIDDEN / READ ONLY state.
+- Refined Now notifications with minute-level text refresh and compact focus-session dots while keeping the system chronometer removed.
+- Expanded undo to Task → Event conversion in addition to move, resize, schedule and delete.
+- Made conflict markers tappable and added a compact overlap explanation sheet.
+- Expanded Search with Today/Tomorrow/unfinished/focus/task/event/month commands and exact-occurrence navigation.
+- Polished Today with a visible date marker, larger resize handle, exact drag/resize previews, haptic snaps and return-to-now behavior.
+
 ## 0.12.8.beta — Beta version alignment
 
 - Aligned the app, README, validator, docs and issue template on `v0.12.8.beta`.
-- Beta flavor now reports `0.12.8.beta`; Play flavor reports `0.12.8`.
-- Bumped Android `versionCode` to 33 so the beta updater recognizes this build as newer.
-- GitHub Actions now accepts the `v*.beta*` tag convention while retaining compatibility with older `v*-beta*` tags.
-- Beta release APK names no longer append a redundant second `-beta`.
-
-## 0.12.1-beta.2 — CI + Pages repair
-
-- Fixed Settings compile compatibility for widget font/emoji/auto-slide arguments.
-- Removed Settings dependency on the `WidgetEmojiChoice.iconRes` extension.
-- Made app-font labels forward-compatible with Inter, Space Grotesk, IBM Plex Mono, and future font choices.
-- Upgraded GitHub JavaScript actions to Node 24-native majors.
-- Pages workflow now skips cleanly until GitHub Pages is enabled instead of failing the whole run.
-- Beta versionCode bumped to 32.
-
-## 0.12.1-beta.1 — GitHub beta updater
-
-- Split distribution into GitHub `beta` and Google Play `play` flavors.
-- GitHub beta uses package `com.pix.dayline.beta`, so beta and stable can coexist.
-- Added Settings → Beta updates with automatic check when Settings opens.
-- Downloads the newest GitHub prerelease APK in-app.
-- Verifies GitHub SHA-256 checksum, APK package name and newer version code before installation.
-- Uses Android's official unknown-app/install confirmation flow; never silent-installs.
+- Beta flavor reports `0.12.8.beta`; Play flavor reports `0.12.8`.
+- Bumped Android `versionCode` to 33 so the beta updater recognizes newer builds.
+- GitHub Actions accepts the `v*.beta*` tag convention while retaining compatibility with older `v*-beta*` tags.
+- Beta updater reads GitHub Releases, downloads the beta APK, verifies SHA-256/package/version and hands installation to Android.
 - Stable Play flavor has no INTERNET or REQUEST_INSTALL_PACKAGES permission.
-- GitHub Actions now signs beta releases with a dedicated secret keystore and publishes APK + checksum as a prerelease.
-- Play workflow now explicitly builds the `playRelease` APK/AAB.
-
+- GitHub Actions signs beta releases with a dedicated persistent keystore and publishes APK + checksum as a prerelease.
+- Play workflow explicitly builds the `playRelease` APK/AAB.
 
 ## 0.12.0 — Play beta
 

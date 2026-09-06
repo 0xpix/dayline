@@ -1,8 +1,10 @@
 package com.pix.dayline.ui
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.database.ContentObserver
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -26,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.pix.dayline.BuildConfig
 import com.pix.dayline.data.*
 import com.pix.dayline.model.*
 import com.pix.dayline.notifications.NotificationScheduler
@@ -44,7 +47,9 @@ import com.pix.dayline.ui.theme.DaylineTheme
 import com.pix.dayline.ui.today.TodayScreen
 import com.pix.dayline.ui.upcoming.UpcomingScreen
 import com.pix.dayline.widgets.DaylineWidgetUpdater
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -80,61 +85,124 @@ fun DaylineApp() {
     var showOrb by remember { mutableStateOf(store.loadShowOrb()) }
     var weekStartsMonday by remember { mutableStateOf(store.loadWeekStartsMonday()) }
     var onboardingComplete by remember { mutableStateOf(store.loadOnboardingComplete()) }
+    var autoBetaUpdates by remember { mutableStateOf(store.loadAutoBetaUpdates()) }
+    var updateState by remember {
+        val lastError = store.loadLastUpdateCheckError()
+        val cachedRelease = store.loadAvailableBetaRelease()?.takeIf {
+            BuildConfig.UPDATE_CHANNEL == "GitHub beta" &&
+                DaylineVersion.compare(it.versionName, BuildConfig.VERSION_NAME) > 0
+        }
+        mutableStateOf(
+            UpdateUiState(
+                status = when {
+                    cachedRelease != null -> UpdateStatus.AVAILABLE
+                    lastError != null -> UpdateStatus.ERROR
+                    else -> UpdateStatus.IDLE
+                },
+                release = cachedRelease,
+                error = lastError,
+                checkedAtMillis = store.loadLastUpdateCheckAt()
+            )
+        )
+    }
+    var lastCalendarSyncAt by remember { mutableStateOf(store.loadLastCalendarSyncAt()) }
+    var calendarSyncError by remember { mutableStateOf(store.loadLastCalendarSyncError()) }
 
     fun updateWidgets() {
         scope.launch { DaylineWidgetUpdater.updateAll(appContext) }
     }
 
     fun refreshCalendarOverlay() {
-        if (
-            calendarSyncEnabled &&
-            AndroidCalendarSync.hasReadPermission(appContext)
-        ) {
-            // A Dayline-created event can also be deleted from Google Calendar,
-            // Outlook, etc. Remove the local mapped copy when its provider row
-            // no longer exists so it cannot "come back" inside Dayline.
-            val reconciled =
-                AndroidCalendarSync.reconcileDeletedMappedItems(
+        if (calendarSyncEnabled && AndroidCalendarSync.hasReadPermission(appContext)) {
+            val probe = AndroidCalendarSync.probe(appContext)
+            if (probe.isSuccess) {
+                // A Dayline-created event can also be deleted from Google Calendar,
+                // Outlook, etc. Reconcile mapped rows before loading the overlay so a
+                // provider-side deletion cannot reappear as a local Dayline event.
+                val reconciled = AndroidCalendarSync.reconcileDeletedMappedItems(
                     appContext,
                     items
                 )
 
-            if (reconciled.size != items.size) {
-                val removedIds =
-                    items.map { it.id }.toSet() -
-                        reconciled.map { it.id }.toSet()
-
-                items
-                    .filter { it.id in removedIds }
-                    .forEach {
-                        NotificationScheduler.cancel(
-                            appContext,
-                            it
-                        )
-                        NowActivityScheduler.cancel(
-                            appContext,
-                            it
-                        )
+                if (reconciled.size != items.size) {
+                    val removedIds = items.map { it.id }.toSet() - reconciled.map { it.id }.toSet()
+                    items.filter { it.id in removedIds }.forEach {
+                        NotificationScheduler.cancel(appContext, it)
+                        NowActivityScheduler.cancel(appContext, it)
                     }
+                    items = reconciled
+                    store.saveItems(reconciled)
+                }
 
-                items = reconciled
-                store.saveItems(reconciled)
-            }
-
-            deviceCalendars =
-                AndroidCalendarSync.listCalendars(appContext)
-
-            calendarItems =
-                AndroidCalendarSync.loadOccurrences(
+                deviceCalendars = AndroidCalendarSync.listCalendars(appContext)
+                calendarItems = AndroidCalendarSync.loadOccurrences(
                     appContext,
                     calendarPreferences
                 )
+                lastCalendarSyncAt = System.currentTimeMillis()
+                calendarSyncError = null
+                store.saveCalendarSyncHealth(lastCalendarSyncAt, null)
+            } else {
+                deviceCalendars = emptyList()
+                calendarItems = emptyList()
+                calendarSyncError = probe.exceptionOrNull()?.message
+                    ?: "Calendar provider could not be reached."
+                store.saveCalendarSyncHealth(lastCalendarSyncAt, calendarSyncError)
+            }
         } else {
             deviceCalendars = emptyList()
             calendarItems = emptyList()
+            if (calendarSyncEnabled) {
+                calendarSyncError = "Calendar permission is needed."
+                store.saveCalendarSyncHealth(lastCalendarSyncAt, calendarSyncError)
+            } else {
+                calendarSyncError = null
+            }
         }
 
         updateWidgets()
+    }
+
+    fun checkForUpdates(announce: Boolean = false) {
+        if (BuildConfig.UPDATE_CHANNEL != "GitHub beta") return
+        if (updateState.status == UpdateStatus.CHECKING) return
+
+        updateState = updateState.copy(status = UpdateStatus.CHECKING, error = null)
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                BetaUpdateChecker.check(BuildConfig.VERSION_NAME)
+            }
+            updateState = result
+            result.checkedAtMillis?.let { store.saveUpdateCheckResult(it, result.error) }
+            store.saveAvailableBetaRelease(
+                if (result.status == UpdateStatus.AVAILABLE) result.release else null
+            )
+
+            if (announce) {
+                when (result.status) {
+                    UpdateStatus.AVAILABLE -> {
+                        val release = result.release ?: return@launch
+                        val action = snackbarHostState.showSnackbar(
+                            "Dayline ${release.versionName} is available",
+                            actionLabel = "DOWNLOAD"
+                        )
+                        if (action == SnackbarResult.ActionPerformed) {
+                            val url = release.apkUrl ?: release.htmlUrl
+                            if (url.isNotBlank()) {
+                                appContext.startActivity(
+                                    Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                            }
+                        }
+                    }
+                    UpdateStatus.ERROR -> snackbarHostState.showSnackbar(
+                        result.error ?: "Couldn't check for Dayline updates."
+                    )
+                    else -> Unit
+                }
+            }
+        }
     }
 
     fun persistItems(next: List<DaylineItem>) {
@@ -164,6 +232,24 @@ fun DaylineApp() {
         showOrb = store.loadShowOrb()
         weekStartsMonday = store.loadWeekStartsMonday()
         onboardingComplete = store.loadOnboardingComplete()
+        autoBetaUpdates = store.loadAutoBetaUpdates()
+        lastCalendarSyncAt = store.loadLastCalendarSyncAt()
+        calendarSyncError = store.loadLastCalendarSyncError()
+        val updateError = store.loadLastUpdateCheckError()
+        val cachedRelease = store.loadAvailableBetaRelease()?.takeIf {
+            BuildConfig.UPDATE_CHANNEL == "GitHub beta" &&
+                DaylineVersion.compare(it.versionName, BuildConfig.VERSION_NAME) > 0
+        }
+        updateState = UpdateUiState(
+            status = when {
+                cachedRelease != null -> UpdateStatus.AVAILABLE
+                updateError != null -> UpdateStatus.ERROR
+                else -> UpdateStatus.IDLE
+            },
+            release = cachedRelease,
+            error = updateError,
+            checkedAtMillis = store.loadLastUpdateCheckAt()
+        )
         refreshCalendarOverlay()
     }
 
@@ -248,6 +334,12 @@ fun DaylineApp() {
         NotificationScheduler.syncAll(appContext, items)
         if (nowActivityEnabled) NowActivityScheduler.syncAll(appContext, items)
         refreshCalendarOverlay()
+        BetaUpdateScheduler.sync(appContext)
+        val lastCheck = store.loadLastUpdateCheckAt() ?: 0L
+        val stale = System.currentTimeMillis() - lastCheck >= 24L * 60L * 60L * 1000L
+        if (BuildConfig.UPDATE_CHANNEL == "GitHub beta" && autoBetaUpdates && stale) {
+            checkForUpdates(announce = true)
+        }
     }
 
     DisposableEffect(calendarSyncEnabled, calendarPreferences) {
@@ -542,7 +634,14 @@ fun DaylineApp() {
                     item = live,
                     spaces = spaces,
                     onBack = { taskDetail = null },
-                    onSave = { saveItem(it) },
+                    onSave = { updated ->
+                        if (live.kind == AgendaKind.TASK && updated.kind == AgendaKind.EVENT) {
+                            changeWithUndo(updated, "Converted ${updated.title} to event")
+                            taskDetail = null
+                        } else {
+                            saveItem(updated)
+                        }
+                    },
                     onDelete = ::deleteItem
                 )
             } else {
@@ -592,9 +691,10 @@ fun DaylineApp() {
 
                     DaylineScreen.SEARCH -> SearchScreen(
                         items = visibleItems,
+                        spaces = spaces,
                         onMenu = { menuOpen = true },
                         onToday = ::goToday,
-                        onOpen = { openItem(it) }
+                        onOpen = { item, date -> openItem(item, date) }
                     )
 
                     DaylineScreen.SPACES -> SpacesScreen(
@@ -614,6 +714,10 @@ fun DaylineApp() {
                         calendarPreferences = calendarPreferences,
                         deviceCalendars = deviceCalendars,
                         spaces = spaces,
+                        lastCalendarSyncAt = lastCalendarSyncAt,
+                        calendarSyncError = calendarSyncError,
+                        autoBetaUpdates = autoBetaUpdates,
+                        updateState = updateState,
                         showOrb = showOrb,
                         weekStartsMonday = weekStartsMonday,
                         onAppearance = {
@@ -664,6 +768,13 @@ fun DaylineApp() {
                             store.saveCalendarPreferences(it)
                             refreshCalendarOverlay()
                         },
+                        onAutoBetaUpdates = {
+                            autoBetaUpdates = it
+                            store.saveAutoBetaUpdates(it)
+                            BetaUpdateScheduler.sync(appContext)
+                            if (it) checkForUpdates(announce = false)
+                        },
+                        onCheckUpdates = { checkForUpdates(announce = false) },
                         onBackup = { backupLauncher.launch("dayline-backup.json") },
                         onRestore = { restoreLauncher.launch(arrayOf("application/json", "text/plain")) },
                         onExportIcs = { exportIcsLauncher.launch("dayline-calendar.ics") },

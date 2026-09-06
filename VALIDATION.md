@@ -1,40 +1,53 @@
-# Dayline v0.12.8.beta — Validation Report
+# Dayline v0.13.0.beta — Validation Report
 
-## Release checks completed
+This report records checks performed on the v0.13.0.beta source package. GitHub Actions remains the authoritative Android/Compose compile gate because this execution environment does not include a complete Android SDK/Gradle toolchain.
 
-## Version alignment in v0.12.8.beta
+## Release checks
 
-- Settings widget arguments have safe defaults, so callers from the previous source shape compile.
-- Emoji preview uses a local resource mapper instead of the unresolved `iconRes` extension.
-- Font labels use `FontChoice.name`, so additional enum entries remain exhaustive-safe.
-- GitHub Actions use Node 24-native majors.
-- Pages deployment is conditional until Pages is enabled in repository settings.
+- Static project validator: **PASS**
+- XML resource parsing across main/beta/play source sets: **PASS**
+- Manifest component/resource checks: **PASS**
+- GitHub Actions workflow YAML parsing: **PASS**
+- Beta/play flavor and permission separation checks: **PASS**
+- GitHub beta signing workflow contract: **PASS**
+- Play signing/AAB workflow contract: **PASS**
+- Main/Play manifest has no beta updater `INTERNET` or `REQUEST_INSTALL_PACKAGES` permission: **PASS**
+- Beta manifest contains only the updater network/install permissions plus FileProvider: **PASS**
+- Automatic Android app-data backup disabled: **PASS**
+- Promoted-notification API/permission path removed: **PASS**
+- Notification system chronometer / `HH:mm:ss` path removed: **PASS**
+- Android-independent Kotlin model/data compile: **PASS**
+- Recurrence, edit-scope, ICS, overlap, custom-focus and version-ordering logic tests: **PASS**
+- Source merge-marker / duplicate-import scan: **PASS**
+- ZIP integrity: **PASS (full and update archives)**
 
+## v0.13 beta updater
 
-- Static release validator: **PASS**
-- XML resources across main/beta/play source sets: **PASS**
-- GitHub Actions workflow YAML: **PASS**
-- Distribution flavor separation: **PASS**
-- GitHub beta-only `INTERNET` + `REQUEST_INSTALL_PACKAGES`: **PASS**
-- Play/main manifest remains self-updater-permission free: **PASS**
-- Beta updater verifies SHA-256, package name, and a newer version code before install: **PASS**
-- GitHub beta workflow uses a dedicated signing-key secret set: **PASS**
-- GitHub beta workflow publishes APK + checksum as a prerelease: **PASS**
-- Play workflow explicitly builds `assemblePlayRelease` + `bundlePlayRelease`: **PASS**
-- Android automatic backup disabled: **PASS**
-- Notification chronometer / `HH:mm:ss` path remains removed: **PASS**
+`beta` builds use package `com.pix.dayline.beta` and query the public `0xpix/dayline` GitHub Releases list. The checker ignores drafts, includes prereleases, compares semantic numeric versions, chooses the newest version newer than the installed beta, and prefers a tag/beta-matching APK asset.
 
-## Distribution design
+The update UI exposes Checking / Up to date / Available / Retry states, last-check time and release notes. Downloaded APKs are checked against the release SHA-256 when present, verified to belong to the currently installed beta package and required to carry a newer Android version code before Dayline opens Android's package installer. Installation is never silent.
 
-- `beta`: `com.pix.dayline.beta`, app label **Dayline β**, GitHub update UI enabled.
-- `play`: `com.pix.dayline`, GitHub update UI disabled and no updater permissions.
+Automatic checks are optional, no more than daily, and use an inexact non-wakeup alarm. Calendar, task, focus, widget and backup contents are never included in the GitHub request.
 
-The separate package IDs let a beta tester keep Dayline β next to the stable Google Play app without signature/update-channel conflicts.
+The `play` flavor provides an offline updater stub and does not receive the beta updater's network/install permissions.
 
-## Beta update flow
+## Notification presentation
 
-Settings opens with a lightweight GitHub beta-release check. When a newer prerelease exists, the user can download it. The updater checks the published SHA-256 checksum, verifies that the APK package is the current beta package and that its version code is newer, then opens Android's official package installer. Installation is never silent.
+The Now notification does not use Android's seconds chronometer. Examples:
+
+- `RESEARCH` + `42M LEFT · ENDS 09:00`
+- `FOCUS · Research` + `18M · ●●○○○ · 2/5`
+- `REST · Research` + `4M · ●●○○○ · 2/5`
+
+The event time range remains a quiet subtext line and normal text refreshes at minute boundaries. Focus phase and event-end alarms still occur at their actual boundaries.
 
 ## Final Android compile gate
 
-This execution environment has Kotlin/JVM but no Android SDK/Gradle installation, so it cannot perform the authoritative `assembleBetaDebug`, `assemblePlayDebug`, `assembleBetaRelease`, or `bundlePlayRelease` build. GitHub Actions remains the final Android compile gate.
+Run on GitHub Actions before creating the release tag:
+
+```text
+:app:assembleBetaDebug
+:app:assemblePlayDebug
+```
+
+For `v0.13.0.beta`, the tagged job additionally builds and verifies `:app:assembleBetaRelease`, generates its SHA-256 checksum and publishes a GitHub prerelease. Do not consider the release Android-compile-confirmed until that workflow is green.

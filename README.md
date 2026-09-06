@@ -2,47 +2,43 @@
 
 **A quieter way to plan your day.**
 
-Dayline is an open-source Android calendar and planner built with Kotlin, Jetpack Compose, Material 3 and Glance. It is intentionally local-first, minimal, and designed around Today rather than a dashboard.
+Dayline is an open-source Android calendar and planner built with Kotlin, Jetpack Compose, Material 3 and Glance. It is local-first, deliberately minimal, and designed around **Today** instead of a dashboard.
 
-Current milestone: **v0.12.8.beta · GitHub beta / Play split**
+Current milestone: **v0.13.0.beta · update & reliability beta**
+
+## What v0.13.0.beta adds
+
+This beta is focused on reliability, direct manipulation and making the GitHub beta channel usable before Play testing:
+
+1. A GitHub release updater that reads the public Releases list, including prereleases, instead of relying on `/releases/latest`.
+2. A minimal update sheet with version, release notes, verified APK download and Android install flow.
+3. Version, versionCode/build, update channel and short Git commit identity in Settings → About.
+4. Optional low-impact automatic update checks, at most once per day for GitHub beta builds.
+5. Calendar sync health with last successful sync, provider errors and per-calendar SYNCED / HIDDEN / READ ONLY state.
+6. Further Now-notification polish: no `HH:mm:ss`, no system chronometer, minute-level refresh, progress, focus/rest state and compact session dots.
+7. Undo for move, resize, delete, task scheduling and Task → Event conversion.
+8. Tappable overlap markers that explain conflicting blocks in a compact sheet.
+9. Command-style Search for `today`, `tomorrow`, `unfinished`, `focus`, tasks/events, month names, titles, Spaces and calendar names; results open the matching occurrence.
+10. Today polish: visible date marker, larger resize target, exact drag/resize previews, 15-minute haptic snaps and return-to-now behavior.
+
+It keeps the larger v0.12 feature set: per-calendar controls, recurring edit scopes, timeline move/resize/tap-to-create, 25/5 + 50/10 + custom focus cycles, buffers, templates, richer tasks, backup/ICS, per-widget configuration, smart widget states, haptics and first-run setup.
 
 ## Distribution channels
 
-Dayline now keeps beta and stable updates separate:
+Dayline deliberately separates GitHub and Play behavior:
 
-- **Dayline β (`com.pix.dayline.beta`)** — open-source GitHub beta APKs with an in-app GitHub Releases updater.
-- **Dayline (`com.pix.dayline`)** — Play build with no self-updater permissions; stable updates are delivered by Google Play.
+- **Dayline β (`com.pix.dayline.beta`)** — open-source GitHub beta APK with the GitHub Releases updater, APK verification and Android's normal install confirmation flow.
+- **Dayline (`com.pix.dayline`)** — Play flavor with no GitHub-updater permissions; stable updates are delivered by Google Play.
 
-See [`docs/github-beta-updates.md`](docs/github-beta-updates.md) for beta signing and release setup.
+Only the beta flavor requests `INTERNET` and `REQUEST_INSTALL_PACKAGES` for the self-update flow. The Play flavor does not receive those permissions.
 
-## What v0.12 adds
+Tagged GitHub beta APKs must keep using the same persistent beta signing key. Android will reject an in-place update if a later APK is signed with a different key. See [GitHub beta updates](docs/github-beta-updates.md) and [GitHub beta signing](docs/github-beta-signing.md).
 
-This milestone brings the product-polish pass together:
-
-1. Per-calendar visibility, default calendar, editability, color and Space mapping.
-2. Recurring edit scope: occurrence / following / entire series.
-3. Long-press drag to move timed blocks and a bottom handle to resize duration.
-4. Tap empty timeline time to create an event at that time.
-5. Focus modes: Off, 25/5, 50/10 and custom focus/rest durations with session stats.
-6. Ongoing focus controls: pause/resume, skip rest, +5 minutes and finish.
-7. Live remaining-time/event progress; focus blocks use phase progress instead.
-8. Minimal Today BUSY / OPEN / BLOCKS summary.
-9. Overlap/conflict indicators.
-10. Before/after travel-buffer reservations.
-11. Event templates, including editable starter templates.
-12. Spaces can route new events to a selected Android calendar.
-13. Tasks add due time, recurrence, priority, subtasks, Task→Event and drag-to-schedule.
-14. Undo for destructive/move/resize scheduling actions.
-15. Minimal Search / command-style filtering.
-16. JSON backup/restore plus ICS export/import.
-17. Per-widget Space/calendar/emoji/font/content/background/task/event/focus configuration.
-18. Widgets switch between NEXT, active-event remaining time, FOCUS and REST states.
-19. Subtle haptics on direct manipulation, completion and creation interactions.
-20. A three-step first-run setup for calendar access, calendar choices and appearance.
+> If an older beta was signed with a different temporary/debug key, Android may require one uninstall/reinstall when moving to the persistent beta key. Back up Dayline first. After that baseline is installed, future signed betas can update in place with the same key.
 
 ## Privacy
 
-Dayline has no Dayline account, advertising SDK, analytics SDK or Dayline-operated cloud. Calendar access is optional and uses Android's Calendar Provider. See [Privacy Policy](docs/privacy-policy.md) and [Data Safety Notes](docs/data-safety.md).
+Dayline has no Dayline account, advertising SDK, analytics SDK or Dayline-operated cloud. Calendar access is optional and uses Android's Calendar Provider. GitHub beta update checks send an ordinary HTTPS request to GitHub's public release endpoint; Dayline calendar/task/focus data is not included. See [Privacy Policy](docs/privacy-policy.md) and [Data Safety Notes](docs/data-safety.md).
 
 ## Build from source
 
@@ -52,21 +48,27 @@ Requirements: JDK 17, Gradle 9.4.1, Android SDK API 37 and Build Tools 36.0.0.
 gradle :app:assembleBetaDebug :app:assemblePlayDebug --no-daemon
 ```
 
-GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.12.8.beta` additionally produce a signed GitHub prerelease APK plus SHA-256 checksum.
+GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.13.0.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
 
 ## Google Play build
 
 Dayline keeps GitHub distribution and Play distribution separate:
 
-- `build-apk.yml` → GitHub beta CI + signed prerelease APK workflow
-- `play-release.yml` → manually triggered, signed release APK + Android App Bundle (`.aab`)
+- `.github/workflows/build-apk.yml` → GitHub beta CI + signed prerelease APK workflow
+- `.github/workflows/play-release.yml` → manually triggered signed `playRelease` APK + Android App Bundle (`.aab`)
 
-The Play workflow reads the upload key only from GitHub Actions secrets. Signing material is never stored in the repository. See [Play Store Checklist](docs/play-store-checklist.md).
+The workflows read signing material only from GitHub Actions secrets. Signing keys and passwords are never stored in the repository. See [Play Store Checklist](docs/play-store-checklist.md).
+
+## Validate
+
+Run the static project validator before pushing:
+
+```bash
+python3 scripts/validate_release.py
+```
+
+The authoritative Android/Compose compile remains GitHub Actions (or a local Android SDK build).
 
 ## Open source
 
 Dayline is licensed under the [MIT License](LICENSE). Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
-
-
-### Now activity
-Active events use a clean ongoing notification with compact remaining time (for example `42M LEFT`) and a progress bar. Focus cycles show `FOCUS` / `REST` plus the session count. Dayline intentionally avoids the system HH:MM:SS chronometer presentation.

@@ -4,6 +4,7 @@ import android.content.Context
 import com.pix.dayline.model.*
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.util.UUID
@@ -299,6 +300,79 @@ class DaylineStore(context: Context) {
     fun loadCalendarSyncEnabled(): Boolean = prefs.getBoolean(KEY_CALENDAR_SYNC, false)
     fun saveCalendarSyncEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_CALENDAR_SYNC, enabled).apply()
+    }
+
+
+    fun loadAutoBetaUpdates(): Boolean = prefs.getBoolean(KEY_AUTO_BETA_UPDATES, false)
+    fun saveAutoBetaUpdates(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_BETA_UPDATES, enabled).apply()
+    }
+
+    fun loadLastUpdateCheckAt(): Long? = prefs.getLong(KEY_LAST_UPDATE_CHECK_AT, -1L)
+        .takeIf { it >= 0L }
+
+    fun saveUpdateCheckResult(checkedAtMillis: Long, error: String?) {
+        prefs.edit()
+            .putLong(KEY_LAST_UPDATE_CHECK_AT, checkedAtMillis)
+            .putString(KEY_LAST_UPDATE_CHECK_ERROR, error.orEmpty())
+            .apply()
+    }
+
+    fun loadLastUpdateCheckError(): String? = prefs
+        .getString(KEY_LAST_UPDATE_CHECK_ERROR, null)
+        ?.takeIf { it.isNotBlank() }
+
+    fun saveAvailableBetaRelease(release: BetaRelease?) {
+        if (release == null) {
+            prefs.edit().remove(KEY_AVAILABLE_BETA_RELEASE).apply()
+            return
+        }
+        val json = JSONObject()
+            .put("tagName", release.tagName)
+            .put("versionName", release.versionName)
+            .put("title", release.title)
+            .put("notes", release.notes)
+            .put("publishedAt", release.publishedAt?.toString().orEmpty())
+            .put("htmlUrl", release.htmlUrl)
+            .put("apkName", release.apkName.orEmpty())
+            .put("apkUrl", release.apkUrl.orEmpty())
+            .put("checksumUrl", release.checksumUrl.orEmpty())
+        prefs.edit().putString(KEY_AVAILABLE_BETA_RELEASE, json.toString()).apply()
+    }
+
+    fun loadAvailableBetaRelease(): BetaRelease? {
+        val raw = prefs.getString(KEY_AVAILABLE_BETA_RELEASE, null) ?: return null
+        return runCatching {
+            val json = JSONObject(raw)
+            BetaRelease(
+                tagName = json.getString("tagName"),
+                versionName = json.getString("versionName"),
+                title = json.optString("title"),
+                notes = json.optString("notes"),
+                publishedAt = json.optString("publishedAt")
+                    .takeIf { it.isNotBlank() }
+                    ?.let(Instant::parse),
+                htmlUrl = json.optString("htmlUrl"),
+                apkName = json.optString("apkName").takeIf { it.isNotBlank() },
+                apkUrl = json.optString("apkUrl").takeIf { it.isNotBlank() },
+                checksumUrl = json.optString("checksumUrl").takeIf { it.isNotBlank() }
+            )
+        }.getOrNull()
+    }
+
+    fun loadLastCalendarSyncAt(): Long? = prefs.getLong(KEY_LAST_CALENDAR_SYNC_AT, -1L)
+        .takeIf { it >= 0L }
+
+    fun loadLastCalendarSyncError(): String? = prefs
+        .getString(KEY_LAST_CALENDAR_SYNC_ERROR, null)
+        ?.takeIf { it.isNotBlank() }
+
+    fun saveCalendarSyncHealth(syncedAtMillis: Long?, error: String?) {
+        val editor = prefs.edit()
+        if (syncedAtMillis == null) editor.remove(KEY_LAST_CALENDAR_SYNC_AT)
+        else editor.putLong(KEY_LAST_CALENDAR_SYNC_AT, syncedAtMillis)
+        editor.putString(KEY_LAST_CALENDAR_SYNC_ERROR, error.orEmpty())
+        editor.apply()
     }
 
     fun loadShowOrb(): Boolean = prefs.getBoolean(KEY_SHOW_ORB, true)
@@ -597,6 +671,13 @@ class DaylineStore(context: Context) {
         private const val KEY_WIDGET_AUTO_SLIDE = "widget_auto_slide"
         private const val KEY_NOW_ACTIVITY = "now_activity"
         private const val KEY_CALENDAR_SYNC = "calendar_sync"
+
+        private const val KEY_AUTO_BETA_UPDATES = "auto_beta_updates"
+        private const val KEY_LAST_UPDATE_CHECK_AT = "last_update_check_at"
+        private const val KEY_LAST_UPDATE_CHECK_ERROR = "last_update_check_error"
+        private const val KEY_AVAILABLE_BETA_RELEASE = "available_beta_release"
+        private const val KEY_LAST_CALENDAR_SYNC_AT = "last_calendar_sync_at"
+        private const val KEY_LAST_CALENDAR_SYNC_ERROR = "last_calendar_sync_error"
         private const val KEY_SHOW_ORB = "show_orb"
         private const val KEY_WEEK_STARTS_MONDAY = "week_starts_monday"
         private const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"

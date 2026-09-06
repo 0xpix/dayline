@@ -28,11 +28,14 @@
   <h2>Backups and exports</h2>
   <p>Backup, restore, ICS import, and ICS export happen only when you explicitly choose a file or location through Android's system file picker. Dayline does not automatically upload backups. Android automatic app-data backup is disabled; backup and restore are explicit Dayline actions.</p>
 
-  <h2>Analytics, advertising, accounts, and sale of data</h2>
+  <h2>GitHub beta update checks</h2>
+<p>GitHub beta builds include an optional in-app update checker. When you manually check for an update, or enable the automatic daily beta check, Dayline requests the public <code>0xpix/dayline</code> GitHub Releases feed to learn whether a newer beta APK exists. Dayline does not send your events, tasks, calendars, Spaces, focus data, widget settings, or backups in that request. GitHub may process ordinary connection metadata according to GitHub's own privacy practices.</p>
+<p>The Google Play release build does not expose the GitHub beta update channel and its Play/main manifest does not request Internet access for this feature. Google Play handles stable-app updates.</p>
+<h2>Analytics, advertising, accounts, and sale of data</h2>
   <p>Dayline does not include a Dayline account system, advertising SDK, analytics SDK, or Dayline-operated cloud service. Dayline does not sell personal data.</p>
 
   <h2>Permissions and control</h2>
-  <p>Dayline may request calendar, notification, exact-alarm, and boot-completed permissions when required by enabled features. Optional permissions can be denied or revoked in Android settings. Turning off Android Calendar sync in Dayline hides the external calendar overlay; it does not delete events owned by another calendar provider.</p>
+  <p>Dayline may request calendar, notification, exact-alarm, boot-completed, and (for GitHub beta builds only) Internet permissions when required by enabled features. Optional permissions can be denied or revoked in Android settings. Turning off Android Calendar sync in Dayline hides the external calendar overlay; it does not delete events owned by another calendar provider.</p>
 
   <h2>Retention and deletion</h2>
   <p>Dayline's local data remains on the device until you delete it, restore another Dayline backup, clear app storage, or uninstall the app. Calendar events written into another Android calendar are retained according to that calendar provider's settings.</p>

@@ -41,6 +41,15 @@ The Now notification does not use Android's seconds chronometer. Examples:
 
 The event time range remains a quiet subtext line and normal text refreshes at minute boundaries. Focus phase and event-end alarms still occur at their actual boundaries.
 
+## CI compile repair from 2026-09-06
+
+The first GitHub Actions compile attempt exposed two concrete Kotlin integration errors in both beta and Play debug variants:
+
+1. `BetaUpdateScheduler` called the suspend `BetaUpdateChecker.check(...)` API from a plain executor callback. The receiver now keeps `goAsync()` alive while the check runs in `CoroutineScope(Dispatchers.IO).launch`.
+2. The `SettingsScreen` integration omitted the existing widget font, emoji and auto-slide values/callbacks. All six arguments are now wired back to `DaylineStore` and refresh placed widgets after a change.
+
+The local static validator and named-argument consistency check pass after these repairs. GitHub Actions remains the authoritative Android compiler confirmation.
+
 ## Final Android compile gate
 
 Run on GitHub Actions before creating the release tag:

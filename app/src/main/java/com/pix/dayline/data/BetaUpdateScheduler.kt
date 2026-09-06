@@ -6,7 +6,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.pix.dayline.BuildConfig
-import java.util.concurrent.Executors
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 object BetaUpdateScheduler {
     private const val INTERVAL_MILLIS = 24L * 60L * 60L * 1000L
@@ -53,8 +55,7 @@ class BetaUpdateReceiver : BroadcastReceiver() {
         if (!store.loadAutoBetaUpdates()) return
 
         val pendingResult = goAsync()
-        val executor = Executors.newSingleThreadExecutor()
-        executor.execute {
+        CoroutineScope(Dispatchers.IO).launch {
             try {
                 val result = BetaUpdateChecker.check(BuildConfig.VERSION_NAME)
                 result.checkedAtMillis?.let { store.saveUpdateCheckResult(it, result.error) }
@@ -62,7 +63,6 @@ class BetaUpdateReceiver : BroadcastReceiver() {
                     if (result.status == UpdateStatus.AVAILABLE) result.release else null
                 )
             } finally {
-                executor.shutdown()
                 pendingResult.finish()
             }
         }

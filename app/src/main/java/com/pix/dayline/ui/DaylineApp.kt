@@ -709,6 +709,9 @@ fun DaylineApp() {
                     DaylineScreen.SETTINGS -> SettingsScreen(
                         appearance = appearance,
                         fontChoice = fontChoice,
+                        widgetFontChoice = widgetFontChoice,
+                        widgetEmojiChoice = widgetEmojiChoice,
+                        widgetAutoSlide = widgetAutoSlide,
                         nowActivityEnabled = nowActivityEnabled,
                         calendarSyncEnabled = calendarSyncEnabled,
                         calendarPreferences = calendarPreferences,
@@ -727,6 +730,21 @@ fun DaylineApp() {
                         onFontChoice = {
                             fontChoice = it
                             store.saveFontChoice(it)
+                        },
+                        onWidgetFontChoice = {
+                            widgetFontChoice = it
+                            store.saveWidgetFontChoice(it)
+                            updateWidgets()
+                        },
+                        onWidgetEmojiChoice = {
+                            widgetEmojiChoice = it
+                            store.saveWidgetEmojiChoice(it)
+                            updateWidgets()
+                        },
+                        onWidgetAutoSlide = {
+                            widgetAutoSlide = it
+                            store.saveWidgetAutoSlide(it)
+                            updateWidgets()
                         },
                         onNowActivityEnabled = {
                             nowActivityEnabled = it

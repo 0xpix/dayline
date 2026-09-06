@@ -2,6 +2,7 @@
 
 ## 0.13.0.beta — Update & reliability beta
 
+- Fixed the beta/play debug compile gate after CI exposed two integration regressions: the scheduled beta checker now calls its suspend API from an IO coroutine, and Settings again receives all widget preference values/callbacks.
 - Rebuilt the GitHub beta updater around the public Releases list so prereleases are detected correctly.
 - Added update states, release notes sheet, verified APK download/install, last-checked state and friendly network errors.
 - Added optional once-daily beta checks with a low-impact AlarmManager schedule.

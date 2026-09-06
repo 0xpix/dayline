@@ -47,3 +47,7 @@ For privacy questions, use the repository's issue/discussion system or the devel
 Dayline's local data remains on the device until you delete it, restore another Dayline backup, clear app storage, or uninstall the app. Calendar events written into another Android calendar are retained according to that calendar provider's settings.
 
 Before the first Google Play production release, the developer identity/contact in this policy should be reviewed so it matches the developer information shown in Play Console.
+
+## GitHub beta updates
+
+The separate **Dayline β** build can contact GitHub when Settings checks for a beta update. It requests public release metadata and, only when you choose Download, downloads the selected APK from GitHub's release infrastructure. Dayline does not send your events, tasks, calendar contents or Dayline settings to GitHub. GitHub and its delivery infrastructure may receive ordinary network information such as your IP address and request metadata under GitHub's own privacy terms. The stable Google Play build does not include Dayline's GitHub self-update permissions.

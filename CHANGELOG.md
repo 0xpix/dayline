@@ -1,74 +1,17 @@
 # Changelog
 
-## 0.12.8 — Final widget contrast polish
+## 0.12.1-beta.1 — GitHub beta updater
 
-- Made unoccupied AM→PM timeline dots visible in light mode.
-- Unified date/status pill backgrounds with the event-name pill.
-- Removed remaining-time countdown text from the home-screen widget.
+- Split distribution into GitHub `beta` and Google Play `play` flavors.
+- GitHub beta uses package `com.pix.dayline.beta`, so beta and stable can coexist.
+- Added Settings → Beta updates with automatic check when Settings opens.
+- Downloads the newest GitHub prerelease APK in-app.
+- Verifies GitHub SHA-256 checksum, APK package name and newer version code before installation.
+- Uses Android's official unknown-app/install confirmation flow; never silent-installs.
+- Stable Play flavor has no INTERNET or REQUEST_INSTALL_PACKAGES permission.
+- GitHub Actions now signs beta releases with a dedicated secret keystore and publishes APK + checksum as a prerelease.
+- Play workflow now explicitly builds the `playRelease` APK/AAB.
 
-## 0.12.7 — Emoji picker and visual polish
-
-- Added a scrollable monochrome Noto Emoji widget picker.
-- Removed yellow system emoji rendering from widget configuration.
-- Made active notification progress visible immediately and refresh every minute.
-- Unified all Material typography roles under the selected app font.
-- Changed the floating Today/Home control to the Dayline app-logo geometry.
-
-## 0.12.6 — Repeat-day chooser
-
-- Replaced Sunday-specific/weekly/monthly visible choices with Once, Daily,
-  Weekdays, Weekend and Choose days.
-- Added seven-day checkbox picker for custom repeat schedules.
-- Added repeat-day persistence, Android Calendar RRULE support and ICS support.
-- Fixed the v0.12.5 DotMatrixRenderer apostrophe syntax error.
-- Fixed the v0.12.5 non-exhaustive DaylineTransfer recurrence branch.
-- Improved Quick Add section hierarchy.
-
-## 0.12.5 — Unicode widget and recurrence polish
-
-- Preserved emoji, ampersands and other Unicode in widget event names.
-- Added a visible system-neutral event-name surface to widgets.
-- Rebalanced Pulse padding around emoji, divider and information.
-- Added Sunday-only and every-day-except-Sunday recurrence modes.
-- Updated Android Calendar and ICS recurrence mappings.
-- Improved Quick Add title/section spacing.
-
-## 0.12.4 — Settings, sync and Upcoming polish
-
-- Moved all widget settings into the per-widget configuration activity.
-- Replaced cycling widget selectors with popup/sheet selectors.
-- Added the full AndroidX Emoji 16.0 picker for widget emoji selection.
-- Made long-title sliding a per-widget option.
-- Switched widget light/dark surfaces to Android system-neutral dynamic colors.
-- Reconciled externally deleted synced-calendar events.
-- Cleaned and expanded app font choices.
-- Reworked Quick Add spacing and default templates.
-- Added semantic/calendar/Space filters to Upcoming.
-
-## 0.12.3 — Interaction and layout polish
-
-- Fixed drag-to-move and drag-to-resize returning to the previous time.
-- Fixed drag scheduling for unscheduled tasks.
-- Undo snackbar now auto-dismisses.
-- Added lower Dawn-inspired vertical staging to Today, Tasks, Spaces, Settings and Task detail.
-- Refined floating controls and navigation sheet.
-- Added a live widget configuration preview.
-- Reduced awkward Pulse right-side whitespace.
-- Made event end time explicit in Now notifications.
-
-## 0.12.2 — Build repair
-
-- Fixed `DayTimeline.kt` compilation: a `Long` value was incorrectly used with
-  Compose's `.dp` extension.
-- Preserved all v0.12.1 Noto Emoji and widget-surface changes.
-
-## 0.12.1 — Noto widget polish
-
-- Replaced custom widget emoji PNG assets with Google Fonts Noto Emoji glyph rendering.
-- Added downloadable Noto Emoji font preloading through Google Play Services.
-- Removed the `DAYLINE` caption under the Pulse widget emoji.
-- Made widget bodies use a full neutral system surface for reliable light/dark contrast.
-- Removed transparent widget configuration to avoid wallpaper-dependent text contrast.
 
 ## 0.12.0 — Play beta
 

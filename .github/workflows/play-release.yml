@@ -62,18 +62,18 @@ jobs:
           DAYLINE_KEY_ALIAS: ${{ secrets.DAYLINE_KEY_ALIAS }}
           DAYLINE_KEY_PASSWORD: ${{ secrets.DAYLINE_KEY_PASSWORD }}
         run: |
-          gradle :app:assembleRelease :app:bundleRelease --no-daemon --stacktrace
+          gradle :app:assemblePlayRelease :app:bundlePlayRelease --no-daemon --stacktrace
 
       - name: Verify signed artifacts exist
         run: |
-          test -f app/build/outputs/apk/release/app-release.apk
-          test -f app/build/outputs/bundle/release/app-release.aab
+          test -f app/build/outputs/apk/play/release/app-play-release.apk
+          test -f app/build/outputs/bundle/playRelease/app-play-release.aab
 
       - name: Prepare artifacts
         run: |
           mkdir -p play-artifacts
-          cp app/build/outputs/apk/release/app-release.apk play-artifacts/dayline-release.apk
-          cp app/build/outputs/bundle/release/app-release.aab play-artifacts/dayline-release.aab
+          cp app/build/outputs/apk/play/release/app-play-release.apk play-artifacts/dayline-release.apk
+          cp app/build/outputs/bundle/playRelease/app-play-release.aab play-artifacts/dayline-release.aab
 
       - name: Upload Play-ready release
         uses: actions/upload-artifact@v4

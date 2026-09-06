@@ -4,107 +4,16 @@
 
 Dayline is an open-source Android calendar and planner built with Kotlin, Jetpack Compose, Material 3 and Glance. It is intentionally local-first, minimal, and designed around Today rather than a dashboard.
 
-Current milestone: **v0.12.8 · Play beta**
+Current milestone: **v0.12.1-beta.1 · GitHub beta / Play split**
 
+## Distribution channels
 
-## v0.12.8 final widget contrast polish
+Dayline now keeps beta and stable updates separate:
 
-- Empty AM→PM timeline dots now use an explicit system-neutral contrast color,
-  making free time visible in light mode while retaining the darker look in
-  OLED/dark mode.
-- Date/status pills (`6`, `SEPT`, `NOW`, etc.) now use the exact same neutral
-  surface as the event-name pill.
-- Removed `XM LEFT` countdown text from the home-screen widget. Active normal
-  events show only the event title; focus events show `FOCUS`, `REST`, or
-  `PAUSED` plus the title. Detailed remaining time stays in the notification.
+- **Dayline β (`com.pix.dayline.beta`)** — open-source GitHub beta APKs with an in-app GitHub Releases updater.
+- **Dayline (`com.pix.dayline`)** — Play build with no self-updater permissions; stable updates are delivered by Google Play.
 
-## v0.12.7 emoji picker + notification + typography polish
-
-- Widget emoji chooser is now a vertically scrollable monochrome **Noto Emoji**
-  grid rendered by the same renderer as the actual widget.
-- Removed the yellow AndroidX/system emoji picker.
-- The picker covers broad Unicode emoji/symbol blocks, keycaps and flags and
-  filters candidates by Noto glyph availability.
-- Notification progress uses seconds internally, starts visibly immediately,
-  and refreshes on the next minute boundary instead of waiting 5–15 minutes.
-- Every Material 3 typography role is now bound to the selected Dayline font,
-  fixing mixed Pixelify/system text in Quick Add.
-- The floating Today/Home button now reproduces the Dayline launcher-logo shape.
-
-## v0.12.6 repeat-day chooser
-
-- Simplified visible Repeat choices to **Once, Daily, Weekdays, Weekend,
-  Choose days**.
-- **Choose days** opens a seven-day checkbox dialog.
-- Added `repeatDays` persistence and Android Calendar / ICS BYDAY support.
-- Migrates the short-lived v0.12.5 `SUNDAYS` and `EXCEPT_SUNDAY` values.
-- Fixed the malformed apostrophe glyph in `DotMatrixRenderer.kt`.
-- Fixed the non-exhaustive `DaylineTransfer.kt` recurrence build failure.
-- Improved Quick Add heading and section spacing.
-
-## v0.12.5 Unicode widget + recurrence polish
-
-- Widget event titles no longer turn unsupported characters into `?`.
-  Ampersand is supported by the dot renderer; emoji and other Unicode use
-  native Glance text as a safe fallback.
-- Unicode title truncation is code-point safe, so emoji surrogate pairs are not cut.
-- Event-name pills have a dedicated system-neutral contrast surface and remain
-  visible in light mode.
-- Pulse layout now uses symmetric emoji padding, divider spacing, and information
-  padding: emoji · `|` · information.
-- Repeat adds **Sunday only** and **Every day except Sunday**, including Calendar
-  Provider RRULE and ICS import/export support.
-- Quick Add has a clearer padded title field, stronger section hierarchy, and
-  more breathing room between labels and controls.
-
-## v0.12.4 settings, sync and upcoming polish
-
-- Removed widget controls from the in-app Settings screen. Widget options now
-  live only in each widget's Android configuration screen.
-- Widget configuration rows now open real chooser sheets instead of cycling values.
-- Emoji selection uses AndroidX EmojiPickerView with the complete Emoji 16.0
-  picker/categories/variants; the chosen glyph is rendered with Dayline's Noto Emoji path.
-- "Slide long titles" is now stored per widget.
-- Widget backgrounds use Android's dynamic neutral system palette on Android 12+
-  with neutral fallbacks on older Android versions.
-- Synced Dayline events are reconciled with Calendar Provider deletion, so deleting
-  a mapped event from Google Calendar/another calendar removes it from Dayline.
-- App font list is cleaned up: System, Geist, Inter, Space Grotesk, IBM Plex Mono,
-  and Pixelify Sans. Legacy Geist Pixel migrates visually to Geist.
-- Quick Add now uses wrapping, roomier controls and common templates:
-  Meeting, Focus block, Workout, Appointment and Errand.
-- Upcoming now supports All, Meetings, Holidays, Events, Tasks, individual
-  calendar, and Space filters.
-
-## v0.12.3 interaction + layout polish
-
-- Fixed drag-to-move and drag-to-resize commit behavior. Gesture end now uses
-  gesture-local snapped values instead of stale recomposition-derived values.
-- Fixed the same stale-value issue for dragging unscheduled tasks onto the timeline.
-- Undo snackbars now dismiss automatically after the normal short duration.
-- Today, Tasks, Spaces, Settings and Task detail use lower Dawn-like vertical staging.
-  Calendar, Upcoming and Search retain their denser top layout.
-- Refined the floating right-side controls and navigation sheet.
-- Widget configuration now includes a live preview that reacts to emoji, font,
-  Space/calendar filters, events/tasks and content mode.
-- Pulse uses more of its right edge and removes the awkward NEXT/NOW tail.
-- Now notifications show the event end first and include a clear START → END range.
-
-## v0.12.2 build repair
-
-- Fixed the Today empty-gap height calculation in `DayTimeline.kt`.
-- `Duration.toMinutes()` returns `Long`; the value is now converted to `Int`
-  before applying Compose's `.dp` extension.
-- No v0.12.1 widget/Noto Emoji behavior was changed.
-
-## v0.12.1 widget polish
-
-- Widget emoji artwork is no longer stored as custom PNG files.
-- Dayline requests **Google Fonts · Noto Emoji** through Android's downloadable-font provider and renders those glyphs for Glance.
-- No font binary is bundled in the repository or APK source tree.
-- The Pulse widget left side now contains only the emoji glyph; the `DAYLINE` caption was removed.
-- Pulse, Orbit and Lock widgets now use one full neutral system surface with `onSurface` / `onSurfaceVariant` text colors.
-- The old transparent-widget switch was removed to avoid wallpaper-dependent contrast problems.
+See [`docs/github-beta-updates.md`](docs/github-beta-updates.md) for beta signing and release setup.
 
 ## What v0.12 adds
 
@@ -140,16 +49,16 @@ Dayline has no Dayline account, advertising SDK, analytics SDK or Dayline-operat
 Requirements: JDK 17, Gradle 9.4.1, Android SDK API 37 and Build Tools 36.0.0.
 
 ```bash
-gradle :app:assembleDebug --no-daemon
+gradle :app:assembleBetaDebug :app:assemblePlayDebug --no-daemon
 ```
 
-GitHub Actions continues to build the debug APK on `main` and on version tags.
+GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.12.1-beta.1` additionally produce a signed GitHub prerelease APK plus SHA-256 checksum.
 
 ## Google Play build
 
 Dayline keeps GitHub distribution and Play distribution separate:
 
-- `build-apk.yml` → open-source/debug GitHub APK workflow
+- `build-apk.yml` → GitHub beta CI + signed prerelease APK workflow
 - `play-release.yml` → manually triggered, signed release APK + Android App Bundle (`.aab`)
 
 The Play workflow reads the upload key only from GitHub Actions secrets. Signing material is never stored in the repository. See [Play Store Checklist](docs/play-store-checklist.md).

@@ -11,12 +11,27 @@ android {
         applicationId = "com.pix.dayline"
         minSdk = 26
         targetSdk = 36
-        versionCode = 38
-        versionName = "0.12.8"
+        versionCode = 31
+        versionName = "0.12.1"
+    }
+
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("beta") {
+            dimension = "distribution"
+            applicationIdSuffix = ".beta"
+            versionNameSuffix = "-beta.1"
+            buildConfigField("boolean", "GITHUB_BETA_UPDATES", "true")
+        }
+        create("play") {
+            dimension = "distribution"
+            buildConfigField("boolean", "GITHUB_BETA_UPDATES", "false")
+        }
     }
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     compileOptions {

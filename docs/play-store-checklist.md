@@ -38,14 +38,14 @@ PowerShell:
 ```
 
 ## Build
-- Main pushes continue to produce the open-source debug APK through `build-apk.yml`.
-- Run the `Build Play Release` workflow manually after configuring signing secrets.
+- Main pushes compile both `betaDebug` and `playDebug`; the beta debug APK is uploaded as a CI artifact.
+- Run the `Build Play Release` workflow manually after configuring signing secrets; it builds only `playRelease`.
 - Download `dayline-play-release`, containing the signed `.aab` and release `.apk`.
 - Upload the `.aab` to Play Console internal testing first.
 
 ## Release QA
 - Fresh install on supported Android versions.
-- Upgrade from previous Dayline build without data loss.
+- Upgrade from the previous Play-channel Dayline build without data loss. GitHub beta uses a separate package and is tested independently.
 - Permission denied/granted flows.
 - Android Calendar import/write/edit behavior.
 - Recurring event scopes.

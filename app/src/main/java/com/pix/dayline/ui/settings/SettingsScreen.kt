@@ -6,6 +6,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import com.pix.dayline.BuildConfig
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -19,19 +21,25 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.pix.dayline.data.*
 import com.pix.dayline.model.*
 import com.pix.dayline.ui.components.FloatingControls
-
-
+import com.pix.dayline.updates.GithubBetaUpdater
+import kotlinx.coroutines.launch
+import java.io.File
 
 private enum class SettingsSheet {
     APPEARANCE,
     APP_FONT,
+    WIDGET_FONT,
+    WIDGET_EMOJI,
     CALENDARS,
     PRIVACY
 }
@@ -41,6 +49,9 @@ private enum class SettingsSheet {
 fun SettingsScreen(
     appearance: Appearance,
     fontChoice: FontChoice,
+    widgetFontChoice: WidgetFontChoice,
+    widgetEmojiChoice: WidgetEmojiChoice,
+    widgetAutoSlide: Boolean,
     nowActivityEnabled: Boolean,
     calendarSyncEnabled: Boolean,
     calendarPreferences: CalendarPreferences,
@@ -50,6 +61,9 @@ fun SettingsScreen(
     weekStartsMonday: Boolean,
     onAppearance: (Appearance) -> Unit,
     onFontChoice: (FontChoice) -> Unit,
+    onWidgetFontChoice: (WidgetFontChoice) -> Unit,
+    onWidgetEmojiChoice: (WidgetEmojiChoice) -> Unit,
+    onWidgetAutoSlide: (Boolean) -> Unit,
     onNowActivityEnabled: (Boolean) -> Unit,
     onCalendarSyncEnabled: (Boolean) -> Unit,
     onCalendarPreferences: (CalendarPreferences) -> Unit,
@@ -63,7 +77,27 @@ fun SettingsScreen(
     onToday: () -> Unit
 ) {
     val context = LocalContext.current
+    val updateScope = rememberCoroutineScope()
     var openSheet by remember { mutableStateOf<SettingsSheet?>(null) }
+    var betaCheck by remember { mutableStateOf<GithubBetaUpdater.CheckResult?>(null) }
+    var betaChecking by remember { mutableStateOf(false) }
+    var betaDownloading by remember { mutableStateOf(false) }
+    var betaApk by remember { mutableStateOf<File?>(null) }
+    var betaMessage by remember { mutableStateOf<String?>(null) }
+
+    fun checkBetaUpdates() {
+        if (!BuildConfig.GITHUB_BETA_UPDATES || betaChecking) return
+        betaChecking = true
+        betaMessage = null
+        updateScope.launch {
+            betaCheck = GithubBetaUpdater.check()
+            betaChecking = false
+        }
+    }
+
+    LaunchedEffect(BuildConfig.GITHUB_BETA_UPDATES) {
+        if (BuildConfig.GITHUB_BETA_UPDATES && betaCheck == null) checkBetaUpdates()
+    }
 
     Box(
         modifier = Modifier
@@ -78,7 +112,7 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 30.dp, end = 30.dp, top = 112.dp, bottom = 138.dp)
+                .padding(start = 30.dp, end = 30.dp, top = 56.dp, bottom = 138.dp)
         ) {
             Text("Settings", style = MaterialTheme.typography.displayMedium)
             Spacer(Modifier.height(34.dp))
@@ -90,6 +124,22 @@ fun SettingsScreen(
                 SelectorRow("App font", fontLabel(fontChoice)) {
                     openSheet = SettingsSheet.APP_FONT
                 }
+            }
+
+            SectionGap()
+            SettingsGroup("Widgets") {
+                SelectorRow("Widget font", widgetFontLabel(widgetFontChoice)) {
+                    openSheet = SettingsSheet.WIDGET_FONT
+                }
+                SelectorRow("Widget emoji", widgetEmojiChoice.label) {
+                    openSheet = SettingsSheet.WIDGET_EMOJI
+                }
+                ToggleSettingRow("Slide long titles", widgetAutoSlide, onWidgetAutoSlide)
+                Text(
+                    "Each placed widget can also have its own Space, calendar, content and background configuration.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             SectionGap()
@@ -138,6 +188,75 @@ fun SettingsScreen(
                 SelectorRow("Import calendar", ".ics") { onImportIcs() }
             }
 
+            if (BuildConfig.GITHUB_BETA_UPDATES) {
+                SectionGap()
+                SettingsGroup("Beta updates") {
+                    SelectorRow("Channel", "GitHub beta") {
+                        context.startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/0xpix/dayline/releases"))
+                        )
+                    }
+
+                    when (val result = betaCheck) {
+                        is GithubBetaUpdater.CheckResult.Available -> {
+                            val downloaded = betaApk
+                            if (downloaded == null) {
+                                SelectorRow(
+                                    "Update to ${result.release.displayVersion}",
+                                    if (betaDownloading) "Downloading…" else "Download"
+                                ) {
+                                    if (!betaDownloading) {
+                                        betaDownloading = true
+                                        betaMessage = null
+                                        updateScope.launch {
+                                            GithubBetaUpdater.download(context.applicationContext, result.release)
+                                                .onSuccess { betaApk = it }
+                                                .onFailure { betaMessage = it.message ?: "Download failed" }
+                                            betaDownloading = false
+                                        }
+                                    }
+                                }
+                            } else {
+                                SelectorRow("Install ${result.release.displayVersion}", "Ready") {
+                                    when (val install = GithubBetaUpdater.install(context, downloaded)) {
+                                        GithubBetaUpdater.InstallResult.Started -> betaMessage = "Android installer opened"
+                                        GithubBetaUpdater.InstallResult.PermissionRequested ->
+                                            betaMessage = "Allow Dayline β to install apps, then tap Install again"
+                                        is GithubBetaUpdater.InstallResult.Error -> betaMessage = install.message
+                                    }
+                                }
+                            }
+                            if (result.release.notes.isNotBlank()) {
+                                SelectorRow("Release notes", result.release.displayVersion) {
+                                    GithubBetaUpdater.openRelease(context, result.release)
+                                }
+                            }
+                        }
+                        GithubBetaUpdater.CheckResult.UpToDate ->
+                            SelectorRow("Check for updates", "Up to date") { checkBetaUpdates() }
+                        GithubBetaUpdater.CheckResult.NoBetaRelease ->
+                            SelectorRow("Check for updates", "No beta yet") { checkBetaUpdates() }
+                        is GithubBetaUpdater.CheckResult.Error ->
+                            SelectorRow("Check for updates", "Retry") { checkBetaUpdates() }
+                        null ->
+                            SelectorRow("Check for updates", if (betaChecking) "Checking…" else "Check") { checkBetaUpdates() }
+                    }
+
+                    betaMessage?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text(
+                        "Beta APKs are checked directly against GitHub Releases. Stable Play builds do not contain this update channel.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
             SectionGap()
             SettingsGroup("About") {
                 SelectorRow("Privacy", "On-device") { openSheet = SettingsSheet.PRIVACY }
@@ -153,7 +272,7 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(34.dp))
             Text(
-                "Dayline 0.12.8 · Play beta",
+                "Dayline ${BuildConfig.VERSION_NAME} · ${if (BuildConfig.GITHUB_BETA_UPDATES) "GitHub beta" else "Play"}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -182,14 +301,28 @@ fun SettingsScreen(
             "App font",
             fontLabel(fontChoice),
             listOf(
-                "System" to { onFontChoice(FontChoice.SYSTEM) },
-                "Geist" to { onFontChoice(FontChoice.GEIST) },
-                "Inter" to { onFontChoice(FontChoice.INTER) },
-                "Space Grotesk" to { onFontChoice(FontChoice.SPACE_GROTESK) },
-                "IBM Plex Mono" to { onFontChoice(FontChoice.IBM_PLEX_MONO) },
-                "Pixelify Sans" to { onFontChoice(FontChoice.PIXELIFY) }
+                "Pixelify Sans" to { onFontChoice(FontChoice.PIXELIFY) },
+                "Geist · Nothing OS 5" to { onFontChoice(FontChoice.GEIST) },
+                "Geist Pixel" to { onFontChoice(FontChoice.GEIST_PIXEL) },
+                "System" to { onFontChoice(FontChoice.SYSTEM) }
             )
         ) { openSheet = null }
+
+        SettingsSheet.WIDGET_FONT -> SelectionSheet(
+            "Widget font",
+            widgetFontLabel(widgetFontChoice),
+            listOf(
+                "Nothing dots · Bold" to { onWidgetFontChoice(WidgetFontChoice.DOT_BOLD) },
+                "Nothing dots · Fine" to { onWidgetFontChoice(WidgetFontChoice.DOT_FINE) },
+                "Monospace · Bold" to { onWidgetFontChoice(WidgetFontChoice.MONO) }
+            )
+        ) { openSheet = null }
+
+        SettingsSheet.WIDGET_EMOJI -> EmojiSheet(
+            selected = widgetEmojiChoice,
+            onSelect = onWidgetEmojiChoice,
+            onDismiss = { openSheet = null }
+        )
 
         SettingsSheet.CALENDARS -> CalendarControlsSheet(
             calendars = deviceCalendars,
@@ -270,6 +403,56 @@ private fun SelectionSheet(
                     Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                     Text(if (label == selected) "●" else "○", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EmojiSheet(
+    selected: WidgetEmojiChoice,
+    onSelect: (WidgetEmojiChoice) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.background) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 28.dp)) {
+            Text("Widget emoji", style = MaterialTheme.typography.headlineLarge)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Changes stay live while this sheet is open.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(20.dp))
+            WidgetEmojiChoice.entries.chunked(4).forEach { row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    row.forEach { emoji ->
+                        Box(
+                            modifier = Modifier
+                                .size(68.dp)
+                                .background(
+                                    if (emoji == selected) MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.surfaceVariant,
+                                    CircleShape
+                                )
+                                .clickable { onSelect(emoji) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                painter = painterResource(emoji.iconRes),
+                                contentDescription = emoji.label,
+                                modifier = Modifier.size(31.dp),
+                                colorFilter = ColorFilter.tint(
+                                    if (emoji == selected) MaterialTheme.colorScheme.onPrimaryContainer
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            )
+                        }
+                    }
+                    repeat(4 - row.size) { Spacer(Modifier.size(68.dp)) }
+                }
+                Spacer(Modifier.height(14.dp))
             }
         }
     }
@@ -413,13 +596,16 @@ private fun appearanceLabel(appearance: Appearance): String = when (appearance) 
 }
 
 private fun fontLabel(font: FontChoice): String = when (font) {
-    FontChoice.SYSTEM -> "System"
-    FontChoice.GEIST -> "Geist"
-    FontChoice.INTER -> "Inter"
-    FontChoice.SPACE_GROTESK -> "Space Grotesk"
-    FontChoice.IBM_PLEX_MONO -> "IBM Plex Mono"
     FontChoice.PIXELIFY -> "Pixelify Sans"
-    FontChoice.GEIST_PIXEL -> "Geist"
+    FontChoice.GEIST -> "Geist"
+    FontChoice.GEIST_PIXEL -> "Geist Pixel"
+    FontChoice.SYSTEM -> "System"
+}
+
+private fun widgetFontLabel(font: WidgetFontChoice): String = when (font) {
+    WidgetFontChoice.DOT_BOLD -> "Nothing dots · Bold"
+    WidgetFontChoice.DOT_FINE -> "Nothing dots · Fine"
+    WidgetFontChoice.MONO -> "Monospace · Bold"
 }
 
 private fun preciseStatus(context: Context): String {

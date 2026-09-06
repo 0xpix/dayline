@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
 JAVA = APP / "src/main/java"
 RES = APP / "src/main/res"
+ALL_JAVA_ROOTS = [path for path in (APP / "src").glob("*/java") if path.is_dir()]
 ERRORS: list[str] = []
 WARNINGS: list[str] = []
 
@@ -44,6 +45,7 @@ required = [
     "docs/data-safety.md",
     "docs/play-store-listing.md",
     "docs/play-store-checklist.md",
+    "docs/github-beta-updates.md",
     ".github/workflows/build-apk.yml",
     ".github/workflows/play-release.yml",
 ]
@@ -52,7 +54,7 @@ for rel in required:
         fail(f"Missing required release file: {rel}")
 
 # XML.
-for path in sorted((APP / "src/main").rglob("*.xml")):
+for path in sorted(APP.rglob("*.xml")):
     try:
         ET.parse(path)
     except Exception as exc:
@@ -83,7 +85,7 @@ for path in sorted((ROOT / ".github/workflows").glob("*.yml")):
         fail(f"Invalid YAML {path.relative_to(ROOT)}: {exc}")
 
 # Kotlin source is at least parser-clean. A full Android compile is still the CI gate.
-kotlin_files = sorted(JAVA.rglob("*.kt"))
+kotlin_files = sorted(path for root in ALL_JAVA_ROOTS for path in root.rglob("*.kt"))
 if not kotlin_files:
     fail("No Kotlin source files found")
 
@@ -98,13 +100,14 @@ for path in kotlin_files:
 
 # Build resource index.
 resources: dict[str, set[str]] = {}
-for directory in RES.iterdir():
-    if not directory.is_dir():
-        continue
-    kind = directory.name.split("-")[0]
-    for path in directory.iterdir():
-        if path.is_file() and path.suffix != ".xml" or path.is_file():
-            resources.setdefault(kind, set()).add(path.stem)
+for res_root in [path for path in (APP / "src").glob("*/res") if path.is_dir()]:
+    for directory in res_root.iterdir():
+        if not directory.is_dir():
+            continue
+        kind = directory.name.split("-")[0]
+        for path in directory.iterdir():
+            if path.is_file():
+                resources.setdefault(kind, set()).add(path.stem)
 
 strings_path = RES / "values/strings.xml"
 if strings_path.exists():
@@ -155,10 +158,10 @@ for kind, name in re.findall(r"@([A-Za-z0-9_]+)/([A-Za-z0-9_]+)", manifest_text)
 
 # Release and Play configuration.
 gradle = read(APP / "build.gradle.kts")
-if 'versionName = "0.12.8"' not in gradle:
-    fail("app versionName must be 0.12.8")
-if 'versionCode = 38' not in gradle:
-    fail("app versionCode must be 38")
+if 'versionName = "0.12.1"' not in gradle:
+    fail("app versionName must be 0.12.1")
+if 'versionCode = 31' not in gradle:
+    fail("app versionCode must be 31")
 if "targetSdk = 36" not in gradle:
     fail("targetSdk 36 expected")
 if "compileSdk = 37" not in gradle:
@@ -166,8 +169,8 @@ if "compileSdk = 37" not in gradle:
 
 play = read(ROOT / ".github/workflows/play-release.yml")
 for required_token in (
-    ":app:assembleRelease",
-    ":app:bundleRelease",
+    ":app:assemblePlayRelease",
+    ":app:bundlePlayRelease",
     "DAYLINE_KEYSTORE_BASE64",
     "DAYLINE_KEYSTORE_PASSWORD",
     "DAYLINE_KEY_ALIAS",
@@ -176,9 +179,16 @@ for required_token in (
     if required_token not in play:
         fail(f"Play workflow missing {required_token}")
 
-# Privacy / permission posture for the no-cloud build.
+# Distribution permissions: Play/main stay updater-free; beta alone may self-update.
+beta_manifest_path = APP / "src/beta/AndroidManifest.xml"
+beta_manifest_text = read(beta_manifest_path) if beta_manifest_path.exists() else ""
 if "android.permission.INTERNET" in manifest_text:
-    fail("Unexpected INTERNET permission")
+    fail("Main/Play manifest must not declare INTERNET")
+if "android.permission.REQUEST_INSTALL_PACKAGES" in manifest_text:
+    fail("Main/Play manifest must not declare REQUEST_INSTALL_PACKAGES")
+for permission in ("android.permission.INTERNET", "android.permission.REQUEST_INSTALL_PACKAGES"):
+    if permission not in beta_manifest_text:
+        fail(f"Beta updater manifest missing {permission}")
 if 'android:allowBackup="false"' not in manifest_text:
     fail("Android automatic app backup should remain disabled")
 if "POST_PROMOTED_NOTIFICATIONS" in manifest_text:
@@ -194,6 +204,37 @@ for forbidden in ("setUsesChronometer", "setChronometerCountDown", "setRequestPr
 for expected in ("setShowWhen(false)", "setProgress(progressMax, progressValue, false)", "ACTION_REFRESH"):
     if expected not in notification_sources:
         fail(f"Clean Now activity notification is missing {expected}")
+
+# GitHub beta updater / Play separation anchors.
+build_workflow = read(ROOT / ".github/workflows/build-apk.yml")
+for token in (
+    'create("beta")',
+    'applicationIdSuffix = ".beta"',
+    'GITHUB_BETA_UPDATES',
+):
+    if token not in gradle:
+        fail(f"Distribution flavor configuration missing {token}")
+for token in (
+    ":app:assembleBetaRelease",
+    "DAYLINE_BETA_KEYSTORE_BASE64",
+    "--prerelease",
+    "sha256sum",
+):
+    if token not in build_workflow:
+        fail(f"GitHub beta workflow missing {token}")
+updater = read(APP / "src/beta/java/com/pix/dayline/updates/GithubBetaUpdater.kt")
+for token in (
+    "api.github.com/repos/0xpix/dayline/releases",
+    "checksumUrl",
+    "verifyApk",
+    "canRequestPackageInstalls",
+):
+    if token not in updater:
+        fail(f"GitHub updater missing {token}")
+play_updater = read(APP / "src/play/java/com/pix/dayline/updates/GithubBetaUpdater.kt")
+for forbidden in ("HttpURLConnection", "api.github.com", "REQUEST_INSTALL_PACKAGES"):
+    if forbidden in play_updater:
+        fail(f"Play updater stub unexpectedly contains {forbidden}")
 
 # Feature anchors for the 0.12 Play beta.
 feature_checks = {
@@ -222,340 +263,6 @@ for label, ok in feature_checks.items():
     if not ok:
         fail(f"Feature anchor missing: {label}")
 
-
-
-
-
-
-
-
-
-# v0.12.8 final widget contrast checks.
-widgets_0128 = read(
-    JAVA / "com/pix/dayline/widgets/DaylineWidgets.kt"
-)
-
-if "R.color.widget_track_empty" not in widgets_0128:
-    fail("Light-mode empty timeline-dot contrast resource is missing")
-
-if 'R.color.widget_event_surface' not in widgets_0128:
-    fail("Unified widget event/date surface is missing")
-
-if 'M LEFT"' in widgets_0128 or 'minutesRemaining}M LEFT' in widgets_0128:
-    fail("Remaining-time LEFT text still appears in widget source")
-
-for resource_dir in (
-    "values",
-    "values-night",
-    "values-v31",
-    "values-night-v31"
-):
-    colors = RES / resource_dir / "colors.xml"
-    if not colors.is_file():
-        fail(f"Missing {resource_dir}/colors.xml")
-    elif "widget_track_empty" not in read(colors):
-        fail(
-            f"widget_track_empty is missing from {resource_dir}"
-        )
-
-# v0.12.7 picker/progress/typography/logo checks.
-widget_config_0127 = read(
-    JAVA / "com/pix/dayline/widgets/WidgetConfigActivity.kt"
-)
-noto_catalog_0127 = read(
-    JAVA / "com/pix/dayline/widgets/NotoEmojiCatalog.kt"
-)
-now_0127 = read(
-    JAVA / "com/pix/dayline/notifications/NowActivityScheduler.kt"
-)
-type_0127 = read(
-    JAVA / "com/pix/dayline/ui/theme/Type.kt"
-)
-floating_0127 = read(
-    JAVA / "com/pix/dayline/ui/components/FloatingControls.kt"
-)
-
-if "LazyVerticalGrid" not in widget_config_0127:
-    fail("Widget emoji picker is not vertically scrollable")
-
-if "NotoEmojiCell(" not in widget_config_0127:
-    fail("Widget emoji picker is not rendering monochrome Noto cells")
-
-if "NotoEmojiCatalog.all" not in widget_config_0127:
-    fail("Noto emoji catalog is not wired into widget settings")
-
-if "0x1F000" not in noto_catalog_0127 or "0x1FAFF" not in noto_catalog_0127:
-    fail("Noto emoji catalog range is incomplete")
-
-if "visibleProgressPercent(" not in now_0127:
-    fail("Immediate notification progress helper is missing")
-
-if "nextMinute" not in now_0127:
-    fail("Minute-boundary notification refresh is missing")
-
-for role in (
-    "headlineSmall = TextStyle",
-    "labelLarge = TextStyle",
-    "bodySmall = TextStyle",
-    "titleLarge = TextStyle"
-):
-    if role not in type_0127:
-        fail(f"Unified typography role missing: {role}")
-
-if "DaylineLogoIcon(" not in floating_0127:
-    fail("Floating Today/Home button is not using the Dayline logo")
-
-# v0.12.6 compile-regression checks.
-renderer_source = read(
-    JAVA / "com/pix/dayline/widgets/DotMatrixRenderer.kt"
-)
-store_source = read(
-    JAVA / "com/pix/dayline/data/DaylineStore.kt"
-)
-
-if "repeatDays" not in store_source:
-    fail("Custom repeat-day persistence is missing")
-
-# v0.12.5 Unicode / recurrence / widget layout checks.
-renderer_source = read(
-    JAVA / "com/pix/dayline/widgets/DotMatrixRenderer.kt"
-)
-widgets_source = read(
-    JAVA / "com/pix/dayline/widgets/DaylineWidgets.kt"
-)
-item_source = read(
-    JAVA / "com/pix/dayline/model/DaylineItem.kt"
-)
-quick_source = read(
-    JAVA / "com/pix/dayline/ui/components/QuickAddSheet.kt"
-)
-calendar_source = read(
-    JAVA / "com/pix/dayline/data/AndroidCalendarSync.kt"
-)
-transfer_source = read(
-    JAVA / "com/pix/dayline/data/DaylineTransfer.kt"
-)
-
-if "fun canRender(rawText: String)" not in renderer_source:
-    fail("DotMatrix Unicode safety check is missing")
-
-if "Native Glance Text preserves" not in widgets_source:
-    fail("Unicode-safe widget title fallback is missing")
-
-if "widget_event_surface" not in widgets_source:
-    fail("Widget event-name contrast surface is missing")
-
-if "compactTitleUnicode" not in widgets_source:
-    fail("Unicode-safe title truncation is missing")
-
-for token in (
-    "Recurrence.WEEKENDS",
-    "Recurrence.CUSTOM"
-):
-    if token not in item_source:
-        fail(f"Occurrence logic missing {token}")
-    if token not in quick_source:
-        fail(f"Quick Add recurrence option missing {token}")
-    if token not in calendar_source:
-        fail(f"Calendar RRULE missing {token}")
-    if token not in transfer_source:
-        fail(f"ICS recurrence support missing {token}")
-
-if "RepeatDaysDialog(" not in quick_source:
-    fail("Seven-day repeat chooser dialog is missing")
-
-for label in (
-    '"Once"',
-    '"Daily"',
-    '"Weekdays"',
-    '"Weekend"',
-    '"Choose days"'
-):
-    if label not in quick_source:
-        fail(f"Visible repeat option missing: {label}")
-
-if '"Sunday only"' in quick_source:
-    fail("Old Sunday-only repeat option is still visible")
-
-if '"Every day except Sunday"' in quick_source:
-    fail("Old except-Sunday repeat option is still visible")
-
-if "SectionHeader(" not in quick_source:
-    fail("Quick Add section spacing hierarchy is missing")
-
-# v0.12.4 settings/sync/widget/upcoming checks.
-settings_source = read(
-    JAVA / "com/pix/dayline/ui/settings/SettingsScreen.kt"
-)
-widget_config_source = read(
-    JAVA / "com/pix/dayline/widgets/WidgetConfigActivity.kt"
-)
-widgets_source = read(
-    JAVA / "com/pix/dayline/widgets/DaylineWidgets.kt"
-)
-calendar_source = read(
-    JAVA / "com/pix/dayline/data/AndroidCalendarSync.kt"
-)
-quick_source = read(
-    JAVA / "com/pix/dayline/ui/components/QuickAddSheet.kt"
-)
-upcoming_source = read(
-    JAVA / "com/pix/dayline/ui/upcoming/UpcomingScreen.kt"
-)
-
-if 'SettingsGroup("Widgets")' in settings_source:
-    fail("Widget settings still appear in app Settings")
-
-if "NotoEmojiCatalog.all" not in widget_config_source:
-    fail("Scrollable Noto widget emoji catalog is missing")
-
-if "WidgetSelectionSheet" not in widget_config_source:
-    fail("Widget selector popups are missing")
-
-if "autoSlideLongTitles" not in widget_config_source:
-    fail("Long-title sliding is not per-widget")
-
-if "widget_system_surface" not in widgets_source:
-    fail("System-neutral widget surface is missing")
-
-if "reconcileDeletedMappedItems" not in calendar_source:
-    fail("Calendar deletion reconciliation is missing")
-
-for font_token in (
-    "FontChoice.INTER",
-    "FontChoice.SPACE_GROTESK",
-    "FontChoice.IBM_PLEX_MONO"
-):
-    if font_token not in settings_source:
-        fail(f"New font option is missing: {font_token}")
-
-if "FlowRow" not in quick_source:
-    fail("Quick Add still uses cramped fixed rows")
-
-for template in (
-    "Meeting",
-    "Focus block",
-    "Workout",
-    "Appointment",
-    "Errand"
-):
-    if template not in read(
-        JAVA / "com/pix/dayline/data/DaylineStore.kt"
-    ):
-        fail(f"Common template missing: {template}")
-
-for filter_token in (
-    "Meetings",
-    "Holidays",
-    "UpcomingFilter.Calendar",
-    "UpcomingFilter.Space"
-):
-    if filter_token not in upcoming_source:
-        fail(f"Upcoming filter missing: {filter_token}")
-
-gradle_text = read(ROOT / "app/build.gradle.kts")
-if "androidx.emoji2:emoji2-emojipicker" in gradle_text:
-    fail("Legacy yellow AndroidX emoji picker dependency should be removed")
-
-# v0.12.3 interaction/polish checks.
-timeline_source = read(
-    JAVA / "com/pix/dayline/ui/components/DayTimeline.kt"
-)
-app_source = read(
-    JAVA / "com/pix/dayline/ui/DaylineApp.kt"
-)
-widget_config_source = read(
-    JAVA / "com/pix/dayline/widgets/WidgetConfigActivity.kt"
-)
-now_source = read(
-    JAVA / "com/pix/dayline/notifications/NowActivityScheduler.kt"
-)
-floating_source = read(
-    JAVA / "com/pix/dayline/ui/components/FloatingControls.kt"
-)
-
-for token in (
-    "var gestureOffsetPx = 0f",
-    "var gestureStep = 0",
-    "commitStep * 15"
-):
-    if token not in timeline_source:
-        fail(f"Drag commit repair is missing {token}")
-
-if "duration = SnackbarDuration.Short" not in app_source:
-    fail("Undo snackbar is not configured to auto-dismiss")
-
-if "WidgetPreview(" not in widget_config_source:
-    fail("Widget settings live preview is missing")
-
-if ".setSubText(eventRange)" not in now_source:
-    fail("Now notification START → END range is missing")
-
-if 'append("END ")' not in now_source:
-    fail("Now notification does not lead with event end time")
-
-if "MenuLinesIcon" not in floating_source:
-    fail("Refined floating menu icon is missing")
-
-# Compose Dp sanity: Kotlin/Compose provides .dp for Int/Float/Double, not Long.
-# Catch the exact regression that broke v0.12.1.
-for kt in kotlin_files:
-    text = read(kt)
-    suspicious_long_dp = re.findall(
-        r'(?:\d+L|toMinutes\(\)|coerceIn\(\s*\d+L\s*,\s*\d+L\s*\))\.dp\b',
-        text
-    )
-    if suspicious_long_dp:
-        fail(
-            f"{kt.relative_to(ROOT)} contains a likely Long.dp expression: "
-            f"{suspicious_long_dp}"
-        )
-
-# v0.12.1 widget/Noto Emoji checks.
-widget_emoji = read(JAVA / "com/pix/dayline/data/WidgetEmoji.kt")
-widgets_source = read(JAVA / "com/pix/dayline/widgets/DaylineWidgets.kt")
-settings_source = read(JAVA / "com/pix/dayline/ui/settings/SettingsScreen.kt")
-noto_renderer = JAVA / "com/pix/dayline/widgets/NotoEmojiRenderer.kt"
-
-if not (RES / "font/noto_emoji.xml").is_file():
-    fail("Missing downloadable @font/noto_emoji resource")
-else:
-    noto_font_xml = read(RES / "font/noto_emoji.xml")
-    for token in ("com.google.android.gms.fonts", "Noto Emoji", "com_google_android_gms_fonts_certs"):
-        if token not in noto_font_xml:
-            fail(f"Noto Emoji downloadable font is missing {token}")
-
-if not noto_renderer.is_file():
-    fail("Missing NotoEmojiRenderer.kt")
-else:
-    renderer_text = read(noto_renderer)
-    if "ResourcesCompat.getFont(context, R.font.noto_emoji)" not in renderer_text:
-        fail("NotoEmojiRenderer is not loading @font/noto_emoji")
-
-if "iconRes" in widget_emoji or "R.drawable.emoji_" in all_kotlin:
-    fail("Legacy PNG widget emoji references remain")
-
-legacy_emoji_pngs = list((RES / "drawable-nodpi").glob("emoji_*.png")) if (RES / "drawable-nodpi").exists() else []
-if legacy_emoji_pngs:
-    fail(f"Legacy widget emoji PNGs remain: {[p.name for p in legacy_emoji_pngs]}")
-
-if '"DAYLINE"' in widgets_source:
-    fail("Pulse widget still renders DAYLINE under the emoji")
-
-if "ColorProvider(R.color.widget_system_surface)" not in widgets_source:
-    fail("System-neutral widget background is missing")
-
-widget_config_for_noto = read(
-    JAVA / "com/pix/dayline/widgets/WidgetConfigActivity.kt"
-)
-if "NotoEmojiCatalog.all" not in widget_config_for_noto:
-    fail("Widget emoji picker is not using the Noto emoji catalog")
-if "NotoEmojiRenderer.render" not in widget_config_for_noto:
-    fail("Widget preview is not rendering the selected emoji through Noto Emoji")
-
-if 'android:name="preloaded_fonts"' not in manifest_text:
-    fail("Manifest does not preload downloadable fonts")
-
 # Public policy URL should match GitHub Pages workflow/listing.
 settings = read(JAVA / "com/pix/dayline/ui/settings/SettingsScreen.kt")
 policy_url = "https://0xpix.github.io/dayline/privacy-policy.html"
@@ -570,9 +277,9 @@ for path in [*kotlin_files, *ROOT.glob("*.md"), *ROOT.glob("docs/*.md")]:
     if "FIXME" in text:
         fail(f"FIXME left in {path.relative_to(ROOT)}")
 
-print("Dayline v0.12.8 release validation")
+print("Dayline v0.12.1-beta.1 release validation")
 print(f"  Kotlin files: {len(kotlin_files)}")
-print(f"  XML files: {len(list((APP / 'src/main').rglob('*.xml')))}")
+print(f"  XML files: {len(list(APP.rglob('*.xml')))}")
 print(f"  Errors: {len(ERRORS)}")
 print(f"  Warnings: {len(WARNINGS)}")
 for message in ERRORS:

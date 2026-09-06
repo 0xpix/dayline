@@ -396,24 +396,56 @@ object NowActivityScheduler {
         val progressValue: Int
 
         if (runtime == null) {
-            val totalMinutes = Duration.between(occurrence.start, occurrence.end)
-                .toMinutes()
-                .coerceAtLeast(1L)
-            val elapsedMinutes = Duration.between(occurrence.start, now)
-                .toMinutes()
-                .coerceIn(0L, totalMinutes)
-            val remainingMinutes = (totalMinutes - elapsedMinutes).coerceAtLeast(0L)
+            val totalSeconds =
+                Duration.between(
+                    occurrence.start,
+                    occurrence.end
+                )
+                    .seconds
+                    .coerceAtLeast(1L)
+
+            val elapsedSeconds =
+                Duration.between(
+                    occurrence.start,
+                    now
+                )
+                    .seconds
+                    .coerceIn(
+                        0L,
+                        totalSeconds
+                    )
+
+            val remainingMinutes =
+                (
+                    (
+                        totalSeconds -
+                            elapsedSeconds
+                    ) + 59L
+                ) / 60L
 
             title = item.title
             content = buildString {
                 append("END ")
-                append(occurrence.end.toLocalTime().format(format))
+                append(
+                    occurrence.end
+                        .toLocalTime()
+                        .format(format)
+                )
                 append("  ·  ")
-                append(compactRemaining(remainingMinutes))
+                append(
+                    compactRemaining(
+                        remainingMinutes
+                    )
+                )
                 append(" LEFT")
             }
+
             progressMax = 100
-            progressValue = ((elapsedMinutes * 100L) / totalMinutes).toInt().coerceIn(0, 100)
+            progressValue =
+                visibleProgressPercent(
+                    elapsedSeconds,
+                    totalSeconds
+                )
         } else {
             val mode = if (runtime.focus) "FOCUS" else "REST"
             val totalSessions = expectedFocusSessions(item, occurrence)
@@ -448,11 +480,11 @@ object NowActivityScheduler {
                 append(totalSessions)
             }
             progressMax = 100
-            progressValue = if (runtime.paused) {
-                ((elapsedSeconds * 100L) / phaseTotalSeconds).toInt().coerceIn(0, 100)
-            } else {
-                ((elapsedSeconds * 100L) / phaseTotalSeconds).toInt().coerceIn(0, 100)
-            }
+            progressValue =
+                visibleProgressPercent(
+                    elapsedSeconds,
+                    phaseTotalSeconds
+                )
         }
 
         val eventRange =
@@ -523,6 +555,29 @@ object NowActivityScheduler {
         }
     }
 
+    private fun visibleProgressPercent(
+        elapsedSeconds: Long,
+        totalSeconds: Long
+    ): Int {
+        if (totalSeconds <= 0L) {
+            return 2
+        }
+
+        if (elapsedSeconds >= totalSeconds) {
+            return 100
+        }
+
+        val raw =
+            (
+                elapsedSeconds * 100L /
+                    totalSeconds
+            ).toInt()
+
+        return raw
+            .coerceAtLeast(2)
+            .coerceAtMost(99)
+    }
+
     private fun compactRemaining(minutes: Long): String = when {
         minutes <= 0L -> "ENDING"
         minutes < 60L -> "${minutes}M"
@@ -536,15 +591,29 @@ object NowActivityScheduler {
         eventEndMillis: Long,
         phaseEndMillis: Long?
     ) {
-        val nowMillis = System.currentTimeMillis()
-        val cadence = if (phaseEndMillis != null) 5L * 60_000L else 15L * 60_000L
-        val target = listOfNotNull(
-            nowMillis + cadence,
-            phaseEndMillis,
-            eventEndMillis
-        ).minOrNull() ?: return
+        val nowMillis =
+            System.currentTimeMillis()
 
-        if (target <= nowMillis + 5_000L || target >= eventEndMillis) return
+        val nextMinute =
+            (
+                nowMillis / 60_000L +
+                    1L
+            ) * 60_000L
+
+        val target =
+            listOfNotNull(
+                nextMinute,
+                phaseEndMillis,
+                eventEndMillis
+            ).minOrNull()
+                ?: return
+
+        if (
+            target <= nowMillis + 1_000L ||
+            target >= eventEndMillis
+        ) {
+            return
+        }
         scheduleAlarmMillis(context, target, refreshPendingIntent(context, itemId))
     }
 

@@ -11,8 +11,8 @@ android {
         applicationId = "com.pix.dayline"
         minSdk = 26
         targetSdk = 36
-        versionCode = 36
-        versionName = "0.12.6"
+        versionCode = 37
+        versionName = "0.12.7"
     }
 
     buildFeatures {
@@ -69,7 +69,6 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.ui:ui-text-google-fonts")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
-    implementation("androidx.emoji2:emoji2-emojipicker:1.6.0")
     implementation("androidx.glance:glance-appwidget:1.2.0")
     implementation("androidx.glance:glance-material3:1.2.0")
 

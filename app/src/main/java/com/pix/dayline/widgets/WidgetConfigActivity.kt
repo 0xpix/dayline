@@ -7,11 +7,15 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -29,8 +33,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.emoji2.emojipicker.EmojiPickerView
 import androidx.lifecycle.lifecycleScope
 import com.pix.dayline.R
 import com.pix.dayline.data.AndroidCalendarSync
@@ -370,7 +372,6 @@ private fun WidgetConfigScreen(
                         value.copy(
                             emoji = selected
                         )
-                    openSheet = null
                 },
                 onDismiss = {
                     openSheet = null
@@ -485,19 +486,29 @@ private fun EmojiPickerSheet(
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+
+    val emojis = remember(context) {
+        NotoEmojiCatalog.all(context)
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor =
             MaterialTheme.colorScheme.background
     ) {
         Column(
-            Modifier
+            modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 22.dp)
-                .padding(bottom = 26.dp)
+                .heightIn(
+                    min = 420.dp,
+                    max = 680.dp
+                )
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 18.dp)
         ) {
             Row(
-                Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment =
                     Alignment.CenterVertically
             ) {
@@ -509,46 +520,140 @@ private fun EmojiPickerSheet(
                     modifier = Modifier.weight(1f)
                 )
 
-                Text(
-                    selected,
-                    style =
-                        MaterialTheme.typography
-                            .headlineLarge
+                NotoEmojiCell(
+                    glyph = selected,
+                    selected = true,
+                    size = 44,
+                    onClick = { }
                 )
             }
 
             Spacer(Modifier.height(8.dp))
 
             Text(
-                "All Emoji 16.0 categories and variants.",
+                "Noto Emoji · monochrome · ${emojis.size} glyphs",
                 style =
                     MaterialTheme.typography.bodyMedium,
                 color =
-                    MaterialTheme.colorScheme
-                        .onSurfaceVariant
+                    MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(14.dp))
 
-            AndroidView(
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(7),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(390.dp),
-                factory = { context ->
-                    EmojiPickerView(
-                        context,
-                        null,
-                        0
-                    ).apply {
-                        emojiGridColumns = 8
-                        emojiGridRows = 5.5f
-                        setOnEmojiPickedListener {
-                            onSelect(it.emoji)
+                    .weight(1f),
+                contentPadding =
+                    PaddingValues(bottom = 18.dp),
+                horizontalArrangement =
+                    Arrangement.spacedBy(6.dp),
+                verticalArrangement =
+                    Arrangement.spacedBy(6.dp)
+            ) {
+                items(
+                    items = emojis,
+                    key = { it }
+                ) { glyph ->
+                    NotoEmojiCell(
+                        glyph = glyph,
+                        selected = glyph == selected,
+                        size = 42,
+                        onClick = {
+                            onSelect(glyph)
                         }
-                    }
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement =
+                    Arrangement.End
+            ) {
+                Text(
+                    "Done",
+                    modifier = Modifier
+                        .clickable(
+                            interactionSource =
+                                remember {
+                                    MutableInteractionSource()
+                                },
+                            indication = null,
+                            onClick = onDismiss
+                        )
+                        .padding(
+                            horizontal = 12.dp,
+                            vertical = 10.dp
+                        ),
+                    style =
+                        MaterialTheme.typography.labelLarge,
+                    color =
+                        MaterialTheme.colorScheme.onBackground
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun NotoEmojiCell(
+    glyph: String,
+    selected: Boolean,
+    size: Int,
+    onClick: () -> Unit
+) {
+    val context = LocalContext.current
+
+    val bitmap = remember(
+        glyph,
+        size,
+        context
+    ) {
+        NotoEmojiRenderer.render(
+            context = context,
+            glyph = glyph,
+            sizeDp = size
+        )
+    }
+
+    val shape = RoundedCornerShape(14.dp)
+
+    Box(
+        modifier = Modifier
+            .size((size + 6).dp)
+            .then(
+                if (selected) {
+                    Modifier.border(
+                        width = 1.5.dp,
+                        color =
+                            MaterialTheme.colorScheme.onSurface,
+                        shape = shape
+                    )
+                } else {
+                    Modifier
                 }
             )
-        }
+            .clickable(
+                interactionSource =
+                    remember {
+                        MutableInteractionSource()
+                    },
+                indication = null,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = glyph,
+            modifier = Modifier.size(size.dp),
+            colorFilter =
+                ColorFilter.tint(
+                    MaterialTheme.colorScheme.onSurface
+                )
+        )
     }
 }
 

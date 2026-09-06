@@ -155,10 +155,10 @@ for kind, name in re.findall(r"@([A-Za-z0-9_]+)/([A-Za-z0-9_]+)", manifest_text)
 
 # Release and Play configuration.
 gradle = read(APP / "build.gradle.kts")
-if 'versionName = "0.12.6"' not in gradle:
-    fail("app versionName must be 0.12.6")
-if 'versionCode = 36' not in gradle:
-    fail("app versionCode must be 36")
+if 'versionName = "0.12.7"' not in gradle:
+    fail("app versionName must be 0.12.7")
+if 'versionCode = 37' not in gradle:
+    fail("app versionCode must be 37")
 if "targetSdk = 36" not in gradle:
     fail("targetSdk 36 expected")
 if "compileSdk = 37" not in gradle:
@@ -227,6 +227,54 @@ for label, ok in feature_checks.items():
 
 
 
+
+
+# v0.12.7 picker/progress/typography/logo checks.
+widget_config_0127 = read(
+    JAVA / "com/pix/dayline/widgets/WidgetConfigActivity.kt"
+)
+noto_catalog_0127 = read(
+    JAVA / "com/pix/dayline/widgets/NotoEmojiCatalog.kt"
+)
+now_0127 = read(
+    JAVA / "com/pix/dayline/notifications/NowActivityScheduler.kt"
+)
+type_0127 = read(
+    JAVA / "com/pix/dayline/ui/theme/Type.kt"
+)
+floating_0127 = read(
+    JAVA / "com/pix/dayline/ui/components/FloatingControls.kt"
+)
+
+if "LazyVerticalGrid" not in widget_config_0127:
+    fail("Widget emoji picker is not vertically scrollable")
+
+if "NotoEmojiCell(" not in widget_config_0127:
+    fail("Widget emoji picker is not rendering monochrome Noto cells")
+
+if "NotoEmojiCatalog.all" not in widget_config_0127:
+    fail("Noto emoji catalog is not wired into widget settings")
+
+if "0x1F000" not in noto_catalog_0127 or "0x1FAFF" not in noto_catalog_0127:
+    fail("Noto emoji catalog range is incomplete")
+
+if "visibleProgressPercent(" not in now_0127:
+    fail("Immediate notification progress helper is missing")
+
+if "nextMinute" not in now_0127:
+    fail("Minute-boundary notification refresh is missing")
+
+for role in (
+    "headlineSmall = TextStyle",
+    "labelLarge = TextStyle",
+    "bodySmall = TextStyle",
+    "titleLarge = TextStyle"
+):
+    if role not in type_0127:
+        fail(f"Unified typography role missing: {role}")
+
+if "DaylineLogoIcon(" not in floating_0127:
+    fail("Floating Today/Home button is not using the Dayline logo")
 
 # v0.12.6 compile-regression checks.
 renderer_source = read(
@@ -329,8 +377,8 @@ upcoming_source = read(
 if 'SettingsGroup("Widgets")' in settings_source:
     fail("Widget settings still appear in app Settings")
 
-if "EmojiPickerView" not in widget_config_source:
-    fail("Complete AndroidX emoji picker is missing")
+if "NotoEmojiCatalog.all" not in widget_config_source:
+    fail("Scrollable Noto widget emoji catalog is missing")
 
 if "WidgetSelectionSheet" not in widget_config_source:
     fail("Widget selector popups are missing")
@@ -377,8 +425,8 @@ for filter_token in (
         fail(f"Upcoming filter missing: {filter_token}")
 
 gradle_text = read(ROOT / "app/build.gradle.kts")
-if "androidx.emoji2:emoji2-emojipicker:1.6.0" not in gradle_text:
-    fail("AndroidX Emoji Picker dependency is missing")
+if "androidx.emoji2:emoji2-emojipicker" in gradle_text:
+    fail("Legacy yellow AndroidX emoji picker dependency should be removed")
 
 # v0.12.3 interaction/polish checks.
 timeline_source = read(
@@ -471,8 +519,8 @@ if "ColorProvider(R.color.widget_system_surface)" not in widgets_source:
 widget_config_for_noto = read(
     JAVA / "com/pix/dayline/widgets/WidgetConfigActivity.kt"
 )
-if "EmojiPickerView" not in widget_config_for_noto:
-    fail("Widget emoji picker is not using AndroidX EmojiPickerView")
+if "NotoEmojiCatalog.all" not in widget_config_for_noto:
+    fail("Widget emoji picker is not using the Noto emoji catalog")
 if "NotoEmojiRenderer.render" not in widget_config_for_noto:
     fail("Widget preview is not rendering the selected emoji through Noto Emoji")
 
@@ -493,7 +541,7 @@ for path in [*kotlin_files, *ROOT.glob("*.md"), *ROOT.glob("docs/*.md")]:
     if "FIXME" in text:
         fail(f"FIXME left in {path.relative_to(ROOT)}")
 
-print("Dayline v0.12.6 release validation")
+print("Dayline v0.12.7 release validation")
 print(f"  Kotlin files: {len(kotlin_files)}")
 print(f"  XML files: {len(list((APP / 'src/main').rglob('*.xml')))}")
 print(f"  Errors: {len(ERRORS)}")

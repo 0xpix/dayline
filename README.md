@@ -4,8 +4,21 @@
 
 Dayline is an open-source Android calendar and planner built with Kotlin, Jetpack Compose, Material 3 and Glance. It is intentionally local-first, minimal, and designed around Today rather than a dashboard.
 
-Current milestone: **v0.12.6 · Play beta**
+Current milestone: **v0.12.7 · Play beta**
 
+
+## v0.12.7 emoji picker + notification + typography polish
+
+- Widget emoji chooser is now a vertically scrollable monochrome **Noto Emoji**
+  grid rendered by the same renderer as the actual widget.
+- Removed the yellow AndroidX/system emoji picker.
+- The picker covers broad Unicode emoji/symbol blocks, keycaps and flags and
+  filters candidates by Noto glyph availability.
+- Notification progress uses seconds internally, starts visibly immediately,
+  and refreshes on the next minute boundary instead of waiting 5–15 minutes.
+- Every Material 3 typography role is now bound to the selected Dayline font,
+  fixing mixed Pixelify/system text in Quick Add.
+- The floating Today/Home button now reproduces the Dayline launcher-logo shape.
 
 ## v0.12.6 repeat-day chooser
 

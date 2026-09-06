@@ -37,6 +37,23 @@ object NotoEmojiRenderer {
         return Typeface.DEFAULT
     }
 
+    fun hasGlyph(
+        context: Context,
+        glyph: String
+    ): Boolean {
+        val paint = Paint(
+            Paint.ANTI_ALIAS_FLAG or
+                Paint.SUBPIXEL_TEXT_FLAG
+        ).apply {
+            textSize = 64f
+            typeface = typeface(context)
+        }
+
+        return runCatching {
+            paint.hasGlyph(glyph)
+        }.getOrDefault(false)
+    }
+
     fun render(
         context: Context,
         glyph: String,

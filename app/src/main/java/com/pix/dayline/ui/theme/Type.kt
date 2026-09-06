@@ -36,9 +36,19 @@ private fun familyFor(choice: FontChoice): FontFamily = when (choice) {
     FontChoice.GEIST_PIXEL -> GeistFamily
 }
 
-fun daylineTypography(choice: FontChoice): Typography {
+fun daylineTypography(
+    choice: FontChoice
+): Typography {
     val family = familyFor(choice)
+
     return Typography(
+        displayLarge = TextStyle(
+            fontFamily = family,
+            fontWeight = FontWeight.Bold,
+            fontSize = 45.sp,
+            lineHeight = 48.sp,
+            letterSpacing = (-0.6).sp,
+        ),
         displayMedium = TextStyle(
             fontFamily = family,
             fontWeight = FontWeight.Bold,
@@ -46,17 +56,47 @@ fun daylineTypography(choice: FontChoice): Typography {
             lineHeight = 36.sp,
             letterSpacing = (-0.5).sp,
         ),
+        displaySmall = TextStyle(
+            fontFamily = family,
+            fontWeight = FontWeight.Bold,
+            fontSize = 31.sp,
+            lineHeight = 34.sp,
+        ),
         headlineLarge = TextStyle(
             fontFamily = family,
             fontWeight = FontWeight.Bold,
             fontSize = 30.sp,
             lineHeight = 33.sp,
         ),
+        headlineMedium = TextStyle(
+            fontFamily = family,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 26.sp,
+            lineHeight = 30.sp,
+        ),
+        headlineSmall = TextStyle(
+            fontFamily = family,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 23.sp,
+            lineHeight = 28.sp,
+        ),
+        titleLarge = TextStyle(
+            fontFamily = family,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 21.sp,
+            lineHeight = 26.sp,
+        ),
         titleMedium = TextStyle(
             fontFamily = family,
             fontWeight = FontWeight.SemiBold,
             fontSize = 17.sp,
             lineHeight = 21.sp,
+        ),
+        titleSmall = TextStyle(
+            fontFamily = family,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 15.sp,
+            lineHeight = 19.sp,
         ),
         bodyLarge = TextStyle(
             fontFamily = family,
@@ -70,11 +110,31 @@ fun daylineTypography(choice: FontChoice): Typography {
             fontSize = 15.sp,
             lineHeight = 20.sp,
         ),
+        bodySmall = TextStyle(
+            fontFamily = family,
+            fontWeight = FontWeight.Normal,
+            fontSize = 13.sp,
+            lineHeight = 18.sp,
+        ),
+        labelLarge = TextStyle(
+            fontFamily = family,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 14.sp,
+            lineHeight = 18.sp,
+            letterSpacing = 0.1.sp,
+        ),
         labelMedium = TextStyle(
             fontFamily = family,
             fontWeight = FontWeight.SemiBold,
             fontSize = 13.sp,
             lineHeight = 16.sp,
+            letterSpacing = 0.1.sp,
+        ),
+        labelSmall = TextStyle(
+            fontFamily = family,
+            fontWeight = FontWeight.Medium,
+            fontSize = 11.sp,
+            lineHeight = 14.sp,
             letterSpacing = 0.1.sp,
         ),
     )

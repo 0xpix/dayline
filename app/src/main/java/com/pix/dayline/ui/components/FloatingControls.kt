@@ -16,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -57,7 +58,7 @@ fun FloatingControls(
                 size = 42,
                 onClick = onToday
             ) { color ->
-                TodayGlyphIcon(color)
+                DaylineLogoIcon(color)
             }
         }
 
@@ -160,34 +161,46 @@ private fun MenuLinesIcon(color: Color) {
 }
 
 @Composable
-private fun TodayGlyphIcon(color: Color) {
-    Canvas(modifier = Modifier.size(19.dp)) {
-        val center = Offset(
-            size.width / 2f,
-            size.height / 2f
-        )
-        val stroke = 1.45.dp.toPx()
-        val radius = size.minDimension * 0.30f
+private fun DaylineLogoIcon(
+    color: Color
+) {
+    Canvas(
+        modifier = Modifier.size(23.dp)
+    ) {
+        fun x(value: Float): Float =
+            size.width * value / 108f
 
-        drawCircle(
-            color = color,
-            radius = radius,
-            center = center,
-            style = Stroke(width = stroke)
-        )
+        fun y(value: Float): Float =
+            size.height * value / 108f
 
-        drawCircle(
-            color = color,
-            radius = 1.25.dp.toPx(),
-            center = center
-        )
+        fun block(
+            left: Float,
+            top: Float,
+            right: Float,
+            bottom: Float
+        ) {
+            drawRect(
+                color = color,
+                topLeft = Offset(
+                    x(left),
+                    y(top)
+                ),
+                size = Size(
+                    x(right - left),
+                    y(bottom - top)
+                )
+            )
+        }
 
-        drawLine(
-            color = color,
-            start = Offset(center.x, size.height * 0.11f),
-            end = Offset(center.x, size.height * 0.20f),
-            strokeWidth = stroke,
-            cap = StrokeCap.Round
-        )
+        block(34f, 28f, 50f, 34f)
+        block(58f, 28f, 74f, 34f)
+        block(74f, 34f, 80f, 50f)
+        block(74f, 58f, 80f, 74f)
+        block(58f, 74f, 74f, 80f)
+        block(34f, 74f, 50f, 80f)
+        block(28f, 58f, 34f, 74f)
+        block(28f, 34f, 34f, 50f)
+        block(38f, 51f, 64f, 57f)
+        block(68f, 49f, 77f, 58f)
     }
 }

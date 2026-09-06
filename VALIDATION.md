@@ -1,4 +1,4 @@
-# Dayline v0.12.6 — Validation
+# Dayline v0.12.7 — Validation
 
 This patch focuses on widget typography and surface polish.
 
@@ -111,3 +111,15 @@ Repeat UI now exposes only Once, Daily, Weekdays, Weekend and Choose days.
 Choose days opens a seven-day checkbox dialog and stores ISO weekday values 1..7.
 
 GitHub Actions remains the authoritative full Android compile gate.
+
+## v0.12.7 targeted validation
+
+- Widget emoji chooser uses `LazyVerticalGrid` and the same Noto bitmap renderer
+  as the home-screen widget.
+- AndroidX `EmojiPickerView` and its color/yellow picker dependency are removed.
+- Notification progress starts with a visible minimum and refreshes at the next
+  minute boundary.
+- All Material typography roles are explicitly assigned the selected app font.
+- Floating Today/Home icon matches the segmented launcher foreground geometry.
+
+GitHub Actions remains the authoritative Android/Gradle compile gate.

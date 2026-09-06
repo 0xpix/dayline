@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.12.7 — Emoji picker and visual polish
+
+- Added a scrollable monochrome Noto Emoji widget picker.
+- Removed yellow system emoji rendering from widget configuration.
+- Made active notification progress visible immediately and refresh every minute.
+- Unified all Material typography roles under the selected app font.
+- Changed the floating Today/Home control to the Dayline app-logo geometry.
+
 ## 0.12.6 — Repeat-day chooser
 
 - Replaced Sunday-specific/weekly/monthly visible choices with Once, Daily,

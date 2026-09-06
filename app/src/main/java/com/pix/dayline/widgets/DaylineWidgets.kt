@@ -57,9 +57,8 @@ import com.pix.dayline.data.DaylineStore
 import com.pix.dayline.data.WidgetEmojiChoice
 import com.pix.dayline.data.WidgetFontChoice
 import com.pix.dayline.data.iconRes
-import com.pix.dayline.model.AgendaKind
-import com.pix.dayline.model.DaylineItem
-import com.pix.dayline.model.occursOn
+import com.pix.dayline.notifications.NowActivityScheduler
+import com.pix.dayline.model.*
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -73,6 +72,56 @@ private val WidgetRefreshKey = longPreferencesKey("dayline_refresh_token")
 private val PulseFreeText = ColorProvider(Color(0xFFF8F4F0))
 private val PulseFreeMuted = ColorProvider(Color(0xFFD9D1CB))
 
+
+private fun applyWidgetFilters(
+    items: List<DaylineItem>,
+    preferences: WidgetInstancePrefs
+): List<DaylineItem> = items.filter { item ->
+    val kindVisible = when (item.kind) {
+        AgendaKind.EVENT -> preferences.showEvents
+        AgendaKind.TASK -> preferences.showTasks
+    }
+    val spaceVisible = preferences.spaceId == null || item.spaceId == preferences.spaceId
+    val calendarVisible = preferences.calendarId == null || item.calendarId == preferences.calendarId
+    kindVisible && spaceVisible && calendarVisible
+}
+
+private fun resolveWidgetEmoji(
+    preferences: WidgetInstancePrefs,
+    fallback: WidgetEmojiChoice
+): WidgetEmojiChoice = runCatching {
+    WidgetEmojiChoice.valueOf(preferences.emoji.orEmpty())
+}.getOrDefault(fallback)
+
+private fun resolveWidgetFont(
+    preferences: WidgetInstancePrefs,
+    fallback: WidgetFontChoice
+): WidgetFontChoice = runCatching {
+    WidgetFontChoice.valueOf(preferences.font.orEmpty())
+}.getOrDefault(fallback)
+
+private fun liveWidgetLabel(
+    context: Context,
+    items: List<DaylineItem>,
+    now: LocalDateTime,
+    preferences: WidgetInstancePrefs
+): Pair<DaylineItem, String>? {
+    if (preferences.contentMode == WidgetContentMode.NEXT) return null
+    val live = items.firstNotNullOfOrNull { item ->
+        NowActivityScheduler.liveState(context, item, now)
+    } ?: return null
+
+    val label = when {
+        live.paused && preferences.showFocusState ->
+            "PAUSED ${live.minutesRemaining}M"
+        live.focus == true && preferences.showFocusState ->
+            "FOCUS ${live.minutesRemaining}M"
+        live.focus == false && preferences.showFocusState ->
+            "REST ${live.minutesRemaining}M"
+        else -> "${compactTitle(live.item.title, 12)} ${live.minutesRemaining}M LEFT"
+    }
+    return live.item to label
+}
 
 private data class Occurrence(
     val item: DaylineItem,
@@ -253,31 +302,31 @@ private fun WidgetText(
 
 
 @Composable
-private fun TransparentPulseSurface(content: @Composable () -> Unit) {
+private fun ConfiguredWidgetSurface(
+    mode: WidgetBackgroundMode,
+    horizontalPadding: Int,
+    verticalPadding: Int,
+    content: @Composable () -> Unit
+) {
     GlanceTheme {
-        Box(
-            modifier = GlanceModifier
-                .fillMaxSize()
-                .appWidgetBackground()
-                .clickable(actionStartActivity<MainActivity>())
-                .padding(horizontal = 5.dp, vertical = 4.dp)
-        ) {
-            content()
-        }
-    }
-}
+        val base = GlanceModifier
+            .fillMaxSize()
+            .appWidgetBackground()
+            .clickable(actionStartActivity<MainActivity>())
 
-@Composable
-private fun SystemSquareSurface(content: @Composable () -> Unit) {
-    GlanceTheme {
-        Box(
-            modifier = GlanceModifier
-                .fillMaxSize()
-                .appWidgetBackground()
-                .background(GlanceTheme.colors.background)
+        val surface = if (mode == WidgetBackgroundMode.SYSTEM) {
+            base
+                .background(GlanceTheme.colors.widgetBackground)
                 .cornerRadius(android.R.dimen.system_app_widget_background_radius)
-                .clickable(actionStartActivity<MainActivity>())
-                .padding(11.dp)
+        } else {
+            base
+        }
+
+        Box(
+            modifier = surface.padding(
+                horizontal = horizontalPadding.dp,
+                vertical = verticalPadding.dp
+            )
         ) {
             content()
         }
@@ -426,7 +475,8 @@ private fun SystemEventPill(
     strong: Boolean,
     fontChoice: WidgetFontChoice,
     autoSlide: Boolean,
-    width: Int? = null
+    width: Int? = null,
+    overrideText: String? = null
 ) {
     val isTask = item.kind == AgendaKind.TASK
 
@@ -441,7 +491,7 @@ private fun SystemEventPill(
         modifier = modifier,
         contentAlignment = Alignment.CenterStart
     ) {
-        val complete = "${if (item.kind == AgendaKind.TASK) "+" else ">"} ${item.title} ${itemLead(item)}"
+        val complete = overrideText ?: "${if (item.kind == AgendaKind.TASK) "+" else ">"} ${item.title} ${itemLead(item)}"
 
         if (autoSlide && complete.length > 18 && strong && !isTask) {
             AnimatedEventText(
@@ -451,7 +501,7 @@ private fun SystemEventPill(
             )
         } else {
             WidgetText(
-                text = "${if (item.kind == AgendaKind.TASK) "+" else ">"} ${compactTitle(item.title, 11)} ${itemLead(item)}",
+                text = overrideText ?: "${if (item.kind == AgendaKind.TASK) "+" else ">"} ${compactTitle(item.title, 11)} ${itemLead(item)}",
                 fontChoice = fontChoice,
                 scale = 0.82f,
                 color = GlanceTheme.colors.onSurface,
@@ -470,22 +520,40 @@ class DaylineCompactWidget : GlanceAppWidget() {
     override val stateDefinition = PreferencesGlanceStateDefinition
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
         provideContent {
             currentState(WidgetRefreshKey)
             val store = DaylineStore(context)
-            val items = AndroidCalendarSync.mergedItems(
+            val instance = store.loadWidgetInstancePrefs(appWidgetId)
+            val merged = AndroidCalendarSync.mergedItems(
                 context = context,
                 local = store.loadItems(),
-                enabled = store.loadCalendarSyncEnabled()
+                enabled = store.loadCalendarSyncEnabled(),
+                preferences = store.loadCalendarPreferences(),
+                from = LocalDate.now().minusDays(1),
+                to = LocalDate.now().plusDays(31)
             )
+            val items = applyWidgetFilters(merged, instance)
             val now = LocalDateTime.now()
             val today = now.toLocalDate()
-            val next = nextOccurrence(items, now)
-            val widgetFont = store.loadWidgetFontChoice()
-            val widgetEmoji = store.loadWidgetEmojiChoice()
+            val live = liveWidgetLabel(context, items, now, instance)
+            val next = if (instance.contentMode == WidgetContentMode.CURRENT) null else nextOccurrence(items, now)
+            val widgetFont = resolveWidgetFont(instance, store.loadWidgetFontChoice())
+            val widgetEmoji = resolveWidgetEmoji(instance, store.loadWidgetEmojiChoice())
             val widgetAutoSlide = store.loadWidgetAutoSlide()
 
-            TransparentPulseSurface {
+            ConfiguredWidgetSurface(instance.backgroundMode, horizontalPadding = 5, verticalPadding = 4) {
+                val freeText = if (instance.backgroundMode == WidgetBackgroundMode.SYSTEM) {
+                    GlanceTheme.colors.onSurface
+                } else {
+                    PulseFreeText
+                }
+                val freeMuted = if (instance.backgroundMode == WidgetBackgroundMode.SYSTEM) {
+                    GlanceTheme.colors.onSurfaceVariant
+                } else {
+                    PulseFreeMuted
+                }
+
                 Row(
                     modifier = GlanceModifier.fillMaxSize(),
                     verticalAlignment = Alignment.Vertical.CenterVertically
@@ -500,7 +568,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
                             "DAYLINE",
                             widgetFont,
                             scale = 0.48f,
-                            color = PulseFreeText
+                            color = freeText
                         )
                     }
 
@@ -510,7 +578,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
                         modifier = GlanceModifier
                             .width(1.dp)
                             .height(48.dp)
-                            .background(PulseFreeMuted)
+                            .background(freeMuted)
                     ) { }
 
                     Spacer(GlanceModifier.width(7.dp))
@@ -523,7 +591,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                     .uppercase(),
                                 widgetFont,
                                 scale = 0.72f,
-                                color = PulseFreeText
+                                color = freeText
                             )
 
                             Spacer(GlanceModifier.width(5.dp))
@@ -565,7 +633,25 @@ class DaylineCompactWidget : GlanceAppWidget() {
                         Spacer(GlanceModifier.height(4.dp))
 
                         Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
-                            if (next == null) {
+                            if (live != null) {
+                                SystemEventPill(
+                                    item = live.first,
+                                    strong = true,
+                                    fontChoice = widgetFont,
+                                    autoSlide = widgetAutoSlide,
+                                    width = 137,
+                                    overrideText = live.second
+                                )
+                                Spacer(GlanceModifier.width(5.dp))
+                                Column {
+                                    WidgetText(
+                                        if (live.second.startsWith("FOCUS")) "FOCUS" else if (live.second.startsWith("REST")) "REST" else "NOW",
+                                        widgetFont,
+                                        scale = 0.44f,
+                                        color = freeMuted
+                                    )
+                                }
+                            } else if (next == null) {
                                 SystemPill(strong = true, horizontalPadding = 8, verticalPadding = 4) {
                                     WidgetText(
                                         "YOUR DAY IS CLEAR",
@@ -589,14 +675,14 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                         "NEXT",
                                         widgetFont,
                                         scale = 0.44f,
-                                        color = PulseFreeMuted
+                                        color = freeMuted
                                     )
                                     Spacer(GlanceModifier.height(1.dp))
                                     WidgetText(
                                         "UP",
                                         widgetFont,
                                         scale = 0.44f,
-                                        color = PulseFreeMuted
+                                        color = freeMuted
                                     )
                                 }
                             }
@@ -609,7 +695,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                 "AM",
                                 widgetFont,
                                 scale = 0.48f,
-                                color = PulseFreeText
+                                color = freeText
                             )
                             Spacer(GlanceModifier.width(4.dp))
                             DayTrack(items = items, date = today)
@@ -618,7 +704,7 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                 "PM",
                                 widgetFont,
                                 scale = 0.48f,
-                                color = PulseFreeText
+                                color = freeText
                             )
                         }
                     }
@@ -640,22 +726,34 @@ class DaylineSquareWidget : GlanceAppWidget() {
     override val stateDefinition = PreferencesGlanceStateDefinition
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
         provideContent {
             currentState(WidgetRefreshKey)
             val store = DaylineStore(context)
-            val items = AndroidCalendarSync.mergedItems(
+            val instance = store.loadWidgetInstancePrefs(appWidgetId)
+            val merged = AndroidCalendarSync.mergedItems(
                 context = context,
                 local = store.loadItems(),
-                enabled = store.loadCalendarSyncEnabled()
+                enabled = store.loadCalendarSyncEnabled(),
+                preferences = store.loadCalendarPreferences(),
+                from = LocalDate.now().minusDays(1),
+                to = LocalDate.now().plusDays(31)
             )
+            val items = applyWidgetFilters(merged, instance)
             val today = LocalDate.now()
-            val agenda = todayItems(items, today).take(2)
+            val now = LocalDateTime.now()
+            val live = liveWidgetLabel(context, items, now, instance)
+            val agenda = if (live != null && instance.contentMode != WidgetContentMode.NEXT) {
+                listOf(live.first) + todayItems(items, today).filterNot { it.id == live.first.id }.take(1)
+            } else {
+                todayItems(items, today).take(2)
+            }
             val busyHours = (0..23).count { isHourBusy(items, today, it) }
             val freeHours = 24 - busyHours
-            val widgetFont = store.loadWidgetFontChoice()
+            val widgetFont = resolveWidgetFont(instance, store.loadWidgetFontChoice())
             val widgetAutoSlide = store.loadWidgetAutoSlide()
 
-            SystemSquareSurface {
+            ConfiguredWidgetSurface(instance.backgroundMode, horizontalPadding = 11, verticalPadding = 11) {
                 Column(GlanceModifier.fillMaxSize()) {
                     Row(
                         modifier = GlanceModifier.fillMaxWidth(),
@@ -751,7 +849,8 @@ class DaylineSquareWidget : GlanceAppWidget() {
                                     item = item,
                                     strong = index == 0,
                                     fontChoice = widgetFont,
-                                    autoSlide = widgetAutoSlide
+                                    autoSlide = widgetAutoSlide,
+                                    overrideText = if (index == 0 && live != null) live.second else null
                                 )
                                 if (index != agenda.lastIndex) {
                                     Spacer(GlanceModifier.height(6.dp))
@@ -773,24 +872,39 @@ class DaylineLockWidget : GlanceAppWidget() {
     override val stateDefinition = PreferencesGlanceStateDefinition
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
         provideContent {
             currentState(WidgetRefreshKey)
             val store = DaylineStore(context)
-            val items = AndroidCalendarSync.mergedItems(
+            val instance = store.loadWidgetInstancePrefs(appWidgetId)
+            val merged = AndroidCalendarSync.mergedItems(
                 context = context,
                 local = store.loadItems(),
-                enabled = store.loadCalendarSyncEnabled()
+                enabled = store.loadCalendarSyncEnabled(),
+                preferences = store.loadCalendarPreferences(),
+                from = LocalDate.now().minusDays(1),
+                to = LocalDate.now().plusDays(31)
             )
+            val items = applyWidgetFilters(merged, instance)
             val now = LocalDateTime.now()
-            val next = nextOccurrence(items, now)
-            val widgetFont = store.loadWidgetFontChoice()
-            val widgetEmoji = store.loadWidgetEmojiChoice()
+            val live = liveWidgetLabel(context, items, now, instance)
+            val next = if (instance.contentMode == WidgetContentMode.CURRENT) null else nextOccurrence(items, now)
+            val widgetFont = resolveWidgetFont(instance, store.loadWidgetFontChoice())
+            val widgetEmoji = resolveWidgetEmoji(instance, store.loadWidgetEmojiChoice())
 
             GlanceTheme {
                 Row(
-                    modifier = GlanceModifier
-                        .fillMaxSize()
-                        .appWidgetBackground()
+                    modifier = (if (instance.backgroundMode == WidgetBackgroundMode.SYSTEM) {
+                        GlanceModifier
+                            .fillMaxSize()
+                            .appWidgetBackground()
+                            .background(GlanceTheme.colors.widgetBackground)
+                            .cornerRadius(android.R.dimen.system_app_widget_background_radius)
+                    } else {
+                        GlanceModifier
+                            .fillMaxSize()
+                            .appWidgetBackground()
+                    })
                         .clickable(actionStartActivity<MainActivity>())
                         .padding(horizontal = 10.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.Vertical.CenterVertically
@@ -816,7 +930,9 @@ class DaylineLockWidget : GlanceAppWidget() {
 
                         Spacer(GlanceModifier.height(4.dp))
 
-                        val text = if (next == null) {
+                        val text = if (live != null) {
+                            live.second
+                        } else if (next == null) {
                             "DAY CLEAR"
                         } else {
                             val start = next.item.startTime

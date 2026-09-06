@@ -1,0 +1,36 @@
+name: Bug report
+description: Report a reproducible Dayline problem
+title: "[Bug] "
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Dayline version
+      placeholder: 0.12.0
+    validations:
+      required: true
+  - type: input
+    id: android
+    attributes:
+      label: Android / device
+      placeholder: Android 16, Nothing Phone ...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true

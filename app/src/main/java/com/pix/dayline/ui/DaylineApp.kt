@@ -1,18 +1,29 @@
 package com.pix.dayline.ui
 
 import android.Manifest
+import android.content.pm.PackageManager
 import android.database.ContentObserver
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.CalendarContract
-import android.content.pm.PackageManager
-import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.pix.dayline.data.*
 import com.pix.dayline.model.*
@@ -21,6 +32,8 @@ import com.pix.dayline.notifications.NowActivityScheduler
 import com.pix.dayline.ui.calendar.CalendarScreen
 import com.pix.dayline.ui.components.NavigationSheet
 import com.pix.dayline.ui.components.QuickAddSheet
+import com.pix.dayline.ui.onboarding.OnboardingScreen
+import com.pix.dayline.ui.search.SearchScreen
 import com.pix.dayline.ui.settings.SettingsScreen
 import com.pix.dayline.ui.spaces.SpaceEditSheet
 import com.pix.dayline.ui.spaces.SpacesScreen
@@ -32,19 +45,27 @@ import com.pix.dayline.ui.upcoming.UpcomingScreen
 import com.pix.dayline.widgets.DaylineWidgetUpdater
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalTime
 
-enum class DaylineScreen { TODAY, CALENDAR, UPCOMING, TASKS, SPACES, SETTINGS }
-private data class AddRequest(val date: LocalDate, val kind: AgendaKind)
+enum class DaylineScreen { TODAY, CALENDAR, UPCOMING, TASKS, SEARCH, SPACES, SETTINGS }
+private data class AddRequest(
+    val date: LocalDate,
+    val kind: AgendaKind,
+    val time: LocalTime? = null
+)
 
 @Composable
 fun DaylineApp() {
     val context = LocalContext.current
     val appContext = context.applicationContext
-    val store = remember(context) { DaylineStore(appContext) }
-    val widgetScope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+    val store = remember(appContext) { DaylineStore(appContext) }
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var items by remember { mutableStateOf(store.loadItems()) }
     var spaces by remember { mutableStateOf(store.loadSpaces()) }
+    var templates by remember { mutableStateOf(store.loadTemplates()) }
     var appearance by remember { mutableStateOf(store.loadAppearance()) }
     var fontChoice by remember { mutableStateOf(store.loadFontChoice()) }
     var widgetFontChoice by remember { mutableStateOf(store.loadWidgetFontChoice()) }
@@ -52,117 +73,168 @@ fun DaylineApp() {
     var widgetAutoSlide by remember { mutableStateOf(store.loadWidgetAutoSlide()) }
     var nowActivityEnabled by remember { mutableStateOf(store.loadNowActivityEnabled()) }
     var calendarSyncEnabled by remember { mutableStateOf(store.loadCalendarSyncEnabled()) }
+    var calendarPreferences by remember { mutableStateOf(store.loadCalendarPreferences()) }
+    var deviceCalendars by remember { mutableStateOf(emptyList<DeviceCalendar>()) }
     var calendarItems by remember { mutableStateOf(emptyList<DaylineItem>()) }
     var showOrb by remember { mutableStateOf(store.loadShowOrb()) }
     var weekStartsMonday by remember { mutableStateOf(store.loadWeekStartsMonday()) }
+    var onboardingComplete by remember { mutableStateOf(store.loadOnboardingComplete()) }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { }
+    fun updateWidgets() {
+        scope.launch { DaylineWidgetUpdater.updateAll(appContext) }
+    }
 
     fun refreshCalendarOverlay() {
-        calendarItems = if (
-            calendarSyncEnabled &&
-            AndroidCalendarSync.hasReadPermission(appContext)
-        ) {
-            AndroidCalendarSync.loadOccurrences(appContext)
+        if (calendarSyncEnabled && AndroidCalendarSync.hasReadPermission(appContext)) {
+            deviceCalendars = AndroidCalendarSync.listCalendars(appContext)
+            calendarItems = AndroidCalendarSync.loadOccurrences(
+                appContext,
+                calendarPreferences
+            )
         } else {
-            emptyList()
+            deviceCalendars = emptyList()
+            calendarItems = emptyList()
         }
-
-        widgetScope.launch {
-            DaylineWidgetUpdater.updateAll(appContext)
-        }
+        updateWidgets()
     }
+
+    fun persistItems(next: List<DaylineItem>) {
+        items = next
+        store.saveItems(next)
+        NotificationScheduler.syncAll(appContext, next)
+        if (nowActivityEnabled) {
+            NowActivityScheduler.syncAll(appContext, next)
+        } else {
+            NowActivityScheduler.cancelAll(appContext, next)
+        }
+        updateWidgets()
+    }
+
+    fun reloadState() {
+        items = store.loadItems()
+        spaces = store.loadSpaces()
+        templates = store.loadTemplates()
+        appearance = store.loadAppearance()
+        fontChoice = store.loadFontChoice()
+        widgetFontChoice = store.loadWidgetFontChoice()
+        widgetEmojiChoice = store.loadWidgetEmojiChoice()
+        widgetAutoSlide = store.loadWidgetAutoSlide()
+        nowActivityEnabled = store.loadNowActivityEnabled()
+        calendarSyncEnabled = store.loadCalendarSyncEnabled()
+        calendarPreferences = store.loadCalendarPreferences()
+        showOrb = store.loadShowOrb()
+        weekStartsMonday = store.loadWeekStartsMonday()
+        onboardingComplete = store.loadOnboardingComplete()
+        refreshCalendarOverlay()
+    }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
 
     val calendarPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { grants ->
-        val granted =
-            grants[Manifest.permission.READ_CALENDAR] == true &&
+        val granted = grants[Manifest.permission.READ_CALENDAR] == true &&
             grants[Manifest.permission.WRITE_CALENDAR] == true
 
         calendarSyncEnabled = granted
         store.saveCalendarSyncEnabled(granted)
 
         if (granted) {
+            deviceCalendars = AndroidCalendarSync.listCalendars(appContext)
+            if (calendarPreferences.defaultCalendarId == null) {
+                calendarPreferences = calendarPreferences.copy(
+                    defaultCalendarId = deviceCalendars.firstOrNull { it.primary && it.writable }?.id
+                        ?: deviceCalendars.firstOrNull { it.writable }?.id
+                )
+                store.saveCalendarPreferences(calendarPreferences)
+            }
             val published = AndroidCalendarSync.publishExisting(
-                appContext,
-                items
+                context = appContext,
+                items = items,
+                preferences = calendarPreferences,
+                spaces = spaces
             )
             items = published
             store.saveItems(published)
         }
-
         refreshCalendarOverlay()
+    }
+
+    val backupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        runCatching {
+            appContext.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use {
+                it.write(store.exportState())
+            }
+        }
+    }
+
+    val restoreLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        val raw = runCatching {
+            appContext.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+        }.getOrNull() ?: return@rememberLauncherForActivityResult
+        if (store.importState(raw)) reloadState()
+    }
+
+    val exportIcsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/calendar")
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        runCatching {
+            appContext.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use {
+                it.write(DaylineTransfer.exportIcs(items))
+            }
+        }
+    }
+
+    val importIcsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        val raw = runCatching {
+            appContext.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+        }.getOrNull() ?: return@rememberLauncherForActivityResult
+        val imported = DaylineTransfer.importIcs(raw)
+        if (imported.isNotEmpty()) persistItems(items + imported)
     }
 
     LaunchedEffect(Unit) {
         NotificationScheduler.syncAll(appContext, items)
-
-        if (nowActivityEnabled) {
-            NowActivityScheduler.syncAll(appContext, items)
-        } else {
-            NowActivityScheduler.cancelAll(appContext, items)
-        }
-
-        if (
-            calendarSyncEnabled &&
-            AndroidCalendarSync.hasReadPermission(appContext)
-        ) {
-            calendarItems = AndroidCalendarSync.loadOccurrences(appContext)
-        }
+        if (nowActivityEnabled) NowActivityScheduler.syncAll(appContext, items)
+        refreshCalendarOverlay()
     }
 
-    DisposableEffect(calendarSyncEnabled) {
-        if (
-            calendarSyncEnabled &&
-            AndroidCalendarSync.hasReadPermission(appContext)
-        ) {
-            val observer = object : ContentObserver(
-                Handler(Looper.getMainLooper())
-            ) {
+    DisposableEffect(calendarSyncEnabled, calendarPreferences) {
+        if (calendarSyncEnabled && AndroidCalendarSync.hasReadPermission(appContext)) {
+            val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
                 override fun onChange(selfChange: Boolean) {
-                    calendarItems =
-                        AndroidCalendarSync.loadOccurrences(appContext)
-
-                    widgetScope.launch {
-                        DaylineWidgetUpdater.updateAll(appContext)
-                    }
+                    refreshCalendarOverlay()
                 }
             }
-
             appContext.contentResolver.registerContentObserver(
                 CalendarContract.Events.CONTENT_URI,
                 true,
                 observer
             )
-
-            onDispose {
-                appContext.contentResolver.unregisterContentObserver(
-                    observer
-                )
-            }
+            onDispose { appContext.contentResolver.unregisterContentObserver(observer) }
         } else {
             onDispose { }
         }
     }
 
-    val visibleItems = remember(
-        items,
-        calendarItems,
-        calendarSyncEnabled
-    ) {
+    val visibleItems = remember(items, calendarItems, calendarSyncEnabled) {
         if (!calendarSyncEnabled) {
             items
         } else {
-            val mapped = items
-                .mapNotNull { it.calendarEventId }
-                .toSet()
-
-            items + calendarItems.filterNot {
-                it.calendarEventId in mapped
-            }
+            val mappedIds = items.mapNotNull { it.calendarEventId }.toSet()
+            items + calendarItems.filterNot { it.calendarEventId in mappedIds }
         }
     }
 
@@ -177,11 +249,42 @@ fun DaylineApp() {
         fontChoice = fontChoice,
         dynamicColor = appearance == Appearance.SYSTEM
     ) {
+        if (!onboardingComplete) {
+            OnboardingScreen(
+                calendars = deviceCalendars,
+                calendarPreferences = calendarPreferences,
+                appearance = appearance,
+                onRequestCalendar = {
+                    calendarPermissionLauncher.launch(
+                        arrayOf(
+                            Manifest.permission.READ_CALENDAR,
+                            Manifest.permission.WRITE_CALENDAR
+                        )
+                    )
+                },
+                onCalendarPreferences = {
+                    calendarPreferences = it
+                    store.saveCalendarPreferences(it)
+                    refreshCalendarOverlay()
+                },
+                onAppearance = {
+                    appearance = it
+                    store.saveAppearance(it)
+                },
+                onDone = {
+                    onboardingComplete = true
+                    store.saveOnboardingComplete(true)
+                }
+            )
+            return@DaylineTheme
+        }
+
         var screen by remember { mutableStateOf(DaylineScreen.TODAY) }
         var history by remember { mutableStateOf(emptyList<DaylineScreen>()) }
         var menuOpen by remember { mutableStateOf(false) }
         var addRequest by remember { mutableStateOf<AddRequest?>(null) }
         var editing by remember { mutableStateOf<DaylineItem?>(null) }
+        var editingDate by remember { mutableStateOf<LocalDate?>(null) }
         var taskDetail by remember { mutableStateOf<DaylineItem?>(null) }
         var spaceEditing by remember { mutableStateOf<DaylineSpace?>(null) }
         var newSpace by remember { mutableStateOf(false) }
@@ -208,116 +311,169 @@ fun DaylineApp() {
             }
         }
 
-        fun saveAll(next: List<DaylineItem>) {
-            items = next
-            store.saveItems(next)
-            NotificationScheduler.syncAll(appContext, next)
-
-            if (nowActivityEnabled) {
-                NowActivityScheduler.syncAll(appContext, next)
-            } else {
-                NowActivityScheduler.cancelAll(appContext, next)
+        fun requestNotificationIfNeeded(item: DaylineItem) {
+            if (
+                (item.reminderMinutes != null ||
+                    (nowActivityEnabled && item.startTime != null && item.endTime != null)) &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
-
-            widgetScope.launch { DaylineWidgetUpdater.updateAll(appContext) }
         }
 
-        fun saveItem(item: DaylineItem) {
-            val savedItem = if (
-                calendarSyncEnabled &&
-                AndroidCalendarSync.hasWritePermission(appContext) &&
-                item.kind == AgendaKind.EVENT &&
-                !item.calendarReadOnly
-            ) {
-                AndroidCalendarSync.upsert(appContext, item)
-            } else {
-                item
-            }
-
-            saveAll(
-                if (items.any { it.id == savedItem.id }) {
-                    items.map {
-                        if (it.id == savedItem.id) savedItem else it
-                    }
-                } else {
-                    items + savedItem
-                }
+        fun publishIfNeeded(item: DaylineItem): DaylineItem {
+            if (!calendarSyncEnabled || !AndroidCalendarSync.hasWritePermission(appContext)) return item
+            if (item.kind != AgendaKind.EVENT || item.calendarReadOnly) return item
+            return AndroidCalendarSync.upsert(
+                context = appContext,
+                item = item,
+                preferences = calendarPreferences,
+                spaces = spaces
             )
+        }
 
-            if (taskDetail?.id == savedItem.id) {
-                taskDetail = savedItem
-            }
-
-            if (calendarSyncEnabled) {
+        fun saveItem(
+            item: DaylineItem,
+            scopeValue: RecurrenceEditScope = RecurrenceEditScope.ENTIRE_SERIES
+        ) {
+            // Editable provider-only events are changed in place and remain external.
+            if (item.id.startsWith("android:") && item.calendarEventId != null) {
+                AndroidCalendarSync.upsert(
+                    appContext,
+                    item.copy(calendarReadOnly = false),
+                    calendarPreferences,
+                    spaces
+                )
                 refreshCalendarOverlay()
+                editing = null
+                editingDate = null
+                return
             }
 
-            if (
-                (
-                    savedItem.reminderMinutes != null ||
-                    (
-                        nowActivityEnabled &&
-                        savedItem.startTime != null &&
-                        savedItem.endTime != null
-                    )
-                ) &&
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
-                PackageManager.PERMISSION_GRANTED
-            ) {
-                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            val original = items.firstOrNull { it.id == item.id }
+            val occurrenceDate = editingDate ?: item.startDate
+            var next = if (original != null && original.recurrence != Recurrence.ONCE) {
+                SeriesEditor.apply(
+                    existingItems = items,
+                    original = original,
+                    edited = item,
+                    occurrenceDate = occurrenceDate,
+                    scope = scopeValue
+                )
+            } else if (items.any { it.id == item.id }) {
+                items.map { if (it.id == item.id) item else it }
+            } else {
+                items + item
             }
 
+            if (calendarSyncEnabled && AndroidCalendarSync.hasWritePermission(appContext)) {
+                next = next.map { candidate ->
+                    if (
+                        candidate.kind == AgendaKind.EVENT &&
+                        !candidate.calendarReadOnly &&
+                        (candidate.id == item.id || candidate.seriesParentId == item.id)
+                    ) {
+                        publishIfNeeded(candidate)
+                    } else candidate
+                }
+            }
+
+            persistItems(next)
+            requestNotificationIfNeeded(item)
+            if (calendarSyncEnabled) refreshCalendarOverlay()
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             editing = null
+            editingDate = null
             addRequest = null
         }
 
+        fun changeWithUndo(updated: DaylineItem, message: String) {
+            val previous = items.firstOrNull { it.id == updated.id }
+            if (previous == null || updated.calendarReadOnly) return
+            val saved = publishIfNeeded(updated)
+            persistItems(items.map { if (it.id == updated.id) saved else it })
+            if (calendarSyncEnabled) refreshCalendarOverlay()
+            scope.launch {
+                val result = snackbarHostState.showSnackbar(message, actionLabel = "UNDO")
+                if (result == SnackbarResult.ActionPerformed) {
+                    val restored = publishIfNeeded(previous)
+                    persistItems(items.map { if (it.id == previous.id) restored else it })
+                    if (calendarSyncEnabled) refreshCalendarOverlay()
+                }
+            }
+        }
+
         fun deleteItem(item: DaylineItem) {
+            val externalOnly = item.id.startsWith("android:")
+            if (externalOnly) {
+                if (!item.calendarReadOnly) {
+                    AndroidCalendarSync.deleteMappedEvent(appContext, item.copy(calendarReadOnly = false))
+                    refreshCalendarOverlay()
+                }
+                editing = null
+                return
+            }
+
+            val snapshot = item
             NotificationScheduler.cancel(appContext, item)
             NowActivityScheduler.cancel(appContext, item)
-
-            if (
-                calendarSyncEnabled &&
-                !item.calendarReadOnly
-            ) {
-                AndroidCalendarSync.deleteMappedEvent(
-                    appContext,
-                    item
-                )
-            }
-            saveAll(items.filterNot { it.id == item.id })
+            persistItems(items.filterNot { it.id == item.id })
             editing = null
             taskDetail = null
+
+            scope.launch {
+                val result = snackbarHostState.showSnackbar("Deleted ${item.title}", "UNDO")
+                if (result == SnackbarResult.ActionPerformed) {
+                    persistItems(items + snapshot)
+                } else if (calendarSyncEnabled) {
+                    AndroidCalendarSync.deleteMappedEvent(appContext, snapshot)
+                    refreshCalendarOverlay()
+                }
+            }
         }
 
         fun toggleTask(item: DaylineItem, date: LocalDate) {
-            saveItem(
-                item.copy(
-                    completedDates = item.completedDates.toMutableSet().apply {
-                        if (date in this) remove(date) else add(date)
-                    }
-                )
+            if (item.calendarReadOnly) return
+            val updated = item.copy(
+                completedDates = if (date in item.completedDates) {
+                    item.completedDates - date
+                } else {
+                    item.completedDates + date
+                }
             )
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            persistItems(items.map { if (it.id == item.id) updated else it })
+            if (taskDetail?.id == item.id) taskDetail = updated
         }
 
         fun saveSpaces(next: List<DaylineSpace>) {
             spaces = next
             store.saveSpaces(next)
-            widgetScope.launch { DaylineWidgetUpdater.updateAll(appContext) }
+            updateWidgets()
         }
 
-        fun openItem(item: DaylineItem) {
-            if (item.calendarReadOnly) return
+        fun saveTemplate(template: EventTemplate) {
+            templates = (templates + template).distinctBy { it.id }
+            store.saveTemplates(templates)
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
 
-            if (item.kind == AgendaKind.TASK) {
+        fun openItem(item: DaylineItem, occurrenceDate: LocalDate = item.startDate) {
+            if (item.calendarReadOnly) return
+            editingDate = occurrenceDate
+            if (item.kind == AgendaKind.TASK && !item.id.startsWith("android:")) {
                 taskDetail = item
             } else {
                 editing = item
             }
         }
 
-        val hasOverlay =
-            menuOpen || addRequest != null || editing != null || newSpace || spaceEditing != null || taskDetail != null
+        val hasOverlay = menuOpen || addRequest != null || editing != null ||
+            newSpace || spaceEditing != null || taskDetail != null
 
         BackHandler(enabled = hasOverlay || screen != DaylineScreen.TODAY) {
             when {
@@ -331,170 +487,176 @@ fun DaylineApp() {
             }
         }
 
-        val detail = taskDetail
-        if (detail != null) {
-            val live = items.firstOrNull { it.id == detail.id } ?: detail
-            TaskDetailScreen(
-                item = live,
-                spaces = spaces,
-                onBack = { taskDetail = null },
-                onSave = ::saveItem,
-                onDelete = ::deleteItem
-            )
-        } else {
-            when (screen) {
-                DaylineScreen.TODAY -> TodayScreen(
-                    items = visibleItems,
-                    showOrb = showOrb,
-                    onMenu = { menuOpen = true },
-                    onAdd = { addRequest = AddRequest(it, AgendaKind.EVENT) },
-                    onEdit = ::openItem,
-                    onToggleTask = ::toggleTask,
-                    onReschedule = ::saveItem
-                )
-
-                DaylineScreen.CALENDAR -> CalendarScreen(
-                    items = visibleItems,
-                    weekStartsMonday = weekStartsMonday,
-                    onMenu = { menuOpen = true },
-                    onToday = ::goToday,
-                    onAdd = { addRequest = AddRequest(it, AgendaKind.EVENT) },
-                    onEdit = ::openItem,
-                    onToggleTask = ::toggleTask
-                )
-
-                DaylineScreen.UPCOMING -> UpcomingScreen(
-                    items = visibleItems,
+        Box(Modifier.fillMaxSize()) {
+            val detail = taskDetail
+            if (detail != null) {
+                val live = items.firstOrNull { it.id == detail.id } ?: detail
+                TaskDetailScreen(
+                    item = live,
                     spaces = spaces,
-                    onMenu = { menuOpen = true },
-                    onToday = ::goToday,
-                    onAdd = { addRequest = AddRequest(it, AgendaKind.EVENT) },
-                    onEdit = ::openItem,
-                    onToggleTask = ::toggleTask
+                    onBack = { taskDetail = null },
+                    onSave = { saveItem(it) },
+                    onDelete = ::deleteItem
                 )
+            } else {
+                when (screen) {
+                    DaylineScreen.TODAY -> TodayScreen(
+                        items = visibleItems,
+                        showOrb = showOrb,
+                        onMenu = { menuOpen = true },
+                        onAdd = { addRequest = AddRequest(it, AgendaKind.EVENT) },
+                        onAddAt = { date, time -> addRequest = AddRequest(date, AgendaKind.EVENT, time) },
+                        onEdit = { openItem(it, LocalDate.now()) },
+                        onToggleTask = ::toggleTask,
+                        onReschedule = { changeWithUndo(it, "Moved ${it.title} to ${it.startTime}") },
+                        onResize = { changeWithUndo(it, "Resized ${it.title} to ${it.endTime}") },
+                        onScheduleTask = { changeWithUndo(it, "Scheduled ${it.title} at ${it.startTime}") }
+                    )
 
-                DaylineScreen.TASKS -> TasksScreen(
-                    items = items,
-                    spaces = spaces,
-                    onMenu = { menuOpen = true },
-                    onToday = ::goToday,
-                    onAdd = { addRequest = AddRequest(it, AgendaKind.TASK) },
-                    onOpenTask = { taskDetail = it },
-                    onToggleTask = ::toggleTask
-                )
+                    DaylineScreen.CALENDAR -> CalendarScreen(
+                        items = visibleItems,
+                        weekStartsMonday = weekStartsMonday,
+                        onMenu = { menuOpen = true },
+                        onToday = ::goToday,
+                        onAdd = { addRequest = AddRequest(it, AgendaKind.EVENT) },
+                        onEdit = { item, date -> openItem(item, date) },
+                        onToggleTask = ::toggleTask
+                    )
 
-                DaylineScreen.SPACES -> SpacesScreen(
-                    spaces = spaces,
-                    items = items,
-                    onMenu = { menuOpen = true },
-                    onToday = ::goToday,
-                    onAdd = { newSpace = true },
-                    onSpace = { spaceEditing = it }
-                )
+                    DaylineScreen.UPCOMING -> UpcomingScreen(
+                        items = visibleItems,
+                        spaces = spaces,
+                        onMenu = { menuOpen = true },
+                        onToday = ::goToday,
+                        onAdd = { addRequest = AddRequest(it, AgendaKind.EVENT) },
+                        onEdit = { item, date -> openItem(item, date) },
+                        onToggleTask = ::toggleTask
+                    )
 
-                DaylineScreen.SETTINGS -> SettingsScreen(
-                    appearance = appearance,
-                    fontChoice = fontChoice,
-                    widgetFontChoice = widgetFontChoice,
-                    widgetEmojiChoice = widgetEmojiChoice,
-                    widgetAutoSlide = widgetAutoSlide,
-                    nowActivityEnabled = nowActivityEnabled,
-                    calendarSyncEnabled = calendarSyncEnabled,
-                    showOrb = showOrb,
-                    weekStartsMonday = weekStartsMonday,
-                    onAppearance = {
-                        appearance = it
-                        store.saveAppearance(it)
-                    },
-                    onFontChoice = {
-                        fontChoice = it
-                        store.saveFontChoice(it)
-                    },
-                    onWidgetFontChoice = {
-                        widgetFontChoice = it
-                        store.saveWidgetFontChoice(it)
-                        widgetScope.launch { DaylineWidgetUpdater.updateAll(appContext) }
-                    },
-                    onWidgetEmojiChoice = {
-                        widgetEmojiChoice = it
-                        store.saveWidgetEmojiChoice(it)
-                        widgetScope.launch { DaylineWidgetUpdater.updateAll(appContext) }
-                    },
-                    onWidgetAutoSlide = {
-                        widgetAutoSlide = it
-                        store.saveWidgetAutoSlide(it)
-                        widgetScope.launch { DaylineWidgetUpdater.updateAll(appContext) }
-                    },
-                    onNowActivityEnabled = {
-                        nowActivityEnabled = it
-                        store.saveNowActivityEnabled(it)
+                    DaylineScreen.TASKS -> TasksScreen(
+                        items = items,
+                        spaces = spaces,
+                        onMenu = { menuOpen = true },
+                        onToday = ::goToday,
+                        onAdd = { addRequest = AddRequest(it, AgendaKind.TASK) },
+                        onOpenTask = { taskDetail = it },
+                        onToggleTask = ::toggleTask
+                    )
 
-                        if (
-                            it &&
-                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                            ContextCompat.checkSelfPermission(
-                                context,
-                                Manifest.permission.POST_NOTIFICATIONS
-                            ) != PackageManager.PERMISSION_GRANTED
-                        ) {
-                            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        }
+                    DaylineScreen.SEARCH -> SearchScreen(
+                        items = visibleItems,
+                        onMenu = { menuOpen = true },
+                        onToday = ::goToday,
+                        onOpen = { openItem(it) }
+                    )
 
-                        if (it) {
-                            NowActivityScheduler.syncAll(appContext, items)
-                        } else {
-                            NowActivityScheduler.cancelAll(appContext, items)
-                        }
-                    },
-                    onCalendarSyncEnabled = { enabled ->
-                        if (!enabled) {
-                            calendarSyncEnabled = false
-                            store.saveCalendarSyncEnabled(false)
-                            calendarItems = emptyList()
+                    DaylineScreen.SPACES -> SpacesScreen(
+                        spaces = spaces,
+                        items = items,
+                        onMenu = { menuOpen = true },
+                        onToday = ::goToday,
+                        onAdd = { newSpace = true },
+                        onSpace = { spaceEditing = it }
+                    )
 
-                            widgetScope.launch {
-                                DaylineWidgetUpdater.updateAll(
-                                    appContext
+                    DaylineScreen.SETTINGS -> SettingsScreen(
+                        appearance = appearance,
+                        fontChoice = fontChoice,
+                        widgetFontChoice = widgetFontChoice,
+                        widgetEmojiChoice = widgetEmojiChoice,
+                        widgetAutoSlide = widgetAutoSlide,
+                        nowActivityEnabled = nowActivityEnabled,
+                        calendarSyncEnabled = calendarSyncEnabled,
+                        calendarPreferences = calendarPreferences,
+                        deviceCalendars = deviceCalendars,
+                        spaces = spaces,
+                        showOrb = showOrb,
+                        weekStartsMonday = weekStartsMonday,
+                        onAppearance = {
+                            appearance = it
+                            store.saveAppearance(it)
+                        },
+                        onFontChoice = {
+                            fontChoice = it
+                            store.saveFontChoice(it)
+                        },
+                        onWidgetFontChoice = {
+                            widgetFontChoice = it
+                            store.saveWidgetFontChoice(it)
+                            updateWidgets()
+                        },
+                        onWidgetEmojiChoice = {
+                            widgetEmojiChoice = it
+                            store.saveWidgetEmojiChoice(it)
+                            updateWidgets()
+                        },
+                        onWidgetAutoSlide = {
+                            widgetAutoSlide = it
+                            store.saveWidgetAutoSlide(it)
+                            updateWidgets()
+                        },
+                        onNowActivityEnabled = {
+                            nowActivityEnabled = it
+                            store.saveNowActivityEnabled(it)
+                            if (
+                                it &&
+                                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.POST_NOTIFICATIONS
+                                ) != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                            if (it) NowActivityScheduler.syncAll(appContext, items)
+                            else NowActivityScheduler.cancelAll(appContext, items)
+                        },
+                        onCalendarSyncEnabled = { enabled ->
+                            if (!enabled) {
+                                calendarSyncEnabled = false
+                                store.saveCalendarSyncEnabled(false)
+                                calendarItems = emptyList()
+                                updateWidgets()
+                            } else if (AndroidCalendarSync.hasPermissions(appContext)) {
+                                calendarSyncEnabled = true
+                                store.saveCalendarSyncEnabled(true)
+                                refreshCalendarOverlay()
+                            } else {
+                                calendarPermissionLauncher.launch(
+                                    arrayOf(
+                                        Manifest.permission.READ_CALENDAR,
+                                        Manifest.permission.WRITE_CALENDAR
+                                    )
                                 )
                             }
-                        } else if (
-                            AndroidCalendarSync.hasPermissions(
-                                appContext
-                            )
-                        ) {
-                            calendarSyncEnabled = true
-                            store.saveCalendarSyncEnabled(true)
-
-                            val published =
-                                AndroidCalendarSync.publishExisting(
-                                    appContext,
-                                    items
-                                )
-
-                            items = published
-                            store.saveItems(published)
+                        },
+                        onCalendarPreferences = {
+                            calendarPreferences = it
+                            store.saveCalendarPreferences(it)
                             refreshCalendarOverlay()
-                        } else {
-                            calendarPermissionLauncher.launch(
-                                arrayOf(
-                                    Manifest.permission.READ_CALENDAR,
-                                    Manifest.permission.WRITE_CALENDAR
-                                )
-                            )
-                        }
-                    },
-                    onShowOrb = {
-                        showOrb = it
-                        store.saveShowOrb(it)
-                    },
-                    onWeekStart = {
-                        weekStartsMonday = it
-                        store.saveWeekStartsMonday(it)
-                    },
-                    onMenu = { menuOpen = true },
-                    onToday = ::goToday
-                )
+                        },
+                        onBackup = { backupLauncher.launch("dayline-backup.json") },
+                        onRestore = { restoreLauncher.launch(arrayOf("application/json", "text/plain")) },
+                        onExportIcs = { exportIcsLauncher.launch("dayline-calendar.ics") },
+                        onImportIcs = { importIcsLauncher.launch(arrayOf("text/calendar", "text/plain", "text/*")) },
+                        onShowOrb = {
+                            showOrb = it
+                            store.saveShowOrb(it)
+                        },
+                        onWeekStart = {
+                            weekStartsMonday = it
+                            store.saveWeekStartsMonday(it)
+                        },
+                        onMenu = { menuOpen = true },
+                        onToday = ::goToday
+                    )
+                }
             }
+
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 92.dp)
+            )
         }
 
         if (menuOpen) {
@@ -510,26 +672,35 @@ fun DaylineApp() {
 
         editing?.let { item ->
             QuickAddSheet(
-                initialDate = item.startDate,
+                initialDate = editingDate ?: item.startDate,
                 initialKind = item.kind,
                 editing = item,
                 spaces = spaces,
+                templates = templates,
                 onSave = ::saveItem,
+                onSaveTemplate = ::saveTemplate,
                 onDelete = ::deleteItem,
-                onDismiss = { editing = null }
+                onDismiss = {
+                    editing = null
+                    editingDate = null
+                }
             )
-        } ?: addRequest?.let { req ->
+        } ?: addRequest?.let { request ->
             QuickAddSheet(
-                initialDate = req.date,
-                initialKind = req.kind,
+                initialDate = request.date,
+                initialKind = request.kind,
+                initialTime = request.time,
                 spaces = spaces,
+                templates = templates,
                 onSave = ::saveItem,
+                onSaveTemplate = ::saveTemplate,
                 onDismiss = { addRequest = null }
             )
         }
 
         if (newSpace) {
             SpaceEditSheet(
+                calendars = deviceCalendars,
                 onSave = {
                     saveSpaces(spaces + it)
                     newSpace = false
@@ -541,13 +712,14 @@ fun DaylineApp() {
         spaceEditing?.let { space ->
             SpaceEditSheet(
                 editing = space,
+                calendars = deviceCalendars,
                 onSave = { updated ->
                     saveSpaces(spaces.map { if (it.id == updated.id) updated else it })
                     spaceEditing = null
                 },
                 onDelete = { doomed ->
                     saveSpaces(spaces.filterNot { it.id == doomed.id })
-                    saveAll(
+                    persistItems(
                         items.map {
                             if (it.spaceId == doomed.id) it.copy(spaceId = null) else it
                         }

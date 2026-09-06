@@ -1,0 +1,8 @@
+Delete these obsolete files if they still exist after applying an update over an older Dayline checkout:
+
+app/src/main/res/drawable-nodpi/widget_cover_chat.png
+app/src/main/res/drawable-nodpi/widget_cover_gamepad.png
+app/src/main/res/drawable-nodpi/widget_cover_clock.png
+app/src/main/res/drawable-nodpi/widget_cover_arrows.png
+app/src/main/res/drawable-nodpi/widget_cover_basket.png
+app/src/main/res/drawable-nodpi/widget_cover_calendar.png

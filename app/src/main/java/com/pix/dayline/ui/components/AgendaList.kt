@@ -33,7 +33,7 @@ fun AgendaList(
     date: LocalDate,
     modifier: Modifier = Modifier,
     emptyText: String = "Nothing planned.",
-    onEdit: (DaylineItem) -> Unit,
+    onEdit: (DaylineItem, LocalDate) -> Unit,
     onToggleTask: (DaylineItem, LocalDate) -> Unit
 ) {
     if (items.isEmpty()) {
@@ -58,7 +58,7 @@ fun AgendaList(
                 modifier = Modifier.clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = { onEdit(item) }
+                    onClick = { onEdit(item, date) }
                 )
             ) {
                 Text(

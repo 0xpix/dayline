@@ -30,6 +30,7 @@ import com.pix.dayline.ui.components.DayGlyph
 import com.pix.dayline.ui.components.DayTimeline
 import com.pix.dayline.ui.components.FloatingControls
 import kotlinx.coroutines.delay
+import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.TextStyle
@@ -41,9 +42,12 @@ fun TodayScreen(
     showOrb: Boolean,
     onMenu: () -> Unit,
     onAdd: (LocalDate) -> Unit,
+    onAddAt: (LocalDate, LocalTime) -> Unit,
     onEdit: (DaylineItem) -> Unit,
     onToggleTask: (DaylineItem, LocalDate) -> Unit,
-    onReschedule: (DaylineItem) -> Unit
+    onReschedule: (DaylineItem) -> Unit,
+    onResize: (DaylineItem) -> Unit = onReschedule,
+    onScheduleTask: (DaylineItem) -> Unit = onReschedule
 ) {
     var now by remember { mutableStateOf(LocalTime.now()) }
     var today by remember { mutableStateOf(LocalDate.now()) }
@@ -55,6 +59,7 @@ fun TodayScreen(
             delay(30_000L)
         }
     }
+
     val todaysItems = items
         .filter { it.occursOn(today) }
         .sortedWith(compareBy<DaylineItem> { it.startTime == null }.thenBy { it.startTime })
@@ -72,11 +77,11 @@ fun TodayScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 32.dp, end = 32.dp, top = 68.dp, bottom = 138.dp)
+                .padding(start = 32.dp, end = 32.dp, top = 60.dp, bottom = 138.dp)
         ) {
             if (showOrb) {
                 DayGlyph(items = todaysItems, date = today)
-                Spacer(Modifier.height(28.dp))
+                Spacer(Modifier.height(22.dp))
             }
 
             Text(
@@ -85,15 +90,24 @@ fun TodayScreen(
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            Spacer(Modifier.height(34.dp))
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = todaySummary(todaysItems),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
+            Spacer(Modifier.height(28.dp))
             DayTimeline(
                 items = todaysItems,
                 date = today,
                 emptyText = "Your day is clear.",
                 onEdit = onEdit,
                 onToggleTask = onToggleTask,
-                onReschedule = onReschedule
+                onReschedule = onReschedule,
+                onResize = onResize,
+                onCreateAt = onAddAt,
+                onScheduleTask = onScheduleTask
             )
         }
 
@@ -108,6 +122,47 @@ fun TodayScreen(
     }
 }
 
+private fun todaySummary(items: List<DaylineItem>): String {
+    val intervals = items.mapNotNull { item ->
+        val start = item.startTime ?: return@mapNotNull null
+        val end = item.endTime?.takeIf { it.isAfter(start) } ?: start.plusHours(1)
+        val startMinute = (start.hour * 60 + start.minute - item.bufferBeforeMinutes).coerceAtLeast(0)
+        val endMinute = (end.hour * 60 + end.minute + item.bufferAfterMinutes).coerceAtMost(1440)
+        startMinute to endMinute
+    }.sortedBy { it.first }
+
+    var busy = 0
+    var currentStart: Int? = null
+    var currentEnd: Int? = null
+    intervals.forEach { (start, end) ->
+        if (currentStart == null) {
+            currentStart = start
+            currentEnd = end
+        } else if (start <= currentEnd!!) {
+            currentEnd = maxOf(currentEnd!!, end)
+        } else {
+            busy += currentEnd!! - currentStart!!
+            currentStart = start
+            currentEnd = end
+        }
+    }
+    if (currentStart != null) busy += currentEnd!! - currentStart!!
+
+    val open = (1440 - busy).coerceAtLeast(0)
+    val blocks = intervals.size
+    return "BUSY ${durationShort(busy)}   ·   OPEN ${durationShort(open)}   ·   $blocks ${if (blocks == 1) "BLOCK" else "BLOCKS"}"
+}
+
+private fun durationShort(minutes: Int): String {
+    val hours = minutes / 60
+    val rest = minutes % 60
+    return when {
+        hours > 0 && rest > 0 -> "${hours}H${rest.toString().padStart(2, '0')}"
+        hours > 0 -> "${hours}H"
+        else -> "${rest}M"
+    }
+}
+
 private fun greetingText(now: LocalTime, date: LocalDate): String {
     val greeting = when (now.hour) {
         in 5..11 -> "Good morning!"
@@ -118,7 +173,6 @@ private fun greetingText(now: LocalTime, date: LocalDate): String {
 
     val dayName = date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
     val monthName = date.month.getDisplayName(TextStyle.FULL, Locale.getDefault())
-
     return "$greeting\nIt's $dayName\n$monthName ${ordinal(date.dayOfMonth)}."
 }
 

@@ -5,3 +5,10 @@ build/
 app/build/
 *.iml
 .DS_Store
+# Release signing — never commit upload keys
+*.jks
+*.keystore
+keystore.properties
+release-signing.properties
+# Android local config / build output
+**/build/

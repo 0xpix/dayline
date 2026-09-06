@@ -8,4 +8,6 @@
     android:initialLayout="@layout/glance_default_loading_layout"
     android:resizeMode="none"
     android:widgetCategory="home_screen"
+    android:configure="com.pix.dayline.widgets.WidgetConfigActivity"
+    android:widgetFeatures="reconfigurable|configuration_optional"
     android:description="@string/widget_square_description" />

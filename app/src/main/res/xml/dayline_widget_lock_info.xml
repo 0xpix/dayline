@@ -9,4 +9,6 @@
     android:initialKeyguardLayout="@layout/glance_default_loading_layout"
     android:resizeMode="none"
     android:widgetCategory="keyguard"
+    android:configure="com.pix.dayline.widgets.WidgetConfigActivity"
+    android:widgetFeatures="reconfigurable|configuration_optional"
     android:description="@string/widget_lock_description" />

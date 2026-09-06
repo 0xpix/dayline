@@ -49,7 +49,7 @@ fun CalendarScreen(
     onMenu: () -> Unit,
     onToday: () -> Unit,
     onAdd: (LocalDate) -> Unit,
-    onEdit: (DaylineItem) -> Unit,
+    onEdit: (DaylineItem, LocalDate) -> Unit,
     onToggleTask: (DaylineItem, LocalDate) -> Unit
 ) {
     val today = remember { LocalDate.now() }

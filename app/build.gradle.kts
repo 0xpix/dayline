@@ -11,8 +11,8 @@ android {
         applicationId = "com.pix.dayline"
         minSdk = 26
         targetSdk = 36
-        versionCode = 29
-        versionName = "0.11.1"
+        versionCode = 30
+        versionName = "0.12.0"
     }
 
     buildFeatures {
@@ -22,6 +22,38 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    val releaseStorePath = System.getenv("DAYLINE_KEYSTORE_FILE")
+    val releaseStorePassword = System.getenv("DAYLINE_KEYSTORE_PASSWORD")
+    val releaseKeyAlias = System.getenv("DAYLINE_KEY_ALIAS")
+    val releaseKeyPassword = System.getenv("DAYLINE_KEY_PASSWORD")
+    val hasReleaseSigning = listOf(
+        releaseStorePath,
+        releaseStorePassword,
+        releaseKeyAlias,
+        releaseKeyPassword
+    ).all { !it.isNullOrBlank() }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(releaseStorePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            isShrinkResources = false
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
     }
 }
 

@@ -4,21 +4,19 @@
 
 Dayline is an open-source Android calendar and planner built with Kotlin, Jetpack Compose, Material 3 and Glance. It is local-first, deliberately minimal, and designed around **Today** instead of a dashboard.
 
-Current milestone: **v0.14.6.beta · Focus timer Glyph**
+Current milestone: **v0.14.7.beta · Focus time announcements**
 
-## What v0.14.6.beta adds
+## What v0.14.7.beta adds
 
-- Replaced the crowded circular Focus progress ring with a dedicated **top eyes + bottom time** layout on the Nothing Phone (4a) Pro 13×13 Glyph Matrix.
-- Normal idle mode keeps the existing large expressive 5×5 eyes unchanged.
-- During Focus/Rest, Dayline switches to smaller expressive eyes in the top rows and reserves the bottom five rows for a stable `MM:SS` countdown.
-- The timer and eye zones never overlap; rows between them are intentionally left empty for visual separation.
-- Focus mode reuses the same animation state machine as idle mode: `CENTER → expression → CENTER → next expression`.
-- Look Left and Look Right use the same directional behavior as normal mode by shifting the complete compact eye pair left/right.
-- Blink, Wink, Happy, Hearts, Squint and rare Sleepy remain available above the timer.
-- 25/5, 50/10 and custom cycles count down the current Focus or Rest phase directly instead of converting time into a ring.
-- Paused focus sessions keep showing their persisted remaining time.
-- The countdown updates independently while duplicate-frame suppression prevents unnecessary hardware refreshes.
-- Bumped beta versionCode to **1406** and beta versionName to `0.14.6.beta`.
+- Removed the persistent Focus timer layout from the Glyph Matrix; normal Focus and Rest visuals now use the same large expressive eyes as idle mode.
+- Focus time is shown only as a temporary **30-second `MM:SS` announcement**, replacing the eyes completely while it is visible.
+- Added the clean transition contract `eyes → CENTER → time → CENTER → eyes`, so a checkpoint never cuts directly from Happy/Left/Wink/etc. into the timer.
+- Option B checkpoint schedule is now used for every Focus and Rest phase: show the phase **start**, then every **5-minute remaining checkpoint**, then **1:00 remaining**.
+- Examples: 25/5 Focus announces 25:00, 20:00, 15:00, 10:00, 05:00 and 01:00; its Rest phase announces 05:00 and 01:00.
+- 50/10 and custom cycles follow the same rule automatically.
+- During each 30-second announcement the displayed time remains live and continues counting down; paused Focus keeps the persisted remaining value frozen.
+- After the 30-second time window, the Glyph returns through Center and restarts the normal expressive-eye animation cadence.
+- Bumped beta versionCode to **1407** and beta versionName to `0.14.7.beta`.
 
 The v0.14.5 updater and preview protections remain intact: versionCode-aware update discovery, tag/APK release validation, clean circular Settings preview, centered expression transitions and clearer release notes.
 
@@ -58,7 +56,7 @@ Requirements: JDK 17, Gradle 9.4.1, Android SDK API 37 and Build Tools 36.0.0.
 gradle :app:assembleBetaDebug :app:assemblePlayDebug --no-daemon
 ```
 
-GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.14.6.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
+GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.14.7.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
 
 Before publication, the tagged workflow verifies that the signed APK's embedded version matches the tag and that its Android `versionCode` follows Dayline's beta version convention.
 

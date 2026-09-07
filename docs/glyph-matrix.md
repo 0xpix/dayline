@@ -1,8 +1,8 @@
 # Dayline Glyph Matrix integration
 
-Dayline v0.16.0.beta provides an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
+Dayline v0.16.1.beta provides an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
 
-v0.16.0 is a planning release and deliberately adds **no new Glyph expression or Focus behavior**. The conservative transport recovery and centered stacked timer from v0.15.3–v0.15.4 remain the Glyph baseline while they continue real-device soak testing.
+v0.16.1 is a navigation/updater polish release and deliberately adds **no new Glyph expression or Focus behavior**. The conservative transport recovery and centered stacked timer from v0.15.3–v0.15.4 remain the Glyph baseline while they continue real-device soak testing.
 
 ## Dayline behavior
 
@@ -44,7 +44,7 @@ A Focus time such as `14:54` is rendered as two centered lines:
 54
 ```
 
-The v0.15.4 layout remains unchanged in v0.16.0:
+The v0.15.4 layout remains unchanged in v0.16.1:
 
 - **Minutes** use two 4×5 digits in rows 1–5.
 - **Seconds** use two 4×5 digits in rows 7–11.
@@ -55,7 +55,7 @@ The v0.15.4 layout remains unchanged in v0.16.0:
 
 ## Reliability / freeze recovery
 
-The conservative v0.15.3 transport remains unchanged in v0.16.0.beta.
+The conservative v0.15.3 transport remains unchanged in v0.16.1.beta.
 
 Nothing's Matrix SDK owns a bound proxy service, so Dayline follows a conservative lifecycle:
 
@@ -86,7 +86,7 @@ Dayline keeps a simple 0–100% brightness control and suppresses duplicate raw 
 
 ## Beta diagnostics
 
-v0.16.0 adds a hidden beta diagnostics sheet under **Settings → About → tap Build five times**. It reports Glyph hardware availability alongside Calendar/updater/build information. It intentionally does **not** claim a live Glyph transport connection state because Nothing's current SDK does not expose one that Dayline can treat as authoritative.
+v0.16.0 added a hidden beta diagnostics sheet under **Settings → About → tap Build five times**. It remains available in v0.16.1 and reports Glyph hardware availability alongside Calendar/updater/build information. It intentionally does **not** claim a live Glyph transport connection state because Nothing's current SDK does not expose one that Dayline can treat as authoritative.
 
 ## Activating the AOD toy
 
@@ -102,7 +102,7 @@ Dayline's own Glyph patterns, settings and reflection bridge are part of the MIT
 
 For GitHub beta CI, `.github/workflows/build-apk.yml` first validates that the AAR is absent and then downloads the official binary from `Nothing-Developer-Programme/GlyphMatrix-Developer-Kit` before compiling the beta flavor. `app/build.gradle.kts` only attaches the AAR to `betaImplementation` when the file exists.
 
-The Play flavor does not include the SDK in v0.16.0.beta. Nothing's Glyph SDK license restricts commercial use without written permission, so Play distribution should stay disabled for Glyph hardware until the appropriate permission/license is obtained.
+The Play flavor does not include the SDK in v0.16.1.beta. Nothing's Glyph SDK license restricts commercial use without written permission, so Play distribution should stay disabled for Glyph hardware until the appropriate permission/license is obtained.
 
 ## Release safety
 

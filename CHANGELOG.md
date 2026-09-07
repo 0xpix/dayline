@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.14.5.beta — Updater + Glyph preview fix
+
+- Fixed beta update discovery so a GitHub release must be newer by both semantic version and Android `versionCode` before Dayline offers it.
+- Added an early same-code/older-build guard before downloading an APK, with a clearer error message.
+- Added a tagged-release workflow verification step that checks the signed APK's embedded `versionName` and `versionCode` against the Git tag before publishing.
+- Cleaned generated GitHub release notes so raw changelog URLs are not dumped into the in-app release sheet.
+- Rebuilt the Glyph Settings preview as a single circular surface; unlit cells no longer form a visible square inside the circle.
+- Made every Settings preview expression animate as `CENTER → expression → CENTER`, matching the live Glyph contract.
+- Increased live Center recovery from ~500 ms to ~700 ms so transitions are visibly separated.
+- Bumped beta versionCode to **1405** and beta versionName to `0.14.5.beta`.
+
 ## 0.14.4.beta — Centered Glyph transitions
 
 - Made **every non-center Glyph animation** transition through Center before another animation can begin: `CENTER → animation → CENTER → next animation`.

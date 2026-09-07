@@ -64,7 +64,10 @@ private fun DrawScope.drawMatrix(frame: IntArray) {
             val brightness = frame[y * n + x]
             val lit = brightness > 0
             val color = if (lit) {
-                Color.White.copy(alpha = (brightness / 255f).coerceIn(0.2f, 1f))
+                Color.White.copy(
+                    alpha = (brightness / GlyphMatrixPatterns.MAX_RAW_BRIGHTNESS.toFloat())
+                        .coerceIn(0.12f, 1f)
+                )
             } else {
                 Color(0xFF1A1A1A)
             }

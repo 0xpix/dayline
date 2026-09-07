@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import com.pix.dayline.BuildConfig
 import com.pix.dayline.R
 import com.pix.dayline.data.*
+import com.pix.dayline.glyph.GlyphVisualPreferencesStore
 import com.pix.dayline.model.*
 import com.pix.dayline.ui.components.FloatingControls
 import com.pix.dayline.ui.glyph.GlyphMatrixPreview
@@ -161,7 +162,7 @@ fun SettingsScreen(
                     }
                 )
                 Text(
-                    "Eyes stay dominant. Dayline signals briefly interrupt them for focus, reminders, tasks and schedule state.",
+                    "Expressive eyes stay active. Focus cycles add a pixel progress ring around the face.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -503,12 +504,41 @@ private fun GlyphSettingsSheet(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val visualStore = remember(context) { GlyphVisualPreferencesStore(context.applicationContext) }
     var preview by remember { mutableStateOf(DaylineGlyphSignal.CENTER) }
+    var brightness by remember { mutableIntStateOf(visualStore.loadBrightness()) }
 
-    fun update(next: GlyphPreferences) = onChange(next)
+    fun update(next: GlyphPreferences) {
+        onChange(
+            next.copy(
+                mode = if (next.mode == GlyphMode.OFF) GlyphMode.OFF else GlyphMode.EYES_ONLY,
+                showAppStates = false,
+                restAnimation = false
+            )
+        )
+    }
+
     fun test(signal: DaylineGlyphSignal) {
         preview = signal
         onTest(signal)
+    }
+
+    fun changeBrightness(delta: Int) {
+        brightness = (brightness + delta).coerceIn(
+            GlyphVisualPreferencesStore.MIN_BRIGHTNESS,
+            GlyphVisualPreferencesStore.MAX_BRIGHTNESS
+        )
+        visualStore.saveBrightness(brightness)
+    }
+
+    LaunchedEffect(preferences.mode, preferences.showAppStates, preferences.restAnimation) {
+        if (
+            preferences.mode == GlyphMode.EYES_AND_STATES ||
+            preferences.showAppStates ||
+            preferences.restAnimation
+        ) {
+            update(preferences)
+        }
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.background) {
@@ -522,7 +552,7 @@ private fun GlyphSettingsSheet(
             Text("Dayline Glyph", style = MaterialTheme.typography.headlineLarge)
             Spacer(Modifier.height(6.dp))
             Text(
-                "80% eyes · 20% useful signals. Phone (4a) Pro uses the 13×13 Glyph Matrix.",
+                "Expressive eyes + Focus progress. Nothing else interrupts the face.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -534,27 +564,17 @@ private fun GlyphSettingsSheet(
                     modifier = Modifier.size(190.dp)
                 )
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(18.dp))
 
-            Text("MODE", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("GLYPH", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                TinyAction(if (preferences.mode == GlyphMode.OFF) "● OFF" else "OFF") {
-                    update(preferences.copy(mode = GlyphMode.OFF))
-                }
-                TinyAction(if (preferences.mode == GlyphMode.EYES_ONLY) "● EYES" else "EYES") {
-                    update(preferences.copy(mode = GlyphMode.EYES_ONLY))
-                }
-                TinyAction(if (preferences.mode == GlyphMode.EYES_AND_STATES) "● EYES + STATES" else "EYES + STATES") {
-                    update(preferences.copy(mode = GlyphMode.EYES_AND_STATES))
-                }
+            ToggleSettingRow("Enable Glyph", preferences.enabled) {
+                update(preferences.copy(mode = if (it) GlyphMode.EYES_ONLY else GlyphMode.OFF))
             }
-            Spacer(Modifier.height(12.dp))
             InfoRow("Hardware", if (hardware.available) hardware.deviceLabel else "Unavailable")
             hardware.detail?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Spacer(Modifier.height(6.dp))
             Text(
                 "ACTIVATE IN NOTHING SETTINGS  ›",
                 modifier = Modifier.clickable(onClick = onOpenManager).padding(vertical = 8.dp),
@@ -562,53 +582,59 @@ private fun GlyphSettingsSheet(
             )
 
             SectionGap()
-            Text("IDLE EYES", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("LOOK & FEEL", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
-            SelectorRow("Idle expression", glyphIdleLabel(preferences.idleExpression)) {
-                val entries = GlyphIdleExpression.entries
-                val next = entries[(entries.indexOf(preferences.idleExpression) + 1) % entries.size]
-                update(preferences.copy(idleExpression = next))
-                preview = when (next) {
-                    GlyphIdleExpression.CENTER -> DaylineGlyphSignal.CENTER
-                    GlyphIdleExpression.CURIOUS -> DaylineGlyphSignal.CURIOUS
-                    GlyphIdleExpression.SLEEPY -> DaylineGlyphSignal.SLEEPY
-                    GlyphIdleExpression.HAPPY -> DaylineGlyphSignal.HAPPY
-                }
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Brightness", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                TinyAction("−") { changeBrightness(-32) }
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    "${((brightness / 255f) * 100).toInt()}%",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.width(12.dp))
+                TinyAction("+") { changeBrightness(32) }
             }
-            ToggleSettingRow("Blink animation", preferences.blinkEnabled) { update(preferences.copy(blinkEnabled = it)) }
-            ToggleSettingRow("Random glances", preferences.randomGlancesEnabled) { update(preferences.copy(randomGlancesEnabled = it)) }
+            ToggleSettingRow("Frequent blink", preferences.blinkEnabled) {
+                update(preferences.copy(blinkEnabled = it))
+            }
+            ToggleSettingRow("Expressions & glances", preferences.randomGlancesEnabled) {
+                update(preferences.copy(randomGlancesEnabled = it))
+            }
             if (preferences.randomGlancesEnabled) {
-                SelectorRow("Glance frequency", preferences.glanceFrequency.name.lowercase().replaceFirstChar { it.titlecase() }) {
+                SelectorRow(
+                    "Motion frequency",
+                    preferences.glanceFrequency.name.lowercase().replaceFirstChar { it.titlecase() }
+                ) {
                     val entries = GlyphGlanceFrequency.entries
                     val next = entries[(entries.indexOf(preferences.glanceFrequency) + 1) % entries.size]
                     update(preferences.copy(glanceFrequency = next))
                 }
             }
+            ToggleSettingRow("Reduce motion", preferences.reduceMotion) {
+                update(preferences.copy(reduceMotion = it))
+            }
 
             SectionGap()
-            Text("APP STATES", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("FOCUS MODE", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
-            ToggleSettingRow("Show app states briefly", preferences.showAppStates) { update(preferences.copy(showAppStates = it)) }
-            SelectorRow("State display duration", "${preferences.stateDurationSeconds}s") {
-                val values = listOf(2, 3, 4, 6)
-                val current = values.indexOf(preferences.stateDurationSeconds).takeIf { it >= 0 } ?: 1
-                update(preferences.copy(stateDurationSeconds = values[(current + 1) % values.size]))
-            }
-            ToggleSettingRow("Return to eyes", preferences.returnToEyes) { update(preferences.copy(returnToEyes = it)) }
-            SelectorRow("Reminder flash", "${preferences.reminderFlashSeconds}s") {
-                val values = listOf(2, 5, 10)
-                val current = values.indexOf(preferences.reminderFlashSeconds).takeIf { it >= 0 } ?: 1
-                update(preferences.copy(reminderFlashSeconds = values[(current + 1) % values.size]))
-            }
-            SelectorRow("Focus animation", if (preferences.focusStyle == GlyphFocusStyle.SUBTLE) "Subtle" else "Active") {
-                update(preferences.copy(focusStyle = if (preferences.focusStyle == GlyphFocusStyle.SUBTLE) GlyphFocusStyle.ACTIVE else GlyphFocusStyle.SUBTLE))
-            }
-            ToggleSettingRow("Rest animation", preferences.restAnimation) { update(preferences.copy(restAnimation = it)) }
+            InfoRow("Progress ring", "Automatic")
+            Text(
+                "For 25 / 5, 50 / 10 and custom focus cycles, pixels fill around the eyes one by one. Focus runs clockwise; break restarts in the opposite direction while the eye animations keep going.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             SectionGap()
-            Text("BEHAVIOR", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("NIGHT", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
-            ToggleSettingRow("Quiet hours", preferences.quietHoursEnabled) { update(preferences.copy(quietHoursEnabled = it)) }
+            ToggleSettingRow("Quiet hours", preferences.quietHoursEnabled) {
+                update(preferences.copy(quietHoursEnabled = it))
+            }
             if (preferences.quietHoursEnabled) {
                 SelectorRow("Quiet starts", preferences.quietStart.toString()) {
                     TimePickerDialog(
@@ -629,30 +655,27 @@ private fun GlyphSettingsSheet(
                     ).show()
                 }
             }
-            ToggleSettingRow("Dim at night", preferences.dimAtNight) { update(preferences.copy(dimAtNight = it)) }
-            ToggleSettingRow("Reduce motion", preferences.reduceMotion) { update(preferences.copy(reduceMotion = it)) }
+            ToggleSettingRow("Dim during quiet hours", preferences.dimAtNight) {
+                update(preferences.copy(dimAtNight = it))
+            }
 
             SectionGap()
-            Text("TEST GLYPH", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("PREVIEW EXPRESSIONS", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(10.dp))
             val tests = listOf(
                 "CENTER" to DaylineGlyphSignal.CENTER,
-                "BLINK" to DaylineGlyphSignal.BLINK,
                 "LEFT" to DaylineGlyphSignal.LOOK_LEFT,
                 "RIGHT" to DaylineGlyphSignal.LOOK_RIGHT,
                 "HAPPY" to DaylineGlyphSignal.HAPPY,
-                "SLEEPY" to DaylineGlyphSignal.SLEEPY,
-                "NEXT" to DaylineGlyphSignal.NEXT_EVENT,
-                "FOCUS" to DaylineGlyphSignal.FOCUS,
-                "REST" to DaylineGlyphSignal.REST,
-                "DONE" to DaylineGlyphSignal.TASK_DONE,
-                "REMINDER" to DaylineGlyphSignal.REMINDER_SOON,
-                "CONFLICT" to DaylineGlyphSignal.CONFLICT,
-                "FREE NOW" to DaylineGlyphSignal.FREE_NOW,
-                "DAY OPEN" to DaylineGlyphSignal.DAY_OPEN,
-                "NO PLANS" to DaylineGlyphSignal.NO_PLANS,
-                "GO" to DaylineGlyphSignal.GO,
-                "MISSED" to DaylineGlyphSignal.MISSED
+                "WINK" to DaylineGlyphSignal.WINK,
+                "CURIOUS" to DaylineGlyphSignal.CURIOUS,
+                "PLAYFUL" to DaylineGlyphSignal.PLAYFUL,
+                "SURPRISED" to DaylineGlyphSignal.SURPRISED,
+                "SIDE EYE" to DaylineGlyphSignal.SIDE_EYE,
+                "EXCITED" to DaylineGlyphSignal.EXCITED,
+                "ROLLING" to DaylineGlyphSignal.ROLLING,
+                "HEARTS" to DaylineGlyphSignal.HEARTS,
+                "SLEEPY" to DaylineGlyphSignal.SLEEPY
             )
             tests.chunked(4).forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -673,7 +696,7 @@ private fun GlyphSettingsSheet(
 
             Spacer(Modifier.height(16.dp))
             Text(
-                "On Phone (4a) Pro, activate Dayline as the Always-on Glyph Toy after enabling it here. App-state signals are short; the eye loop resumes automatically.",
+                "Blink runs automatically and more often now. Sleepy is kept as a rare expression rather than a normal idle state.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -963,18 +986,10 @@ private fun nextSpace(current: String?, spaces: List<DaylineSpace>): String? {
 private fun spaceName(id: String?, spaces: List<DaylineSpace>): String =
     spaces.firstOrNull { it.id == id }?.name ?: "NONE"
 
-
 private fun glyphModeLabel(mode: GlyphMode): String = when (mode) {
     GlyphMode.OFF -> "Off"
-    GlyphMode.EYES_ONLY -> "Eyes only"
-    GlyphMode.EYES_AND_STATES -> "Eyes + app states"
-}
-
-private fun glyphIdleLabel(value: GlyphIdleExpression): String = when (value) {
-    GlyphIdleExpression.CENTER -> "Center"
-    GlyphIdleExpression.CURIOUS -> "Curious"
-    GlyphIdleExpression.SLEEPY -> "Sleepy"
-    GlyphIdleExpression.HAPPY -> "Happy"
+    GlyphMode.EYES_ONLY,
+    GlyphMode.EYES_AND_STATES -> "Eyes + focus"
 }
 
 private fun updateActionLabel(state: UpdateUiState): String = when (state.status) {

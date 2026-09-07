@@ -12,13 +12,6 @@ import android.provider.CalendarContract
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -606,163 +599,147 @@ fun DaylineApp() {
                     onDelete = ::deleteItem
                 )
             } else {
-                AnimatedContent(
-                    targetState = screen,
-                    transitionSpec = {
-                        when {
-                            initialState == DaylineScreen.TODAY && targetState == DaylineScreen.UPCOMING ->
-                                (slideInHorizontally(tween(300)) { it } + fadeIn(tween(180))) togetherWith
-                                    (slideOutHorizontally(tween(300)) { -it } + fadeOut(tween(160)))
-                            initialState == DaylineScreen.UPCOMING && targetState == DaylineScreen.TODAY ->
-                                (slideInHorizontally(tween(300)) { -it } + fadeIn(tween(180))) togetherWith
-                                    (slideOutHorizontally(tween(300)) { it } + fadeOut(tween(160)))
-                            else -> fadeIn(tween(160)) togetherWith fadeOut(tween(120))
+                when (screen) {
+                    DaylineScreen.TODAY -> TodayScreen(
+                        items = visibleItems,
+                        showOrb = showOrb,
+                        onMenu = { menuOpen = true },
+                        onAdd = { addRequest = AddRequest(it, AgendaKind.EVENT) },
+                        onAddAt = { date, time -> addRequest = AddRequest(date, AgendaKind.EVENT, time) },
+                        onEdit = { openItem(it, LocalDate.now()) },
+                        onToggleTask = ::toggleTask,
+                        onReschedule = { changeWithUndo(it, "Moved ${it.title} to ${it.startTime}", LocalDate.now()) },
+                        onResize = { changeWithUndo(it, "Resized ${it.title} to ${it.endTime}", LocalDate.now()) },
+                        onScheduleTask = { changeWithUndo(it, "Scheduled ${it.title} at ${it.startTime}", LocalDate.now()) },
+                        onSwipeUpcoming = {
+                            history = emptyList()
+                            taskDetail = null
+                            screen = DaylineScreen.UPCOMING
                         }
-                    },
-                    label = "Dayline screen"
-                ) { targetScreen ->
-                    when (targetScreen) {
-                        DaylineScreen.TODAY -> TodayScreen(
-                            items = visibleItems,
-                            showOrb = showOrb,
-                            onMenu = { menuOpen = true },
-                            onAdd = { addRequest = AddRequest(it, AgendaKind.EVENT) },
-                            onAddAt = { date, time -> addRequest = AddRequest(date, AgendaKind.EVENT, time) },
-                            onEdit = { openItem(it, LocalDate.now()) },
-                            onToggleTask = ::toggleTask,
-                            onReschedule = { changeWithUndo(it, "Moved ${it.title} to ${it.startTime}", LocalDate.now()) },
-                            onResize = { changeWithUndo(it, "Resized ${it.title} to ${it.endTime}", LocalDate.now()) },
-                            onScheduleTask = { changeWithUndo(it, "Scheduled ${it.title} at ${it.startTime}", LocalDate.now()) },
-                            onSwipeUpcoming = {
-                                history = emptyList()
-                                taskDetail = null
-                                screen = DaylineScreen.UPCOMING
+                    )
+                    DaylineScreen.CALENDAR -> CalendarScreen(
+                        items = visibleItems,
+                        weekStartsMonday = weekStartsMonday,
+                        onMenu = { menuOpen = true },
+                        onToday = ::goToday,
+                        onAdd = { addRequest = AddRequest(it, AgendaKind.EVENT) },
+                        onEdit = { item, date -> openItem(item, date) },
+                        onToggleTask = ::toggleTask
+                    )
+                    DaylineScreen.UPCOMING -> UpcomingScreen(
+                        items = visibleItems,
+                        spaces = spaces,
+                        onMenu = { menuOpen = true },
+                        onToday = ::goToday,
+                        onAdd = { addRequest = AddRequest(it, AgendaKind.EVENT) },
+                        onEdit = { item, date -> openItem(item, date) },
+                        onToggleTask = ::toggleTask,
+                        onSwipeToday = {
+                            history = emptyList()
+                            screen = DaylineScreen.TODAY
+                        }
+                    )
+                    DaylineScreen.TASKS -> TasksScreen(
+                        items = items,
+                        spaces = spaces,
+                        onMenu = { menuOpen = true },
+                        onToday = ::goToday,
+                        onAdd = { addRequest = AddRequest(it, AgendaKind.TASK) },
+                        onOpenTask = { taskDetail = it },
+                        onToggleTask = ::toggleTask
+                    )
+                    DaylineScreen.SEARCH -> SearchScreen(
+                        items = visibleItems,
+                        spaces = spaces,
+                        onMenu = { menuOpen = true },
+                        onToday = ::goToday,
+                        onOpen = { item, date -> openItem(item, date) }
+                    )
+                    DaylineScreen.SPACES -> SpacesScreen(
+                        spaces = spaces,
+                        items = items,
+                        onMenu = { menuOpen = true },
+                        onToday = ::goToday,
+                        onAdd = { newSpace = true },
+                        onSpace = { spaceEditing = it }
+                    )
+                    DaylineScreen.SETTINGS -> SettingsScreen(
+                        appearance = appearance,
+                        fontChoice = fontChoice,
+                        widgetFontChoice = widgetFontChoice,
+                        widgetEmojiChoice = widgetEmojiChoice,
+                        widgetAutoSlide = widgetAutoSlide,
+                        glyphPreferences = glyphPreferences,
+                        glyphHardwareStatus = glyphHardwareStatus,
+                        nowActivityEnabled = nowActivityEnabled,
+                        calendarSyncEnabled = calendarSyncEnabled,
+                        calendarPreferences = calendarPreferences,
+                        deviceCalendars = deviceCalendars,
+                        spaces = spaces,
+                        lastCalendarSyncAt = lastCalendarSyncAt,
+                        calendarSyncError = calendarSyncError,
+                        autoBetaUpdates = autoBetaUpdates,
+                        updateState = updateState,
+                        showOrb = showOrb,
+                        weekStartsMonday = weekStartsMonday,
+                        onAppearance = { appearance = it; store.saveAppearance(it) },
+                        onFontChoice = { fontChoice = it; store.saveFontChoice(it) },
+                        onWidgetFontChoice = { widgetFontChoice = it; store.saveWidgetFontChoice(it); updateWidgets() },
+                        onWidgetEmojiChoice = { widgetEmojiChoice = it; store.saveWidgetEmojiChoice(it); updateWidgets() },
+                        onWidgetAutoSlide = { widgetAutoSlide = it; store.saveWidgetAutoSlide(it); updateWidgets() },
+                        onGlyphPreferences = {
+                            glyphPreferences = it
+                            store.saveGlyphPreferences(it)
+                            if (!it.enabled) glyphRuntime.clear()
+                            glyphHardwareStatus = glyphController.status()
+                        },
+                        onGlyphTest = { signal ->
+                            if (signal == DaylineGlyphSignal.BLINK) glyphController.blinkPreview() else glyphController.preview(signal)
+                            glyphHardwareStatus = glyphController.status()
+                        },
+                        onOpenGlyphManager = {
+                            val opened = NothingGlyphBridge.openToyManager(appContext)
+                            if (!opened) scope.launch { snackbarHostState.showSnackbar("Open Settings › Glyph Interface › Flip to Glyph › Always-on Glyph Toy") }
+                        },
+                        onNowActivityEnabled = {
+                            nowActivityEnabled = it
+                            store.saveNowActivityEnabled(it)
+                            if (it && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                            ) notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            if (it) NowActivityScheduler.syncAll(appContext, items) else NowActivityScheduler.cancelAll(appContext, items)
+                        },
+                        onCalendarSyncEnabled = { enabled ->
+                            if (!enabled) {
+                                calendarSyncEnabled = false
+                                store.saveCalendarSyncEnabled(false)
+                                calendarItems = emptyList()
+                                updateWidgets()
+                            } else if (AndroidCalendarSync.hasPermissions(appContext)) {
+                                calendarSyncEnabled = true
+                                store.saveCalendarSyncEnabled(true)
+                                refreshCalendarOverlay()
+                            } else {
+                                calendarPermissionLauncher.launch(arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR))
                             }
-                        )
-                        DaylineScreen.CALENDAR -> CalendarScreen(
-                            items = visibleItems,
-                            weekStartsMonday = weekStartsMonday,
-                            onMenu = { menuOpen = true },
-                            onToday = ::goToday,
-                            onAdd = { addRequest = AddRequest(it, AgendaKind.EVENT) },
-                            onEdit = { item, date -> openItem(item, date) },
-                            onToggleTask = ::toggleTask
-                        )
-                        DaylineScreen.UPCOMING -> UpcomingScreen(
-                            items = visibleItems,
-                            spaces = spaces,
-                            onMenu = { menuOpen = true },
-                            onToday = ::goToday,
-                            onAdd = { addRequest = AddRequest(it, AgendaKind.EVENT) },
-                            onEdit = { item, date -> openItem(item, date) },
-                            onToggleTask = ::toggleTask,
-                            onSwipeToday = {
-                                history = emptyList()
-                                screen = DaylineScreen.TODAY
-                            }
-                        )
-                        DaylineScreen.TASKS -> TasksScreen(
-                            items = items,
-                            spaces = spaces,
-                            onMenu = { menuOpen = true },
-                            onToday = ::goToday,
-                            onAdd = { addRequest = AddRequest(it, AgendaKind.TASK) },
-                            onOpenTask = { taskDetail = it },
-                            onToggleTask = ::toggleTask
-                        )
-                        DaylineScreen.SEARCH -> SearchScreen(
-                            items = visibleItems,
-                            spaces = spaces,
-                            onMenu = { menuOpen = true },
-                            onToday = ::goToday,
-                            onOpen = { item, date -> openItem(item, date) }
-                        )
-                        DaylineScreen.SPACES -> SpacesScreen(
-                            spaces = spaces,
-                            items = items,
-                            onMenu = { menuOpen = true },
-                            onToday = ::goToday,
-                            onAdd = { newSpace = true },
-                            onSpace = { spaceEditing = it }
-                        )
-                        DaylineScreen.SETTINGS -> SettingsScreen(
-                            appearance = appearance,
-                            fontChoice = fontChoice,
-                            widgetFontChoice = widgetFontChoice,
-                            widgetEmojiChoice = widgetEmojiChoice,
-                            widgetAutoSlide = widgetAutoSlide,
-                            glyphPreferences = glyphPreferences,
-                            glyphHardwareStatus = glyphHardwareStatus,
-                            nowActivityEnabled = nowActivityEnabled,
-                            calendarSyncEnabled = calendarSyncEnabled,
-                            calendarPreferences = calendarPreferences,
-                            deviceCalendars = deviceCalendars,
-                            spaces = spaces,
-                            lastCalendarSyncAt = lastCalendarSyncAt,
-                            calendarSyncError = calendarSyncError,
-                            autoBetaUpdates = autoBetaUpdates,
-                            updateState = updateState,
-                            showOrb = showOrb,
-                            weekStartsMonday = weekStartsMonday,
-                            onAppearance = { appearance = it; store.saveAppearance(it) },
-                            onFontChoice = { fontChoice = it; store.saveFontChoice(it) },
-                            onWidgetFontChoice = { widgetFontChoice = it; store.saveWidgetFontChoice(it); updateWidgets() },
-                            onWidgetEmojiChoice = { widgetEmojiChoice = it; store.saveWidgetEmojiChoice(it); updateWidgets() },
-                            onWidgetAutoSlide = { widgetAutoSlide = it; store.saveWidgetAutoSlide(it); updateWidgets() },
-                            onGlyphPreferences = {
-                                glyphPreferences = it
-                                store.saveGlyphPreferences(it)
-                                if (!it.enabled) glyphRuntime.clear()
-                                glyphHardwareStatus = glyphController.status()
-                            },
-                            onGlyphTest = { signal ->
-                                if (signal == DaylineGlyphSignal.BLINK) glyphController.blinkPreview() else glyphController.preview(signal)
-                                glyphHardwareStatus = glyphController.status()
-                            },
-                            onOpenGlyphManager = {
-                                val opened = NothingGlyphBridge.openToyManager(appContext)
-                                if (!opened) scope.launch { snackbarHostState.showSnackbar("Open Settings › Glyph Interface › Flip to Glyph › Always-on Glyph Toy") }
-                            },
-                            onNowActivityEnabled = {
-                                nowActivityEnabled = it
-                                store.saveNowActivityEnabled(it)
-                                if (it && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                                    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-                                ) notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                                if (it) NowActivityScheduler.syncAll(appContext, items) else NowActivityScheduler.cancelAll(appContext, items)
-                            },
-                            onCalendarSyncEnabled = { enabled ->
-                                if (!enabled) {
-                                    calendarSyncEnabled = false
-                                    store.saveCalendarSyncEnabled(false)
-                                    calendarItems = emptyList()
-                                    updateWidgets()
-                                } else if (AndroidCalendarSync.hasPermissions(appContext)) {
-                                    calendarSyncEnabled = true
-                                    store.saveCalendarSyncEnabled(true)
-                                    refreshCalendarOverlay()
-                                } else {
-                                    calendarPermissionLauncher.launch(arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR))
-                                }
-                            },
-                            onCalendarPreferences = { calendarPreferences = it; store.saveCalendarPreferences(it); refreshCalendarOverlay() },
-                            onAutoBetaUpdates = {
-                                autoBetaUpdates = it
-                                store.saveAutoBetaUpdates(it)
-                                BetaUpdateScheduler.sync(appContext)
-                                if (it) checkForUpdates(false)
-                            },
-                            onCheckUpdates = { checkForUpdates(false) },
-                            onBackup = { backupLauncher.launch("dayline-backup.json") },
-                            onRestore = { restoreLauncher.launch(arrayOf("application/json", "text/plain")) },
-                            onExportIcs = { exportIcsLauncher.launch("dayline-calendar.ics") },
-                            onImportIcs = { importIcsLauncher.launch(arrayOf("text/calendar", "text/plain", "text/*")) },
-                            onShowOrb = { showOrb = it; store.saveShowOrb(it) },
-                            onWeekStart = { weekStartsMonday = it; store.saveWeekStartsMonday(it) },
-                            onMenu = { menuOpen = true },
-                            onToday = ::goToday
-                        )
-                    }
+                        },
+                        onCalendarPreferences = { calendarPreferences = it; store.saveCalendarPreferences(it); refreshCalendarOverlay() },
+                        onAutoBetaUpdates = {
+                            autoBetaUpdates = it
+                            store.saveAutoBetaUpdates(it)
+                            BetaUpdateScheduler.sync(appContext)
+                            if (it) checkForUpdates(false)
+                        },
+                        onCheckUpdates = { checkForUpdates(false) },
+                        onBackup = { backupLauncher.launch("dayline-backup.json") },
+                        onRestore = { restoreLauncher.launch(arrayOf("application/json", "text/plain")) },
+                        onExportIcs = { exportIcsLauncher.launch("dayline-calendar.ics") },
+                        onImportIcs = { importIcsLauncher.launch(arrayOf("text/calendar", "text/plain", "text/*")) },
+                        onShowOrb = { showOrb = it; store.saveShowOrb(it) },
+                        onWeekStart = { weekStartsMonday = it; store.saveWeekStartsMonday(it) },
+                        onMenu = { menuOpen = true },
+                        onToday = ::goToday
+                    )
                 }
             }
 

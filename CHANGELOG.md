@@ -4,8 +4,9 @@
 
 - Removed Curious, Playful, Surprised, Side-eye, Excited and Rolling from the live eye loop and Settings preview.
 - Rebalanced idle behavior around Center, left/right glances, Happy, Wink, Hearts, Squint and rare Sleepy expressions.
-- Made Look left/right always transition through **Center** before another expression or blink begins.
-- Added a dedicated ~500 ms center-recovery beat after side glances.
+- Made **every non-center Glyph animation** transition through Center before another animation can begin: `CENTER → animation → CENTER → next animation`.
+- Applied the same Center recovery rule to Blink so expressions and blinks never visually blend together.
+- Added a dedicated ~500 ms center-recovery beat between animations.
 - Reworked Hearts into smaller, cleaner heart-eye patterns.
 - Rebuilt Focus progress as a circular perimeter around the face with a faint full outline and brighter completed pixels.
 - Focus advances clockwise; break advances in reverse while the eyes keep animating.

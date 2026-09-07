@@ -125,7 +125,7 @@ fun DayTimeline(
                     onCreateAt = onCreateAt
                 )
             } else {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(10.dp))
             }
 
             val eventEnd = item.endTime
@@ -141,7 +141,7 @@ fun DayTimeline(
                 )
             ) {
                 CurrentTimeMarker(now, onCurrentTimeTap)
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(10.dp))
                 nowPlaced = true
             }
 
@@ -168,7 +168,7 @@ fun DayTimeline(
             !nowPlaced &&
             !now.isBefore(previousEnd)
         ) {
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
             CurrentTimeMarker(now, onCurrentTimeTap)
         }
 
@@ -182,15 +182,15 @@ fun DayTimeline(
         }
 
         if (anytime.isNotEmpty()) {
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(24.dp))
             Text(
                 "ANYTIME",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
 
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 anytime.forEach { item ->
                     AnytimeItem(
                         item = item,
@@ -229,7 +229,6 @@ private fun TimelineItem(
     val end = item.endTime?.takeIf { it.isAfter(start) } ?: start.plusHours(1)
     val completed = item.kind == AgendaKind.TASK && item.isCompletedOn(date)
     val accent = item.color.composeColor()
-    val height = durationToHeight(start, end)
     val density = LocalDensity.current
     val haptics = LocalHapticFeedback.current
     val pixelsPer15Minutes = with(density) { 18.dp.toPx() }
@@ -268,6 +267,9 @@ private fun TimelineItem(
         shiftEnd(item, resizeStep * 15).endTime ?: end
     } else end
 
+    val displayEnd = if (resizing) resizedEnd else previewEnd
+    val displayHeight = durationToHeight(previewStart, displayEnd)
+
     Column {
         if (item.bufferBeforeMinutes > 0) {
             Text(
@@ -286,69 +288,7 @@ private fun TimelineItem(
                         y = if (dragging) dragOffsetPx.roundToInt() else 0
                     )
                 }
-                .zIndex(if (dragging || resizing) 2f else 0f)
-                .pointerInput(item.id, item.startTime, item.endTime, item.calendarReadOnly) {
-                    if (item.calendarReadOnly) return@pointerInput
-
-                    // Keep gesture-local values inside the pointerInput coroutine.
-                    // A derived Compose value such as dragStep can be stale when
-                    // onDragEnd runs because this pointerInput block stays alive
-                    // across recompositions.
-                    var gestureOffsetPx = 0f
-                    var gestureStep = 0
-
-                    detectDragGesturesAfterLongPress(
-                        onDragStart = {
-                            gestureOffsetPx = 0f
-                            gestureStep = 0
-                            dragging = true
-                            dragOffsetPx = 0f
-                            lastDragStep = 0
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        },
-                        onDragCancel = {
-                            gestureOffsetPx = 0f
-                            gestureStep = 0
-                            dragging = false
-                            dragOffsetPx = 0f
-                        },
-                        onDragEnd = {
-                            val commitStep = gestureStep
-                            dragging = false
-                            dragOffsetPx = 0f
-
-                            if (commitStep != 0) {
-                                onReschedule(
-                                    shiftItem(
-                                        item,
-                                        commitStep * 15
-                                    )
-                                )
-                            }
-                        }
-                    ) { change, dragAmount ->
-                        change.consume()
-
-                        gestureOffsetPx += dragAmount.y
-                        gestureStep =
-                            (gestureOffsetPx / pixelsPer15Minutes).roundToInt()
-
-                        dragOffsetPx = gestureOffsetPx
-
-                        if (gestureStep != lastDragStep) {
-                            lastDragStep = gestureStep
-                            haptics.performHapticFeedback(
-                                HapticFeedbackType.SegmentFrequentTick
-                            )
-                        }
-                    }
-                }
-                .clickable(
-                    enabled = !dragging,
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = { onEdit(item) }
-                ),
+                .zIndex(if (dragging || resizing) 2f else 0f),
             verticalAlignment = Alignment.Top
         ) {
             Column(modifier = Modifier.width(58.dp)) {
@@ -357,9 +297,9 @@ private fun TimelineItem(
                     style = MaterialTheme.typography.labelMedium,
                     color = if (dragging || resizing) accent else MaterialTheme.colorScheme.onBackground
                 )
-                Spacer(Modifier.height((height - 30.dp).coerceAtLeast(4.dp)))
+                Spacer(Modifier.height((displayHeight - 30.dp).coerceAtLeast(4.dp)))
                 Text(
-                    resizedEnd.format(DateTimeFormatter.ofPattern("HH:mm")),
+                    displayEnd.format(DateTimeFormatter.ofPattern("HH:mm")),
                     style = MaterialTheme.typography.labelMedium,
                     color = if (resizing) accent else MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -369,63 +309,125 @@ private fun TimelineItem(
                 modifier = Modifier
                     .padding(top = 2.dp, end = 14.dp)
                     .width(if (dragging || resizing) 6.dp else 4.dp)
-                    .height(height)
+                    .height(displayHeight)
                     .background(accent.copy(alpha = railAlpha), RoundedCornerShape(99.dp))
             )
 
-            Column(modifier = Modifier.padding(top = 1.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        item.title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        textDecoration = if (completed) TextDecoration.LineThrough else TextDecoration.None
-                    )
-                    if (conflict) {
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "!",
-                            modifier = Modifier
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = onConflict
-                                )
-                                .padding(horizontal = 5.dp, vertical = 2.dp),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                    if (item.kind == AgendaKind.TASK) {
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            if (completed) "✓" else "○",
-                            modifier = Modifier.clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) { onToggleTask(item, date) },
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    }
-                }
+            Column(modifier = Modifier.weight(1f).padding(top = 1.dp)) {
+                // Move gestures live only on the event content. The resize handle
+                // below is a sibling, not a child of this gesture target, so a hold
+                // on the bottom handle can never accidentally move the start time.
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .pointerInput(item.id, item.startTime, item.endTime, item.calendarReadOnly) {
+                            if (item.calendarReadOnly) return@pointerInput
 
-                Spacer(Modifier.height(3.dp))
-                Text(
-                    timelineMeta(item, start, end, date, now, conflict),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (conflict) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                            var gestureOffsetPx = 0f
+                            var gestureStep = 0
+
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = {
+                                    gestureOffsetPx = 0f
+                                    gestureStep = 0
+                                    dragging = true
+                                    dragOffsetPx = 0f
+                                    lastDragStep = 0
+                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                },
+                                onDragCancel = {
+                                    gestureOffsetPx = 0f
+                                    gestureStep = 0
+                                    dragging = false
+                                    dragOffsetPx = 0f
+                                },
+                                onDragEnd = {
+                                    val commitStep = gestureStep
+                                    dragging = false
+                                    dragOffsetPx = 0f
+
+                                    if (commitStep != 0) {
+                                        onReschedule(shiftItem(item, commitStep * 15))
+                                    }
+                                }
+                            ) { change, dragAmount ->
+                                change.consume()
+                                gestureOffsetPx += dragAmount.y
+                                gestureStep = (gestureOffsetPx / pixelsPer15Minutes).roundToInt()
+                                dragOffsetPx = gestureOffsetPx
+
+                                if (gestureStep != lastDragStep) {
+                                    lastDragStep = gestureStep
+                                    haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+                                }
+                            }
+                        }
+                        .clickable(
+                            enabled = !dragging && !resizing,
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { onEdit(item) }
+                        )
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            item.title,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            textDecoration = if (completed) TextDecoration.LineThrough else TextDecoration.None
+                        )
+                        if (conflict) {
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "!",
+                                modifier = Modifier
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                        onClick = onConflict
+                                    )
+                                    .padding(horizontal = 5.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        if (item.kind == AgendaKind.TASK) {
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                if (completed) "✓" else "○",
+                                modifier = Modifier.clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) { onToggleTask(item, date) },
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        timelineMeta(item, previewStart, displayEnd, date, now, conflict),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (conflict) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
                 if (!item.calendarReadOnly) {
                     Spacer(Modifier.height(9.dp))
+                    if (resizing) {
+                        Text(
+                            "END ${resizedEnd.format(DateTimeFormatter.ofPattern("HH:mm"))}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = accent
+                        )
+                        Spacer(Modifier.height(2.dp))
+                    }
                     Box(
                         modifier = Modifier
-                            .width(64.dp)
-                            .height(28.dp)
+                            .width(96.dp)
+                            .height(34.dp)
                             .pointerInput(item.id, item.endTime) {
-                                // The handle responds immediately, but commit from gesture-local
-                                // state so the final 15-minute step cannot be lost to recomposition.
                                 var gestureOffsetPx = 0f
                                 var gestureStep = 0
 
@@ -455,24 +457,25 @@ private fun TimelineItem(
                                 ) { change, amount ->
                                     change.consume()
                                     gestureOffsetPx += amount.y
-                                    gestureStep =
-                                        (gestureOffsetPx / pixelsPer15Minutes).roundToInt()
+                                    gestureStep = (gestureOffsetPx / pixelsPer15Minutes).roundToInt()
                                     resizeOffsetPx = gestureOffsetPx
                                     if (gestureStep != lastResizeStep) {
                                         lastResizeStep = gestureStep
-                                        haptics.performHapticFeedback(
-                                            HapticFeedbackType.SegmentFrequentTick
-                                        )
+                                        haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
                                     }
                                 }
                             },
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.CenterStart
                     ) {
                         Box(
                             Modifier
-                                .width(38.dp)
-                                .height(3.dp)
-                                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f), CircleShape)
+                                .width(46.dp)
+                                .height(4.dp)
+                                .background(
+                                    if (resizing) accent
+                                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.34f),
+                                    CircleShape
+                                )
                         )
                     }
                 }
@@ -498,7 +501,7 @@ private fun TimelineGap(
     onCreateAt: (LocalDate, LocalTime) -> Unit
 ) {
     val total = Duration.between(from, to).toMinutes().coerceAtLeast(15L)
-    val height = (total / 15L * 5L).coerceIn(16L, 52L).toInt().dp
+    val height = (total / 15L * 5L).coerceIn(18L, 56L).toInt().dp
 
     Box(
         modifier = Modifier
@@ -529,7 +532,7 @@ private fun EmptyDayRail(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(180.dp)
+            .height(190.dp)
             .pointerInput(date) {
                 detectTapGestures { offset ->
                     val fraction = if (size.height == 0) 0f else (offset.y / size.height).coerceIn(0f, 1f)
@@ -549,7 +552,7 @@ private fun EmptyDayRail(
             Text(
                 now.format(DateTimeFormatter.ofPattern("HH:mm")),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.align(Alignment.CenterStart)
             )
         }
@@ -569,27 +572,27 @@ private fun CurrentTimeMarker(now: LocalTime, onClick: () -> Unit) {
                 haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
                 onClick()
             }
-            .padding(vertical = 5.dp),
+            .padding(vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             now.format(DateTimeFormatter.ofPattern("HH:mm")),
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary,
+            color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.width(58.dp)
         )
         Box(
             Modifier
-                .width(6.dp)
-                .height(6.dp)
-                .background(MaterialTheme.colorScheme.primary, CircleShape)
+                .width(7.dp)
+                .height(7.dp)
+                .background(MaterialTheme.colorScheme.onBackground, CircleShape)
         )
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(9.dp))
         Box(
             Modifier
                 .fillMaxWidth()
                 .height(1.dp)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
+                .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.28f))
         )
     }
 }
@@ -684,9 +687,7 @@ private fun AnytimeItem(
                         dragging = true
                         drag = 0f
                         lastStep = 0
-                        haptics.performHapticFeedback(
-                            HapticFeedbackType.LongPress
-                        )
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     },
                     onDragCancel = {
                         gestureOffsetPx = 0f
@@ -698,11 +699,7 @@ private fun AnytimeItem(
                         val targetTime = LocalTime.of(9, 0)
                             .plusMinutes((gestureStep * 15).toLong())
                             .let {
-                                if (it.isBefore(LocalTime.of(0, 15))) {
-                                    LocalTime.of(0, 15)
-                                } else {
-                                    it
-                                }
+                                if (it.isBefore(LocalTime.of(0, 15))) LocalTime.of(0, 15) else it
                             }
 
                         val scheduled = item.copy(
@@ -716,17 +713,13 @@ private fun AnytimeItem(
                     }
                 ) { change, amount ->
                     change.consume()
-
                     gestureOffsetPx += amount.y
-                    gestureStep =
-                        (gestureOffsetPx / pixelsPer15).roundToInt()
+                    gestureStep = (gestureOffsetPx / pixelsPer15).roundToInt()
                     drag = gestureOffsetPx
 
                     if (gestureStep != lastStep) {
                         lastStep = gestureStep
-                        haptics.performHapticFeedback(
-                            HapticFeedbackType.SegmentFrequentTick
-                        )
+                        haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
                     }
                 }
             }
@@ -801,7 +794,7 @@ private fun shiftEnd(item: DaylineItem, deltaMinutes: Int): DaylineItem {
 }
 
 private fun durationToHeight(start: LocalTime, end: LocalTime): Dp {
-    val minutes = Duration.between(start, end).toMinutes().coerceAtLeast(30)
+    val minutes = Duration.between(start, end).toMinutes().coerceAtLeast(15)
     val value = 42 + (minutes.coerceAtMost(360) / 60.0 * 12.0).roundToInt()
     return value.dp.coerceIn(46.dp, 114.dp)
 }
@@ -814,7 +807,7 @@ private fun timelineMeta(
     now: LocalTime,
     conflict: Boolean
 ): String = buildList {
-    val minutes = Duration.between(start, end).toMinutes()
+    val minutes = Duration.between(start, end).toMinutes().coerceAtLeast(15)
     add(if (minutes % 60L == 0L) "${minutes / 60}h" else "${minutes / 60}h ${minutes % 60}m")
 
     if (date == LocalDate.now() && !now.isBefore(start) && now.isBefore(end)) {

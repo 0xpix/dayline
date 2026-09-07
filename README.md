@@ -4,22 +4,25 @@
 
 Dayline is an open-source Android calendar and planner built with Kotlin, Jetpack Compose, Material 3 and Glance. It is local-first, deliberately minimal, and designed around **Today** instead of a dashboard.
 
-Current milestone: **v0.14.0.beta · Dayline Glyph beta**
+Current milestone: **v0.14.3.beta · Glyph Eyes + Focus polish**
 
-## What v0.14.0.beta adds
+## What v0.14.3.beta adds
 
-Dayline Glyph turns the Phone (4a) Pro's 13×13 Glyph Matrix into a calm, eyes-first companion for the calendar:
+Dayline Glyph turns the Nothing Phone (4a) Pro's 13×13 Glyph Matrix into an eyes-first companion for the calendar.
 
-- Three modes: **Off**, **Eyes only**, and **Eyes + app states**.
-- Solid dot-matrix eyes with Center, Look left/right, Blink, Wink, Happy, Sleepy, Curious and other expressions.
-- Natural eye loop with a fast **center → blink → center** animation and optional random glances.
-- Brief Dayline signals for **Next event, Reminder soon, Focus, Rest, Task done, Conflict, Free now / Day open, Event start/end, Moved, Sync and Go**.
-- Eyes remain dominant: derived app states interrupt the face only briefly, then the eye loop resumes.
-- Focus can use a subtle or active pulse; Rest can be disabled independently.
-- Quiet hours, night dimming and reduced-motion controls.
-- A live 13×13 in-app preview plus hardware test buttons for the main expressions and states.
-- Persistent Glyph settings are included in Dayline's existing JSON backup/restore.
-- A Phone (4a) Pro AOD Glyph Toy service for the GitHub beta flavor, with a direct shortcut to Nothing's Glyph Toys manager.
+- The Glyph now stays focused on **expressive eyes + Focus Mode**. Automatic calendar/app-state symbols no longer interrupt the face.
+- Large solid dot-matrix eyes with **Center, Look left/right, Blink, Wink, Happy, Hearts, Squint and Sleepy**.
+- **Look left/right always return through Center** before another expression starts, so transitions do not jump awkwardly.
+- More frequent natural blinking, more Happy, and much rarer Sleepy behavior.
+- Removed the weaker Curious, Playful, Surprised, Side-eye, Excited and Rolling expressions from the live loop and Settings preview.
+- Reworked Hearts into a smaller, cleaner heart-eye pattern.
+- Focus cycles keep the eyes alive while a **circular pixel progress path** fills around them for **25/5, 50/10 and custom** focus cycles.
+- Focus progresses clockwise; break progresses in reverse.
+- The focus perimeter stays faintly visible so early progress reads as a circle instead of a stray line.
+- Glyph brightness now maps Dayline's simple 0–100% control to the higher raw intensity range used by Nothing's official `IntArray` Matrix examples.
+- Stable frame delivery suppresses duplicate frames to reduce visible twitching/flicker.
+- Simplified Glyph settings: enable, hardware, brightness, blink, expressions/glances, motion frequency, Focus behavior, quiet hours and a compact expression preview.
+- A Phone (4a) Pro AOD Glyph Toy service remains available in the GitHub beta flavor, with a shortcut to Nothing's Glyph Toys manager.
 
 The larger v0.12/v0.13 feature set remains intact: calendar controls, recurrence scopes, timeline manipulation, focus cycles, tasks, templates, backup/ICS, widget configuration, GitHub beta updates and Play separation.
 
@@ -29,13 +32,14 @@ The open-source repository does **not** contain Nothing's proprietary Glyph Matr
 
 On Phone (4a) Pro, after installing the beta:
 
-1. Open Dayline → **Settings → Glyph → Dayline Glyph** and choose **Eyes only** or **Eyes + states**.
-2. Tap **ACTIVATE IN NOTHING SETTINGS**.
-3. Select **Dayline Eyes** under **Settings → Glyph Interface → Flip to Glyph → Always-on Glyph Toy**.
+1. Open Dayline → **Settings → Glyph → Dayline Glyph**.
+2. Enable **Dayline Glyph** and adjust brightness/animation behavior if wanted.
+3. Tap **ACTIVATE IN NOTHING SETTINGS**.
+4. Select **Dayline Eyes** under **Settings → Glyph Interface → Flip to Glyph → Always-on Glyph Toy**.
 
 ## Distribution channels
 
-- **Dayline β (`com.pix.dayline.beta`)** — GitHub beta APK with the public GitHub updater and the optional Nothing Glyph Matrix integration.
+- **Dayline β (`com.pix.dayline.beta`)** — GitHub beta APK with the public GitHub updater and Nothing Glyph Matrix integration.
 - **Dayline (`com.pix.dayline`)** — Play flavor with no GitHub updater permissions and no proprietary Glyph Matrix SDK in this beta milestone.
 
 Only the beta flavor requests `INTERNET`, `REQUEST_INSTALL_PACKAGES`, and Nothing's `com.nothing.ketchum.permission.ENABLE`. The Play flavor does not receive those permissions.
@@ -56,7 +60,7 @@ Requirements: JDK 17, Gradle 9.4.1, Android SDK API 37 and Build Tools 36.0.0.
 gradle :app:assembleBetaDebug :app:assemblePlayDebug --no-daemon
 ```
 
-GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.14.0.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
+GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.14.3.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
 
 ## Google Play build
 

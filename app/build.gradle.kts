@@ -26,10 +26,10 @@ android {
             dimension = "distribution"
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
-            // v0.16.1.beta: navigation + updater presentation polish.
-            // Swipe navigation stays, while page swaps are intentionally instant.
-            versionCode = 1601
-            versionName = "0.16.1"
+            // v0.17.0.beta: Flow — Today free gaps, interaction polish,
+            // all-day planning, smarter fitting/search and beta diagnostics.
+            versionCode = 1700
+            versionName = "0.17.0"
             // Nothing's Glyph Matrix SDK 2.0 declares minSdk 33. Keep this
             // requirement isolated to the beta/Glyph build so the normal Play
             // build continues to support Dayline's global minSdk 26.
@@ -58,12 +58,7 @@ android {
     val releaseStorePassword = System.getenv("DAYLINE_KEYSTORE_PASSWORD")
     val releaseKeyAlias = System.getenv("DAYLINE_KEY_ALIAS")
     val releaseKeyPassword = System.getenv("DAYLINE_KEY_PASSWORD")
-    val hasReleaseSigning = listOf(
-        releaseStorePath,
-        releaseStorePassword,
-        releaseKeyAlias,
-        releaseKeyPassword
-    ).all { !it.isNullOrBlank() }
+    val hasReleaseSigning = listOf(releaseStorePath, releaseStorePassword, releaseKeyAlias, releaseKeyPassword).all { !it.isNullOrBlank() }
 
     signingConfigs {
         if (hasReleaseSigning) {
@@ -80,9 +75,7 @@ android {
         getByName("release") {
             isMinifyEnabled = false
             isShrinkResources = false
-            if (hasReleaseSigning) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+            if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
         }
     }
 }
@@ -90,9 +83,7 @@ android {
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2026.08.00")
     val glyphMatrixSdk = file("libs/glyph-matrix-sdk-2.0.aar")
-    if (glyphMatrixSdk.exists()) {
-        add("betaImplementation", files(glyphMatrixSdk))
-    }
+    if (glyphMatrixSdk.exists()) add("betaImplementation", files(glyphMatrixSdk))
     implementation(composeBom)
 
     implementation("androidx.core:core-ktx:1.18.0")
@@ -106,5 +97,6 @@ dependencies {
     implementation("androidx.glance:glance-appwidget:1.2.0")
     implementation("androidx.glance:glance-material3:1.2.0")
 
+    testImplementation("junit:junit:4.13.2")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

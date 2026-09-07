@@ -568,6 +568,38 @@ private fun parseUpdateNotes(raw: String): List<UpdateNoteSection> {
     return listOf(UpdateNoteSection("Changed", fallback.ifEmpty { listOf("Bug fixes and Dayline polish.") }))
 }
 
+@Composable
+private fun UpdateNoteSectionCard(section: UpdateNoteSection) {
+    Column(
+        Modifier.fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.34f),
+                shape = MaterialTheme.shapes.large
+            )
+            .padding(horizontal = 18.dp, vertical = 16.dp)
+    ) {
+        Text(
+            section.title.uppercase(),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(Modifier.height(12.dp))
+        section.items.forEachIndexed { index, item ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Text("•", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    item,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
+            if (index != section.items.lastIndex) Spacer(Modifier.height(9.dp))
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun UpdateSheet(release: BetaRelease, onDismiss: () -> Unit) {
@@ -597,20 +629,12 @@ private fun UpdateSheet(release: BetaRelease, onDismiss: () -> Unit) {
             }
             Spacer(Modifier.height(26.dp))
             Text("What's new", style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(16.dp))
             sections.forEachIndexed { index, section ->
-                Text(section.title.uppercase(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(8.dp))
-                section.items.forEach { item ->
-                    Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.Top) {
-                        Text("•", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.width(10.dp))
-                        Text(item, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onBackground)
-                    }
-                }
-                if (index != sections.lastIndex) Spacer(Modifier.height(10.dp))
+                UpdateNoteSectionCard(section)
+                if (index != sections.lastIndex) Spacer(Modifier.height(14.dp))
             }
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(24.dp))
             val actionLabel = when {
                 release.apkUrl.isNullOrBlank() -> "View release"
                 downloading -> "Downloading…"

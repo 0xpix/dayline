@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.14.7.beta — Focus time announcements
+
+- Removed the persistent Focus timer layout from the Glyph Matrix; Focus and Rest now keep the normal large expressive eyes most of the time.
+- Added temporary **30-second `MM:SS` announcements** that replace the eyes completely instead of mixing timing UI with the face.
+- Added clean timing transitions: `eyes → CENTER → time → CENTER → eyes`.
+- Implemented Option B checkpoint timing for every Focus/Rest phase: announce the **phase start**, then every **5-minute remaining checkpoint**, then **1:00 remaining**.
+- 25/5 Focus now announces 25:00, 20:00, 15:00, 10:00, 05:00 and 01:00; Rest announces 05:00 and 01:00.
+- 50/10 and custom Focus cycles derive the same checkpoints automatically.
+- The 30-second announcement is a live countdown, so `20:00` continues toward `19:31` before the eyes return.
+- Paused sessions keep the remaining time frozen while an announcement is visible.
+- Normal expression animation remains unchanged outside announcement windows, including the existing `CENTER → expression → CENTER` contract.
+- Bumped beta versionCode to **1407** and beta versionName to `0.14.7.beta`.
+
 ## 0.14.6.beta — Focus timer Glyph
 
 - Replaced the Focus progress ring with a dedicated **top eyes + bottom `MM:SS` timer** layout on the 13×13 Glyph Matrix.

@@ -4,25 +4,39 @@
 
 Dayline is an open-source Android calendar and planner built with Kotlin, Jetpack Compose, Material 3 and Glance. It is local-first, deliberately minimal, and designed around **Today** instead of a dashboard.
 
-Current milestone: **v0.16.1.beta · Navigation + updater polish**
+Current milestone: **v0.17.0.beta · Flow**
 
-## What v0.16.1.beta changes
+## What v0.17.0.beta adds
 
 ### Added
 
-- Clearly separated **Added / Changed / Fixed** cards in the in-app update sheet so each release section is easy to scan.
+- **Free gaps directly on Today**, with quick actions to add an event, schedule a task or start a Focus block.
+- A dedicated **ALL DAY** strip above the timed timeline.
+- Task scheduling windows with optional **Earliest date**, **Deadline** and persistent duration estimates.
+- **Quick Move v2** with before/after-block, tomorrow morning, tomorrow afternoon and next-free-slot choices.
+- Conflict resolution actions that show overlap duration and offer a real free slot instead of only warning about the clash.
+- Local Search commands for **this week**, **next week**, weekdays and queries such as `free Friday afternoon`.
+- Expanded hidden beta diagnostics with widget refresh time, next reminder, Focus state and local Glyph transport counters.
+- Recurrence/planning unit tests in CI, including monthly 31st behavior, exclusions, all-day planning and deadline-aware task fitting.
 
 ### Changed
 
-- Removed the global page slide/fade transition. Main pages now switch instantly instead of animating the entire screen.
-- Kept **swipe left on Today → Upcoming** and **swipe right on Upcoming → Today** as fast gesture shortcuts, without the distracting page animation.
+- Today drag/resize now snaps in **5-minute** steps, gives a stronger beat every 15 minutes, uses a much larger invisible resize target and shows a floating move/end-time preview.
+- Today opens near the useful part of the day, fades past events gently and auto-scrolls while an event is dragged near the timeline edge.
+- Month view has clearer selection, calmer weekend treatment and a compact busy-day overflow mark.
+- Day Preview separates **ALL DAY / AGENDA / FREE TIME** and adds a clear **OPEN DAY** action.
+- Fit into my day now respects a task's earliest/deadline window instead of always searching an unconditional seven days.
+- The beta updater now preserves the literal **Added / Changed / Fixed** headings from GitHub release notes and records APK size metadata.
+- Glyph reliability behavior itself is unchanged; v0.17 only instruments successful frames, disconnects, recoveries and send failures for diagnosis.
 
 ### Fixed
 
-- Fixed updater release notes visually reading like one long uninterrupted list.
-- Beta version is **1601 / `0.16.1.beta`**.
+- Fixed the real updater parsing path that was stripping Markdown section headings before the UI could render Added / Changed / Fixed as separate cards.
+- Monthly recurrence on the 29th/30th/31st no longer silently shifts into a shorter month's last day.
+- All-day entries no longer consume timed free-space calculations or create false overlap conflicts.
+- Beta identity is **1700 / `0.17.0.beta`**.
 
-The full v0.16 Planning milestone remains intact: Month view, Day preview, free-time detection, task duration, Fit into my day, event details, Quick Move, cleaner Upcoming and hidden beta diagnostics.
+The v0.16 Planning milestone remains intact: Month view, Day preview, free-time detection, task duration, Fit into my day, event details, Quick Move, cleaner Upcoming, swipe Today ↔ Upcoming and beta diagnostics.
 
 ## Nothing Glyph Matrix distribution
 
@@ -62,21 +76,21 @@ It must contain:
 ## Fixed
 ```
 
-The tagged release workflow refuses to publish a beta without those sections. The app parses those headings into three visually separate in-app cards, so the **Dayline update** sheet never has to display raw release Markdown or merge all changes into one long block.
+The tagged release workflow refuses to publish a beta without those sections. The beta updater preserves those headings and the app renders them as three visually separate cards.
 
 ## Privacy
 
-Dayline has no Dayline account, advertising SDK, analytics SDK or Dayline-operated cloud. Calendar access is optional and uses Android's Calendar Provider. GitHub beta update checks send an ordinary HTTPS request to GitHub's public release endpoint; Dayline calendar/task/focus data is not included. See [Privacy Policy](docs/privacy-policy.md) and [Data Safety Notes](docs/data-safety.md).
+Dayline has no Dayline account, advertising SDK, analytics SDK or Dayline-operated cloud. Calendar access is optional and uses Android's Calendar Provider. GitHub beta update checks send an ordinary HTTPS request to GitHub's public release endpoint; Dayline calendar/task/focus data is not included. Beta diagnostics and Glyph counters stay on-device unless you explicitly share the generated text report. See [Privacy Policy](docs/privacy-policy.md) and [Data Safety Notes](docs/data-safety.md).
 
 ## Build from source
 
 Requirements: JDK 17, Gradle 9.4.1, Android SDK API 37 and Build Tools 36.0.0.
 
 ```bash
-gradle :app:assembleBetaDebug :app:assemblePlayDebug --no-daemon
+gradle :app:testBetaDebugUnitTest :app:testPlayDebugUnitTest :app:assembleBetaDebug :app:assemblePlayDebug --no-daemon
 ```
 
-GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.16.1.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
+GitHub Actions runs planning/recurrence tests and compiles both debug flavors on `main`. Beta tags such as `v0.17.0.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
 
 Before publication, the tagged workflow verifies that the signed APK's embedded version matches the tag, that its Android `versionCode` follows Dayline's beta version convention, and that the updater-facing release notes contain Added / Changed / Fixed sections.
 

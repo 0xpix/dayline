@@ -4,33 +4,25 @@
 
 Dayline is an open-source Android calendar and planner built with Kotlin, Jetpack Compose, Material 3 and Glance. It is local-first, deliberately minimal, and designed around **Today** instead of a dashboard.
 
-Current milestone: **v0.16.0.beta · Planning**
+Current milestone: **v0.16.1.beta · Navigation + updater polish**
 
-## What v0.16.0.beta adds
+## What v0.16.1.beta changes
 
 ### Added
 
-- A redesigned **Month view** with compact multi-event day indicators and a tap-to-open **Day preview**.
-- Local **free-time detection** in day previews. Dayline merges busy blocks and shows useful gaps without sending calendar data anywhere.
-- Persistent **task duration estimates** and **Fit into my day** suggestions that place a task into matching free blocks over the next seven days.
-- A calmer **event detail sheet** with date/time/duration metadata and **Quick Move** actions for Later today, Tomorrow and Next free slot.
-- Hidden **Beta diagnostics**: in a GitHub beta, tap **Settings → About → Build** five times to inspect build, updater, Calendar sync and Glyph hardware status.
-- Gesture navigation between the two daily-flow screens: **swipe left on Today → Upcoming**, then **swipe right on Upcoming → Today**.
+- Clearly separated **Added / Changed / Fixed** cards in the in-app update sheet so each release section is easy to scan.
 
 ### Changed
 
-- Today ↔ Upcoming now uses a directional horizontal slide/fade animation so the navigation follows the swipe.
-- Upcoming keeps its date groups but moves the crowded permanent filter chips into one compact **Filter** sheet.
-- Month view is planning-first: tap a date to see events/tasks plus free blocks instead of permanently expanding an agenda below the grid.
-- Task scheduling uses a deterministic local planning engine with 15-minute alignment, buffers and overlap merging.
+- Removed the global page slide/fade transition. Main pages now switch instantly instead of animating the entire screen.
+- Kept **swipe left on Today → Upcoming** and **swipe right on Upcoming → Today** as fast gesture shortcuts, without the distracting page animation.
 
 ### Fixed
 
-- Quick Move on recurring events detaches only the selected occurrence instead of silently shifting the master series.
-- Scheduled tasks reserve their estimated duration when Dayline calculates free time and conflicts.
-- Beta version is **1600 / `0.16.0.beta`**.
+- Fixed updater release notes visually reading like one long uninterrupted list.
+- Beta version is **1601 / `0.16.1.beta`**.
 
-The v0.15 reliability work remains intact, including two-way Android Calendar reconciliation, recurrence scopes, Today resize behavior, updater presentation and conservative Glyph recovery.
+The full v0.16 Planning milestone remains intact: Month view, Day preview, free-time detection, task duration, Fit into my day, event details, Quick Move, cleaner Upcoming and hidden beta diagnostics.
 
 ## Nothing Glyph Matrix distribution
 
@@ -70,7 +62,7 @@ It must contain:
 ## Fixed
 ```
 
-The tagged release workflow refuses to publish a beta without those sections. The app parses those headings into clean in-app groups, so the **Dayline update** sheet never has to display raw release Markdown.
+The tagged release workflow refuses to publish a beta without those sections. The app parses those headings into three visually separate in-app cards, so the **Dayline update** sheet never has to display raw release Markdown or merge all changes into one long block.
 
 ## Privacy
 
@@ -84,7 +76,7 @@ Requirements: JDK 17, Gradle 9.4.1, Android SDK API 37 and Build Tools 36.0.0.
 gradle :app:assembleBetaDebug :app:assemblePlayDebug --no-daemon
 ```
 
-GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.16.0.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
+GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.16.1.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
 
 Before publication, the tagged workflow verifies that the signed APK's embedded version matches the tag, that its Android `versionCode` follows Dayline's beta version convention, and that the updater-facing release notes contain Added / Changed / Fixed sections.
 

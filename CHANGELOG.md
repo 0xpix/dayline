@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.15.3.beta — Glyph stability hotfix
+
+### Added
+- Added a conservative Glyph recovery watchdog that waits for Nothing's Matrix service to recover naturally before rebuilding the SDK binding.
+
+### Changed
+- Serialized Glyph SDK callback state changes onto the main looper to avoid binder-thread races with the animation renderer.
+- Replaced rapid 750 ms reconnect churn with a delayed recovery path that performs a clean `unInit → init` only after a sustained disconnect and backs off repeated attempts.
+- Suppressed duplicate unchanged frames inside the hardware bridge so the old 4-second recovery heartbeat no longer reaches the Matrix hardware.
+
+### Fixed
+- Fixed the regression where the v0.14.9 reconnect/heartbeat strategy could make eye animations and Focus timer frames freeze more often and for longer.
+- Fixed repeated SDK reinitialization while Nothing's proxy service was already trying to reconnect.
+- Bumped beta versionCode to **1503** and beta versionName to `0.15.3.beta`.
+
 ## 0.15.2.beta — Daily Flow release alignment
 
 ### Added

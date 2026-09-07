@@ -4,20 +4,23 @@
 
 Dayline is an open-source Android calendar and planner built with Kotlin, Jetpack Compose, Material 3 and Glance. It is local-first, deliberately minimal, and designed around **Today** instead of a dashboard.
 
-Current milestone: **v0.14.5.beta · Updater + Glyph preview fix**
+Current milestone: **v0.14.6.beta · Focus timer Glyph**
 
-## What v0.14.5.beta adds
+## What v0.14.6.beta adds
 
-- Fixed the GitHub beta updater so a release is only offered when it is newer by both **version name and Android versionCode**.
-- Same-code/older APKs are rejected before download with a clearer message instead of failing only after verification.
-- Added a tagged-release workflow guard that checks the signed APK's embedded `versionName` and `versionCode` against the beta tag before publishing.
-- Fixed the Glyph Settings preview so it uses **one clean circular surface** instead of a circle plus a visible square grid/background.
-- Unlit preview cells are no longer drawn as a dark square, so only the actual illuminated matrix pixels are visible.
-- The Settings preview now follows the same animation contract as the real Glyph: `CENTER → animation → CENTER` for every selected expression.
-- Strengthened the live CENTER recovery to about **700 ms** so `CENTER → Happy → CENTER → Squint → CENTER → Left → CENTER` is visually clear.
-- Existing Glyph behavior remains: approved expressions only, Focus as the only automatic Dayline overlay, circular focus progress, brighter raw Matrix output and duplicate-frame suppression.
+- Replaced the crowded circular Focus progress ring with a dedicated **top eyes + bottom time** layout on the Nothing Phone (4a) Pro 13×13 Glyph Matrix.
+- Normal idle mode keeps the existing large expressive 5×5 eyes unchanged.
+- During Focus/Rest, Dayline switches to smaller expressive eyes in the top rows and reserves the bottom five rows for a stable `MM:SS` countdown.
+- The timer and eye zones never overlap; rows between them are intentionally left empty for visual separation.
+- Focus mode reuses the same animation state machine as idle mode: `CENTER → expression → CENTER → next expression`.
+- Look Left and Look Right use the same directional behavior as normal mode by shifting the complete compact eye pair left/right.
+- Blink, Wink, Happy, Hearts, Squint and rare Sleepy remain available above the timer.
+- 25/5, 50/10 and custom cycles count down the current Focus or Rest phase directly instead of converting time into a ring.
+- Paused focus sessions keep showing their persisted remaining time.
+- The countdown updates independently while duplicate-frame suppression prevents unnecessary hardware refreshes.
+- Bumped beta versionCode to **1406** and beta versionName to `0.14.6.beta`.
 
-The larger v0.14.3/v0.14.4 Glyph polish remains intact: trimmed expression set, improved hearts, brighter raw output, circular Focus progress and centered transitions between every expression.
+The v0.14.5 updater and preview protections remain intact: versionCode-aware update discovery, tag/APK release validation, clean circular Settings preview, centered expression transitions and clearer release notes.
 
 The larger v0.12/v0.13 feature set also remains intact: calendar controls, recurrence scopes, timeline manipulation, focus cycles, tasks, templates, backup/ICS, widget configuration, GitHub beta updates and Play separation.
 
@@ -55,7 +58,7 @@ Requirements: JDK 17, Gradle 9.4.1, Android SDK API 37 and Build Tools 36.0.0.
 gradle :app:assembleBetaDebug :app:assemblePlayDebug --no-daemon
 ```
 
-GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.14.5.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
+GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.14.6.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
 
 Before publication, the tagged workflow verifies that the signed APK's embedded version matches the tag and that its Android `versionCode` follows Dayline's beta version convention.
 

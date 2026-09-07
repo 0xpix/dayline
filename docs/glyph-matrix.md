@@ -1,12 +1,12 @@
 # Dayline Glyph Matrix integration
 
-Dayline v0.14.3.beta adds an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
+Dayline v0.14.4.beta adds an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
 
 ## Dayline behavior
 
 Dayline is intentionally eyes-first. The live face keeps only the expressions that read cleanly on the 13×13 matrix: Center, Look left, Look right, Blink, Wink, Happy, Hearts, Squint and rare Sleepy.
 
-Every non-center animation is isolated by a Center frame on both sides. The runtime therefore follows `CENTER → animation → CENTER → next animation`, including Blink, so expressions never visually blend together.
+Every non-center animation is isolated by Center on both sides. The runtime therefore follows `CENTER → animation → CENTER → next animation`, including Blink, so expressions never visually blend together. A dedicated ~500 ms Center recovery is enforced before any due blink or motion can start.
 
 Automatic calendar/app-state symbols no longer interrupt the face. Focus Mode is the only automatic Dayline overlay: a circular pixel progress path stays around the eyes while the eyes continue animating. The path fills clockwise during focus and in reverse during breaks for 25/5, 50/10 and custom cycles.
 
@@ -28,7 +28,7 @@ Dayline's own Glyph patterns, state mapping, settings and reflection bridge are 
 
 For GitHub beta CI, `.github/workflows/build-apk.yml` first validates that the AAR is absent and then downloads the official binary from `Nothing-Developer-Programme/GlyphMatrix-Developer-Kit` before compiling the beta flavor. `app/build.gradle.kts` only attaches the AAR to `betaImplementation` when the file exists.
 
-The Play flavor does not include the SDK in v0.14.3.beta. Nothing's Glyph SDK license restricts commercial use without written permission, so Play distribution should stay disabled for Glyph hardware until the appropriate permission/license is obtained.
+The Play flavor does not include the SDK in v0.14.4.beta. Nothing's Glyph SDK license restricts commercial use without written permission, so Play distribution should stay disabled for Glyph hardware until the appropriate permission/license is obtained.
 
 ## Compatibility note
 

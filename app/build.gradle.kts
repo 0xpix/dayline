@@ -11,8 +11,8 @@ android {
         applicationId = "com.pix.dayline"
         minSdk = 26
         targetSdk = 36
-        // Keep beta version codes monotonic across the GitHub channel.
-        // v0.14.0.beta uses 1400 so Android accepts it over the 0.13.x betas.
+        // Keep the base/Play version on the current milestone. Beta can override
+        // this independently so GitHub prereleases remain installable updates.
         versionCode = 1400
         versionName = "0.14.0"
 
@@ -26,6 +26,10 @@ android {
             dimension = "distribution"
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
+            // v0.14.1.beta contains the Glyph visual-language and blink fixes
+            // added after the already-published v0.14.0.beta APK.
+            versionCode = 1401
+            versionName = "0.14.1"
             // Nothing's Glyph Matrix SDK 2.0 declares minSdk 33. Keep this
             // requirement isolated to the beta/Glyph build so the normal Play
             // build continues to support Dayline's global minSdk 26.

@@ -39,6 +39,10 @@ data class DaylineItem(
     val bufferAfterMinutes: Int = 0,
     val priority: TaskPriority = TaskPriority.NORMAL,
     val estimatedDurationMinutes: Int = 30,
+    val earliestDate: LocalDate? = null,
+    val deadlineDate: LocalDate? = null,
+    val allDay: Boolean = false,
+    val timeZoneId: String? = null,
     val color: ItemColor = ItemColor.MONO,
     val spaceId: String? = null,
     val details: List<TaskDetail> = emptyList(),
@@ -98,6 +102,8 @@ fun DaylineItem.occursOn(date: LocalDate): Boolean {
         Recurrence.WEEKENDS -> date.dayOfWeek.value in 6..7
         Recurrence.CUSTOM -> date.dayOfWeek.value in repeatDays
         Recurrence.WEEKLY -> date.dayOfWeek == startDate.dayOfWeek
+        // Keep RFC-style monthly semantics: a series created on the 31st does
+        // not silently move to the 30th/28th in shorter months.
         Recurrence.MONTHLY -> date.dayOfMonth == startDate.dayOfMonth
     }
 }
@@ -105,6 +111,7 @@ fun DaylineItem.occursOn(date: LocalDate): Boolean {
 fun DaylineItem.isCompletedOn(date: LocalDate): Boolean = date in completedDates
 
 fun DaylineItem.overlaps(other: DaylineItem): Boolean {
+    if (allDay || other.allDay) return false
     val aStart = startTime ?: return false
     val bStart = other.startTime ?: return false
     val aEnd = endTime?.takeIf { it.isAfter(aStart) }

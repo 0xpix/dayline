@@ -7,23 +7,25 @@ import kotlin.math.ceil
  * Native 13×13 frames for the Phone (4a) Pro Glyph Matrix.
  *
  * The face is the primary visual language. Focus mode never replaces the eyes:
- * it progressively lights a clean outer path around them, one pixel at a time.
+ * a circular perimeter remains faintly visible and completed focus pixels light
+ * up one by one around that perimeter.
  */
 object GlyphMatrixPatterns {
     const val SIZE = 13
+    const val MAX_RAW_BRIGHTNESS = 2047
 
     fun frame(
         signal: DaylineGlyphSignal,
-        brightness: Int = 255,
+        brightness: Int = MAX_RAW_BRIGHTNESS,
         focusProgress: Float? = null,
         focusBreak: Boolean = false
     ): IntArray {
-        val value = brightness.coerceIn(0, 255)
+        val value = brightness.coerceIn(0, MAX_RAW_BRIGHTNESS)
         val pixels = IntArray(SIZE * SIZE)
 
         fun set(x: Int, y: Int, b: Int = value) {
             if (x in 0 until SIZE && y in 0 until SIZE) {
-                pixels[y * SIZE + x] = b.coerceIn(0, 255)
+                pixels[y * SIZE + x] = b.coerceIn(0, MAX_RAW_BRIGHTNESS)
             }
         }
 
@@ -114,6 +116,22 @@ object GlyphMatrixPatterns {
         fun squintEyes() {
             pattern(1, 5, ".###.", "#####", ".###.")
             pattern(7, 5, ".###.", "#####", ".###.")
+        }
+
+        fun heartEye(x: Int) {
+            pattern(
+                x, 4,
+                ".#.#.",
+                "#####",
+                "#####",
+                ".###.",
+                "..#.."
+            )
+        }
+
+        fun hearts() {
+            heartEye(1)
+            heartEye(7)
         }
 
         fun largeArrow() {
@@ -290,62 +308,18 @@ object GlyphMatrixPatterns {
             }
 
             DaylineGlyphSignal.HAPPY -> happy()
-
-            DaylineGlyphSignal.EXCITED -> {
-                pattern(1, 4, ".###.", "#####", "#####", ".###.")
-                pattern(7, 4, ".###.", "#####", "#####", ".###.")
-                set(0, 2); set(2, 1); set(10, 1); set(12, 2)
-            }
-
             DaylineGlyphSignal.SLEEPY -> sleepy()
-
-            DaylineGlyphSignal.SURPRISED -> {
-                block(1, 3, 5, 6)
-                block(7, 3, 5, 6)
-            }
-
-            DaylineGlyphSignal.PLAYFUL -> {
-                roundedEye(1)
-                happyEye(7)
-            }
-
-            DaylineGlyphSignal.CURIOUS -> {
-                roundedEye(0, 3)
-                roundedEye(7, 5)
-            }
-
-            DaylineGlyphSignal.SIDE_EYE -> {
-                pattern(0, 5, "#####", ".####", "..###")
-                pattern(6, 5, "#####", ".####", "..###")
-            }
-
-            DaylineGlyphSignal.ROLLING -> {
-                roundedEye(1, 2)
-                roundedEye(7, 6)
-            }
-
             DaylineGlyphSignal.SQUINT -> squintEyes()
+            DaylineGlyphSignal.HEARTS -> hearts()
 
-            DaylineGlyphSignal.HEARTS -> {
-                pattern(
-                    0, 4,
-                    ".##.##.",
-                    "#######",
-                    "#######",
-                    ".#####.",
-                    "..###..",
-                    "...#..."
-                )
-                pattern(
-                    7, 4,
-                    ".##.##",
-                    "######",
-                    "######",
-                    ".####.",
-                    "..##..",
-                    "...#.."
-                )
-            }
+            // Retained only so older queued/preference values remain harmless.
+            // These expressions are no longer used by the live face or settings.
+            DaylineGlyphSignal.CURIOUS,
+            DaylineGlyphSignal.PLAYFUL,
+            DaylineGlyphSignal.SURPRISED,
+            DaylineGlyphSignal.SIDE_EYE,
+            DaylineGlyphSignal.EXCITED,
+            DaylineGlyphSignal.ROLLING -> centerEyes()
 
             // Legacy app-state frames remain for source/backward compatibility,
             // but the live Glyph service no longer displays them automatically.
@@ -368,32 +342,40 @@ object GlyphMatrixPatterns {
         }
 
         focusProgress?.let { rawProgress ->
-            // A rounded rectangular path around the face. It never overwrites the
-            // 5×5 eyes. Focus advances clockwise; break advances in reverse.
+            // A true discrete circle centred on the face. The whole circle stays
+            // faintly visible, then completed pixels brighten one-by-one. This
+            // prevents early focus progress from looking like a random top line.
             val ring = listOf(
-                3 to 1, 4 to 1, 5 to 1, 6 to 1, 7 to 1, 8 to 1, 9 to 1,
+                5 to 0, 6 to 0, 7 to 0,
+                8 to 1, 9 to 1,
                 10 to 2, 11 to 3,
-                12 to 4, 12 to 5, 12 to 6, 12 to 7, 12 to 8,
-                11 to 9, 10 to 10,
-                9 to 11, 8 to 11, 7 to 11, 6 to 11, 5 to 11, 4 to 11, 3 to 11,
-                2 to 10, 1 to 9,
-                0 to 8, 0 to 7, 0 to 6, 0 to 5, 0 to 4,
-                1 to 3, 2 to 2
+                11 to 4, 12 to 5, 12 to 6, 12 to 7, 11 to 8, 11 to 9,
+                10 to 10, 9 to 11, 8 to 11,
+                7 to 12, 6 to 12, 5 to 12,
+                4 to 11, 3 to 11, 2 to 10,
+                1 to 9, 1 to 8, 0 to 7, 0 to 6, 0 to 5, 1 to 4, 1 to 3,
+                2 to 2, 3 to 1, 4 to 1
             )
             val ordered = if (focusBreak) ring.asReversed() else ring
             val progress = rawProgress.coerceIn(0f, 1f)
             val count = ceil(progress * ordered.size).toInt().coerceIn(0, ordered.size)
-            val ringBrightness = if (focusBreak) {
-                (value * 0.55f).toInt().coerceAtLeast(32)
+
+            val outlineBrightness = (value * 0.12f).toInt().coerceAtLeast(24)
+            ring.forEach { (x, y) -> set(x, y, outlineBrightness) }
+
+            val completedBrightness = if (focusBreak) {
+                (value * 0.65f).toInt().coerceAtLeast(64)
             } else {
                 value
             }
             for (index in 0 until count) {
                 val (x, y) = ordered[index]
-                set(x, y, ringBrightness)
+                set(x, y, completedBrightness)
             }
-            // Keep the leading break pixel crisp so the direction is easy to read.
-            if (focusBreak && count > 0) {
+
+            // Keep the current progress pixel at full brightness so movement is
+            // obvious even during the softer break phase.
+            if (count > 0) {
                 val (x, y) = ordered[count - 1]
                 set(x, y, value)
             }

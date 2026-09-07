@@ -11,7 +11,6 @@ import com.pix.dayline.model.*
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -95,7 +94,8 @@ object AndroidCalendarSync {
 
     /**
      * Read concrete generated instances so external recurrence rules do not
-     * need to be reimplemented inside Dayline.
+     * need to be reimplemented inside Dayline. Timed events keep the provider's
+     * EVENT_TIMEZONE so wall-clock time survives a read -> edit -> write round trip.
      */
     fun loadOccurrences(
         context: Context,
@@ -105,10 +105,6 @@ object AndroidCalendarSync {
     ): List<DaylineItem> {
         if (!hasReadPermission(context)) return emptyList()
 
-        // Editing a concrete instance of an external recurring series through
-        // Events would otherwise mutate the master series. Keep those
-        // occurrences read-only until Dayline has provider-native exception
-        // editing. One-off external events may still be editable per calendar.
         val recurringEventIds = recurringEventIds(context)
 
         val beginMillis = from.atStartOfDay(zone).toInstant().toEpochMilli()
@@ -124,7 +120,8 @@ object AndroidCalendarSync {
             CalendarContract.Instances.END,
             CalendarContract.Instances.ALL_DAY,
             CalendarContract.Instances.CALENDAR_DISPLAY_NAME,
-            CalendarContract.Instances.CALENDAR_ID
+            CalendarContract.Instances.CALENDAR_ID,
+            CalendarContract.Instances.EVENT_TIMEZONE
         )
 
         return runCatching {
@@ -146,6 +143,7 @@ object AndroidCalendarSync {
                 val calendarIdIx = cursor.getColumnIndexOrThrow(
                     CalendarContract.Instances.CALENDAR_ID
                 )
+                val timeZoneIx = cursor.getColumnIndex(CalendarContract.Instances.EVENT_TIMEZONE)
 
                 buildList {
                     while (cursor.moveToNext()) {
@@ -157,13 +155,13 @@ object AndroidCalendarSync {
                         val end = cursor.getLong(endIx)
                         val allDay = cursor.getInt(allDayIx) == 1
                         val rule = preferences.ruleFor(calendarId)
+                        val rawTimeZone = if (timeZoneIx >= 0 && !cursor.isNull(timeZoneIx)) {
+                            cursor.getString(timeZoneIx)
+                        } else null
+                        val eventZone = if (allDay) ZoneOffset.UTC else resolveZone(rawTimeZone)
 
-                        val beginDateTime = Instant.ofEpochMilli(begin).atZone(
-                            if (allDay) ZoneOffset.UTC else zone
-                        )
-                        val endDateTime = Instant.ofEpochMilli(end).atZone(
-                            if (allDay) ZoneOffset.UTC else zone
-                        )
+                        val beginDateTime = Instant.ofEpochMilli(begin).atZone(eventZone)
+                        val endDateTime = Instant.ofEpochMilli(end).atZone(eventZone)
 
                         add(
                             DaylineItem(
@@ -176,6 +174,8 @@ object AndroidCalendarSync {
                                 startTime = if (allDay) null else beginDateTime.toLocalTime(),
                                 endTime = if (allDay) null else endDateTime.toLocalTime(),
                                 recurrence = Recurrence.ONCE,
+                                allDay = allDay,
+                                timeZoneId = if (allDay) "UTC" else eventZone.id,
                                 color = rule?.color ?: ItemColor.MONO,
                                 spaceId = rule?.spaceId,
                                 calendarEventId = eventId,
@@ -199,6 +199,8 @@ object AndroidCalendarSync {
         val repeatDays: Set<Int>,
         val recurrenceEndDate: LocalDate?,
         val excludedDates: Set<LocalDate>,
+        val allDay: Boolean,
+        val timeZoneId: String?,
         val calendarId: Long,
         val calendarName: String?
     )
@@ -214,9 +216,9 @@ object AndroidCalendarSync {
      *
      * This is intentionally two-way. Dayline writes local edits through upsert(),
      * while provider edits flow back here through the Calendar ContentObserver:
-     * title, date/time, all-day state, recurrence, exclusions and calendar moves
-     * are pulled into the mapped Dayline row. Provider-side deletion removes the
-     * mapped local row. Query failures remain conservative and keep local data.
+     * title, date/time, all-day state, timezone, recurrence, exclusions and calendar
+     * moves are pulled into the mapped Dayline row. Provider-side deletion removes
+     * the mapped local row. Query failures remain conservative and keep local data.
      *
      * The historical method name is retained so older call sites stay source
      * compatible even though it now reconciles changes as well as deletions.
@@ -244,6 +246,8 @@ object AndroidCalendarSync {
                         repeatDays = snapshot.repeatDays,
                         recurrenceEndDate = snapshot.recurrenceEndDate,
                         excludedDates = snapshot.excludedDates,
+                        allDay = snapshot.allDay,
+                        timeZoneId = snapshot.timeZoneId,
                         calendarId = snapshot.calendarId,
                         calendarName = snapshot.calendarName
                     )
@@ -264,7 +268,8 @@ object AndroidCalendarSync {
             CalendarContract.Events.CALENDAR_ID,
             CalendarContract.Events.RRULE,
             CalendarContract.Events.EXDATE,
-            CalendarContract.Events.DELETED
+            CalendarContract.Events.DELETED,
+            CalendarContract.Events.EVENT_TIMEZONE
         )
 
         context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
@@ -285,8 +290,11 @@ object AndroidCalendarSync {
             val calendarId = cursor.getLong(cursor.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_ID))
             val rrule = cursor.getString(cursor.getColumnIndexOrThrow(CalendarContract.Events.RRULE))
             val exdate = cursor.getString(cursor.getColumnIndexOrThrow(CalendarContract.Events.EXDATE))
+            val timeZoneIx = cursor.getColumnIndex(CalendarContract.Events.EVENT_TIMEZONE)
+            val rawTimeZone = if (timeZoneIx >= 0 && !cursor.isNull(timeZoneIx)) cursor.getString(timeZoneIx) else null
+            val eventZone = if (allDay) ZoneOffset.UTC else resolveZone(rawTimeZone)
 
-            val startZoned = Instant.ofEpochMilli(startMillis).atZone(if (allDay) ZoneOffset.UTC else zone)
+            val startZoned = Instant.ofEpochMilli(startMillis).atZone(eventZone)
             val endMillis = when {
                 dtEndIx >= 0 && !cursor.isNull(dtEndIx) -> cursor.getLong(dtEndIx)
                 durationIx >= 0 && !cursor.isNull(durationIx) -> {
@@ -295,7 +303,7 @@ object AndroidCalendarSync {
                 }
                 else -> startMillis + if (allDay) 86_400_000L else 3_600_000L
             }
-            val endZoned = Instant.ofEpochMilli(endMillis).atZone(if (allDay) ZoneOffset.UTC else zone)
+            val endZoned = Instant.ofEpochMilli(endMillis).atZone(eventZone)
             val recurrenceInfo = parseRecurrence(rrule, startZoned.toLocalDate())
 
             ProviderState.Present(
@@ -306,8 +314,10 @@ object AndroidCalendarSync {
                     endTime = if (allDay) null else endZoned.toLocalTime(),
                     recurrence = recurrenceInfo.first,
                     repeatDays = recurrenceInfo.second,
-                    recurrenceEndDate = parseUntil(rrule),
-                    excludedDates = parseExdates(exdate, allDay),
+                    recurrenceEndDate = parseUntil(rrule, eventZone, allDay),
+                    excludedDates = parseExdates(exdate, allDay, eventZone),
+                    allDay = allDay,
+                    timeZoneId = if (allDay) "UTC" else eventZone.id,
                     calendarId = calendarId,
                     calendarName = calendarName(context, calendarId)
                 )
@@ -353,7 +363,7 @@ object AndroidCalendarSync {
         else -> null
     }
 
-    private fun parseUntil(rrule: String?): LocalDate? {
+    private fun parseUntil(rrule: String?, eventZone: ZoneId, allDay: Boolean): LocalDate? {
         if (rrule.isNullOrBlank()) return null
         val raw = Regex("(?:^|;)UNTIL=([^;]+)")
             .find(rrule.uppercase())
@@ -365,7 +375,7 @@ object AndroidCalendarSync {
             when {
                 raw.length >= 16 && raw.endsWith("Z") ->
                     Instant.from(DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmssX").parse(raw))
-                        .atZone(zone)
+                        .atZone(if (allDay) ZoneOffset.UTC else eventZone)
                         .toLocalDate()
                 raw.length >= 8 -> LocalDate.parse(raw.take(8), DateTimeFormatter.BASIC_ISO_DATE)
                 else -> null
@@ -373,7 +383,7 @@ object AndroidCalendarSync {
         }.getOrNull()
     }
 
-    private fun parseExdates(raw: String?, allDay: Boolean): Set<LocalDate> {
+    private fun parseExdates(raw: String?, allDay: Boolean, eventZone: ZoneId): Set<LocalDate> {
         if (raw.isNullOrBlank()) return emptySet()
         return raw.split(',').mapNotNullTo(mutableSetOf()) { token ->
             val clean = token.substringAfter(':').trim()
@@ -381,7 +391,7 @@ object AndroidCalendarSync {
                 when {
                     clean.length >= 16 && clean.endsWith("Z") ->
                         Instant.from(DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmssX").parse(clean))
-                            .atZone(if (allDay) ZoneOffset.UTC else zone)
+                            .atZone(if (allDay) ZoneOffset.UTC else eventZone)
                             .toLocalDate()
                     clean.length >= 8 -> LocalDate.parse(clean.take(8), DateTimeFormatter.BASIC_ISO_DATE)
                     else -> null
@@ -455,8 +465,12 @@ object AndroidCalendarSync {
         }.getOrNull() ?: return item
 
         val resolvedCalendarId = item.calendarId ?: targetCalendarId
+        val resolvedAllDay = item.allDay || item.startTime == null
+        val resolvedZone = if (resolvedAllDay) ZoneOffset.UTC else resolveZone(item.timeZoneId)
 
         return item.copy(
+            allDay = resolvedAllDay,
+            timeZoneId = if (resolvedAllDay) "UTC" else resolvedZone.id,
             calendarEventId = eventId,
             calendarId = resolvedCalendarId,
             calendarName = calendarName(context, resolvedCalendarId),
@@ -506,21 +520,20 @@ object AndroidCalendarSync {
         values.put(CalendarContract.Events.TITLE, item.title)
 
         val startTime = item.startTime
-        val allDay = startTime == null
-        values.put(
-            CalendarContract.Events.EVENT_TIMEZONE,
-            if (allDay) "UTC" else zone.id
-        )
+        val allDay = item.allDay || startTime == null
+        val eventZone = if (allDay) ZoneOffset.UTC else resolveZone(item.timeZoneId)
+        values.put(CalendarContract.Events.EVENT_TIMEZONE, eventZone.id)
+        values.put(CalendarContract.Events.EVENT_END_TIMEZONE, eventZone.id)
         values.put(CalendarContract.Events.ALL_DAY, if (allDay) 1 else 0)
 
         val startMillis = if (allDay) {
             item.startDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
         } else {
-            item.startDate.atTime(startTime!!).atZone(zone).toInstant().toEpochMilli()
+            item.startDate.atTime(startTime!!).atZone(eventZone).toInstant().toEpochMilli()
         }
         values.put(CalendarContract.Events.DTSTART, startMillis)
 
-        val rrule = recurrenceRule(item)
+        val rrule = recurrenceRule(item, eventZone, allDay)
         if (rrule == null) {
             values.putNull(CalendarContract.Events.RRULE)
             values.putNull(CalendarContract.Events.EXDATE)
@@ -535,7 +548,7 @@ object AndroidCalendarSync {
                 val end = item.endTime
                     ?.takeIf { it.isAfter(startTime!!) }
                     ?: startTime!!.plusHours(1)
-                item.startDate.atTime(end).atZone(zone).toInstant().toEpochMilli()
+                item.startDate.atTime(end).atZone(eventZone).toInstant().toEpochMilli()
             }
             values.put(CalendarContract.Events.DTEND, endMillis)
         } else {
@@ -548,7 +561,7 @@ object AndroidCalendarSync {
                     val instant = if (allDay) {
                         excludedDate.atStartOfDay(ZoneOffset.UTC).toInstant()
                     } else {
-                        excludedDate.atTime(startTime!!).atZone(zone).toInstant()
+                        excludedDate.atTime(startTime!!).atZone(eventZone).toInstant()
                     }
                     EXDATE_FORMATTER.format(instant)
                 }
@@ -573,7 +586,7 @@ object AndroidCalendarSync {
         return values
     }
 
-    private fun recurrenceRule(item: DaylineItem): String? {
+    private fun recurrenceRule(item: DaylineItem, eventZone: ZoneId, allDay: Boolean): String? {
         val core = when (item.recurrence) {
             Recurrence.ONCE -> return null
             Recurrence.DAILY -> "FREQ=DAILY"
@@ -582,18 +595,8 @@ object AndroidCalendarSync {
             Recurrence.WEEKENDS ->
                 "FREQ=WEEKLY;BYDAY=SA,SU"
             Recurrence.CUSTOM -> {
-                val days =
-                    item.repeatDays
-                        .ifEmpty {
-                            setOf(
-                                item.startDate
-                                    .dayOfWeek
-                                    .value
-                            )
-                        }
-
-                "FREQ=WEEKLY;BYDAY=" +
-                    days.toRruleDays()
+                val days = item.repeatDays.ifEmpty { setOf(item.startDate.dayOfWeek.value) }
+                "FREQ=WEEKLY;BYDAY=" + days.toRruleDays()
             }
             Recurrence.WEEKLY -> {
                 val day = when (item.startDate.dayOfWeek.value) {
@@ -611,10 +614,12 @@ object AndroidCalendarSync {
         }
 
         val until = item.recurrenceEndDate?.let { endDate ->
-            val stamp = endDate.plusDays(1)
-                .atStartOfDay(ZoneOffset.UTC)
-                .minusSeconds(1)
-            ";UNTIL=${stamp.format(DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'"))}"
+            val cutoff = if (allDay) {
+                endDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).minusNanos(1).toInstant()
+            } else {
+                endDate.plusDays(1).atStartOfDay(eventZone).minusNanos(1).toInstant()
+            }
+            ";UNTIL=${EXDATE_FORMATTER.format(cutoff)}"
         }.orEmpty()
 
         return core + until
@@ -653,6 +658,11 @@ object AndroidCalendarSync {
             } ?: emptySet()
         }.getOrDefault(emptySet())
     }
+
+    private fun resolveZone(raw: String?): ZoneId =
+        raw?.takeIf { it.isNotBlank() }
+            ?.let { runCatching { ZoneId.of(it) }.getOrNull() }
+            ?: zone
 
     private val EXDATE_FORMATTER: DateTimeFormatter =
         DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'")

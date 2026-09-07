@@ -1,14 +1,14 @@
-# Dayline v0.14.5.beta — Validation Report
+# Dayline v0.14.6.beta — Validation Report
 
-This report tracks the current v0.14.5.beta source state. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current v0.14.6.beta source state. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
 - Static project validator: **PASS**
 - Beta/Play flavor and permission separation: **PASS**
 - GitHub beta signing / explicit Build Tools `apksigner` contract: **PASS**
-- Tagged beta workflow now verifies the signed APK's embedded `versionName` and `versionCode` against the Git tag before publication.
-- GitHub beta updater now requires a release to be newer by both semantic version and Android `versionCode`.
+- Tagged beta workflow verifies the signed APK's embedded `versionName` and `versionCode` against the Git tag before publication.
+- GitHub beta updater requires a release to be newer by both semantic version and Android `versionCode`.
 - Proprietary Nothing `glyph-matrix-sdk-2.0.aar` absent from source tree: **PASS**
 - GitHub beta workflow checks AAR absence before fetching the official SDK: **PASS**
 - Play workflow does not fetch/package the Glyph Matrix SDK: **PASS**
@@ -42,21 +42,27 @@ Every non-center live animation follows:
 CENTER → animation → CENTER → next animation
 ```
 
-The Center recovery is now about **700 ms** for Look left/right, Happy, Wink, Hearts, Squint, Sleepy and Blink. Due blink/motion timers are pushed beyond that window so another animation cannot begin on the same renderer tick.
+The Center recovery remains about **700 ms** for Look left/right, Happy, Wink, Hearts, Squint, Sleepy and Blink. Due blink/motion timers are pushed beyond that window so another animation cannot begin on the same renderer tick.
 
-The Settings preview now mirrors the same `CENTER → expression → CENTER` contract. It uses a single circular black surface and draws only illuminated cells, eliminating the old visible square grid inside the circle.
+The Settings preview mirrors the same `CENTER → expression → CENTER` contract. It uses a single circular black surface and draws only illuminated cells, eliminating the old visible square grid inside the circle.
 
 The Glyph runtime suppresses identical consecutive frames to reduce visible twitching.
 
 ## Focus behavior
 
-Focus remains the only automatic Dayline overlay on the live Glyph face.
+Focus remains the only automatic Dayline layout change on the live Glyph face.
 
-- Eyes remain active during Focus and Rest.
+- The old circular progress perimeter has been removed.
+- Normal idle mode retains the existing large 5×5 rounded eyes.
+- During Focus/Rest, compact expressive eyes render only in the top area of the matrix.
+- Focus Look Left and Look Right shift the complete compact eye pair left/right, matching normal idle direction behavior.
+- Rows 5–7 stay empty as visual separation.
+- Rows 8–12 are reserved for an `MM:SS` countdown.
+- The compact numeric renderer uses a 3×5 digit font and a one-column colon, fitting exactly across all 13 columns.
 - 25/5, 50/10 and custom focus cycles are supported.
-- A faint circular progress perimeter remains visible around the face.
-- Completed Focus pixels brighten clockwise.
-- Break progress runs in reverse.
+- The displayed value is the actual remaining time in the current Focus or Rest phase.
+- Paused sessions use the persisted paused remaining time.
+- Timer changes and eye changes share the same duplicate-frame guard, so hardware frames are only sent when something visible changes.
 
 ## Brightness behavior
 
@@ -64,7 +70,7 @@ Dayline Settings keeps a simple 0–100% brightness UI. The live Glyph Toy maps 
 
 ## Update behavior
 
-The updater no longer trusts the release tag alone. A candidate must satisfy both:
+The updater does not trust the release tag alone. A candidate must satisfy both:
 
 ```text
 candidate semantic version > installed semantic version
@@ -81,11 +87,11 @@ Nothing's documentation names `Glyph.DEVICE_25111p`; Dayline first attempts that
 
 ## Android compile gate
 
-Before tagging `v0.14.5.beta`, GitHub Actions must pass:
+Before tagging `v0.14.6.beta`, GitHub Actions must pass:
 
 ```text
 :app:assembleBetaDebug
 :app:assemblePlayDebug
 ```
 
-For tag `v0.14.5.beta`, the tagged job additionally builds `:app:assembleBetaRelease`, verifies tag/APK version identity, verifies the signature, generates the SHA-256 checksum and publishes the GitHub prerelease.
+For tag `v0.14.6.beta`, the tagged job additionally builds `:app:assembleBetaRelease`, verifies tag/APK version identity, verifies the signature, generates the SHA-256 checksum and publishes the GitHub prerelease.

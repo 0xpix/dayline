@@ -4,27 +4,24 @@
 
 Dayline is an open-source Android calendar and planner built with Kotlin, Jetpack Compose, Material 3 and Glance. It is local-first, deliberately minimal, and designed around **Today** instead of a dashboard.
 
-Current milestone: **v0.14.3.beta · Glyph Eyes + Focus polish**
+Current milestone: **v0.14.4.beta · Centered Glyph transitions**
 
-## What v0.14.3.beta adds
+## What v0.14.4.beta adds
 
-Dayline Glyph turns the Nothing Phone (4a) Pro's 13×13 Glyph Matrix into an eyes-first companion for the calendar.
+Dayline Glyph keeps the Nothing Phone (4a) Pro's 13×13 Glyph Matrix calm and readable by forcing every expression to transition through the Center face.
 
-- The Glyph now stays focused on **expressive eyes + Focus Mode**. Automatic calendar/app-state symbols no longer interrupt the face.
-- Large solid dot-matrix eyes with **Center, Look left/right, Blink, Wink, Happy, Hearts, Squint and Sleepy**.
-- **Every non-center animation returns through Center** before another animation starts: `CENTER → expression → CENTER → next expression`.
-- More frequent natural blinking, more Happy, and much rarer Sleepy behavior.
-- Removed the weaker Curious, Playful, Surprised, Side-eye, Excited and Rolling expressions from the live loop and Settings preview.
-- Reworked Hearts into a smaller, cleaner heart-eye pattern.
-- Focus cycles keep the eyes alive while a **circular pixel progress path** fills around them for **25/5, 50/10 and custom** focus cycles.
-- Focus progresses clockwise; break progresses in reverse.
-- The focus perimeter stays faintly visible so early progress reads as a circle instead of a stray line.
-- Glyph brightness maps Dayline's simple 0–100% control to the higher raw intensity range used by Nothing's official `IntArray` Matrix examples.
-- Stable frame delivery suppresses duplicate frames to reduce visible twitching/flicker.
-- Simplified Glyph settings: enable, hardware, brightness, blink, expressions/glances, motion frequency, Focus behavior, quiet hours and a compact expression preview.
-- A Phone (4a) Pro AOD Glyph Toy service remains available in the GitHub beta flavor, with a shortcut to Nothing's Glyph Toys manager.
+- **Every non-center animation is isolated by Center**: `CENTER → animation → CENTER → next animation`.
+- The rule applies to **Look left, Look right, Blink, Wink, Happy, Hearts, Squint and Sleepy**.
+- A dedicated ~500 ms Center recovery prevents messy sequences such as `Sleepy → Happy → Right`.
+- Due blink/motion timers are pushed beyond the Center recovery window so the next animation cannot start on the same renderer tick.
+- The approved expression set remains **Center, Look left/right, Blink, Wink, Happy, Hearts, Squint and rare Sleepy**.
+- Focus Mode remains the only automatic Dayline overlay, with the circular focus/rest progress perimeter around the eyes.
+- Glyph brightness still maps Dayline's 0–100% control to the higher raw `IntArray` Matrix intensity range used by Nothing's official examples.
+- Duplicate raw frames remain suppressed to reduce visible twitching/flicker.
 
-The larger v0.12/v0.13 feature set remains intact: calendar controls, recurrence scopes, timeline manipulation, focus cycles, tasks, templates, backup/ICS, widget configuration, GitHub beta updates and Play separation.
+The larger v0.14.3 Glyph polish remains intact: trimmed expression set, improved hearts, brighter raw output, circular Focus progress, simplified Glyph settings and stable frame delivery.
+
+The larger v0.12/v0.13 feature set also remains intact: calendar controls, recurrence scopes, timeline manipulation, focus cycles, tasks, templates, backup/ICS, widget configuration, GitHub beta updates and Play separation.
 
 ## Nothing Glyph Matrix distribution
 
@@ -60,7 +57,7 @@ Requirements: JDK 17, Gradle 9.4.1, Android SDK API 37 and Build Tools 36.0.0.
 gradle :app:assembleBetaDebug :app:assemblePlayDebug --no-daemon
 ```
 
-GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.14.3.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
+GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.14.4.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
 
 ## Google Play build
 

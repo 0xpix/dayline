@@ -22,6 +22,7 @@ class DaylineGlyphToyService : Service() {
     private var running = false
     private var nextGlanceAt = 0L
     private var nextBlinkAt = 0L
+    private var blinking = false
     private var idleOverride: DaylineGlyphSignal? = null
     private var lastDerived = DaylineGlyphSignal.IDLE
     private var derivedDisplayUntil = 0L
@@ -136,7 +137,9 @@ class DaylineGlyphToyService : Service() {
             brightness
         }
 
-        bridge.show(GlyphMatrixPatterns.frame(signal, effectiveBrightness))
+        if (!blinking) {
+            bridge.show(GlyphMatrixPatterns.frame(signal, effectiveBrightness))
+        }
     }
 
     private fun naturalIdle(
@@ -146,17 +149,9 @@ class DaylineGlyphToyService : Service() {
     ): DaylineGlyphSignal {
         if (nextBlinkAt == 0L || nextGlanceAt == 0L) scheduleNaturalMotion(force = true)
 
-        if (prefs.blinkEnabled && now >= nextBlinkAt) {
-            nextBlinkAt = now + Random.nextLong(4_000L, 9_000L)
-            // Deliberately animate CENTER -> BLINK -> CENTER quickly.
-            val b = currentBrightness(prefs)
-            bridge.show(GlyphMatrixPatterns.frame(DaylineGlyphSignal.CENTER, b))
-            handler.postDelayed({
-                if (running) bridge.show(GlyphMatrixPatterns.frame(DaylineGlyphSignal.BLINK, currentBrightness(store.loadGlyphPreferences())))
-            }, 90L)
-            handler.postDelayed({
-                if (running) bridge.show(GlyphMatrixPatterns.frame(base, currentBrightness(store.loadGlyphPreferences())))
-            }, 230L)
+        if (prefs.blinkEnabled && !blinking && now >= nextBlinkAt) {
+            nextBlinkAt = now + Random.nextLong(5_000L, 11_000L)
+            playBlink(base)
             return DaylineGlyphSignal.CENTER
         }
 
@@ -168,6 +163,45 @@ class DaylineGlyphToyService : Service() {
         return idleOverride ?: base
     }
 
+    /**
+     * Keep the closed frame on screen long enough for the Glyph service/hardware
+     * to actually render it. The old ~140 ms closed phase could disappear between
+     * hardware frame updates and look like no blink at all.
+     */
+    private fun playBlink(base: DaylineGlyphSignal) {
+        blinking = true
+        val startPrefs = store.loadGlyphPreferences()
+        bridge.show(
+            GlyphMatrixPatterns.frame(
+                DaylineGlyphSignal.CENTER,
+                currentBrightness(startPrefs)
+            )
+        )
+
+        handler.postDelayed({
+            if (!running) return@postDelayed
+            val prefs = store.loadGlyphPreferences()
+            bridge.show(
+                GlyphMatrixPatterns.frame(
+                    DaylineGlyphSignal.BLINK,
+                    currentBrightness(prefs)
+                )
+            )
+        }, 120L)
+
+        handler.postDelayed({
+            if (!running) return@postDelayed
+            val prefs = store.loadGlyphPreferences()
+            bridge.show(
+                GlyphMatrixPatterns.frame(
+                    base,
+                    currentBrightness(prefs)
+                )
+            )
+            blinking = false
+        }, 420L)
+    }
+
     private fun currentBrightness(prefs: GlyphPreferences): Int {
         val quiet = prefs.quietHoursEnabled && GlyphStateResolver.inQuietHours(
             java.time.LocalTime.now(), prefs.quietStart, prefs.quietEnd
@@ -177,7 +211,7 @@ class DaylineGlyphToyService : Service() {
 
     private fun scheduleNaturalMotion(force: Boolean = false) {
         val now = System.currentTimeMillis()
-        if (force || nextBlinkAt <= now) nextBlinkAt = now + Random.nextLong(4_000L, 9_000L)
+        if (force || nextBlinkAt <= now) nextBlinkAt = now + Random.nextLong(5_000L, 11_000L)
         if (force || nextGlanceAt <= now) {
             nextGlanceAt = now + glanceDelay(store.loadGlyphPreferences().glanceFrequency)
         }
@@ -191,6 +225,7 @@ class DaylineGlyphToyService : Service() {
 
     private fun stopLoop() {
         running = false
+        blinking = false
         handler.removeCallbacksAndMessages(null)
         bridge.close()
     }

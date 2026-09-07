@@ -11,6 +11,7 @@ import com.pix.dayline.data.FocusRuntimeStore
 import com.pix.dayline.model.*
 import java.time.LocalDateTime
 import java.time.ZoneId
+import kotlin.math.roundToInt
 import kotlin.random.Random
 
 /**
@@ -250,15 +251,26 @@ class DaylineGlyphToyService : Service() {
         }
     }
 
+    /**
+     * The settings slider stays on Dayline's simple 0..255 percentage scale,
+     * while raw IntArray frames use the higher range demonstrated by Nothing's
+     * official Matrix sample (up to 2046). This makes 100% materially brighter.
+     */
     private fun currentBrightness(prefs: GlyphPreferences): Int {
-        val base = visualPrefs.loadBrightness()
+        val uiBrightness = visualPrefs.loadBrightness()
+        val rawBrightness = (
+            uiBrightness / GlyphVisualPreferencesStore.MAX_BRIGHTNESS.toFloat() *
+                GlyphMatrixPatterns.MAX_RAW_BRIGHTNESS
+            ).roundToInt()
+            .coerceIn(0, GlyphMatrixPatterns.MAX_RAW_BRIGHTNESS)
+
         val quiet = prefs.quietHoursEnabled && GlyphStateResolver.inQuietHours(
             java.time.LocalTime.now(), prefs.quietStart, prefs.quietEnd
         )
         return if (prefs.dimAtNight && quiet) {
-            (base * 0.65f).toInt().coerceAtLeast(GlyphVisualPreferencesStore.MIN_BRIGHTNESS)
+            (rawBrightness * 0.65f).roundToInt().coerceAtLeast(128)
         } else {
-            base
+            rawBrightness
         }
     }
 

@@ -36,6 +36,7 @@ class NothingGlyphBridge(
     private var recoveryScheduled = false
     private var recoveryDelayMs = INITIAL_RECOVERY_DELAY_MS
     private var onReadyCallback: (() -> Unit)? = null
+    private val diagnostics = GlyphDiagnosticsStore(context.applicationContext)
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val recoveryRunnable = Runnable {
@@ -43,6 +44,7 @@ class NothingGlyphBridge(
         if (closed || connected) return@Runnable
 
         Log.w(TAG, "Glyph Matrix still disconnected; rebuilding SDK binding")
+        diagnostics.recordRecovery()
         teardownBinding()
         recoveryDelayMs = (recoveryDelayMs * 2L).coerceAtMost(MAX_RECOVERY_DELAY_MS)
         initializeBinding()
@@ -51,22 +53,13 @@ class NothingGlyphBridge(
     fun status(): GlyphHardwareStatus {
         val managerPresent = classExists(MANAGER_CLASS)
         if (!managerPresent) {
-            return GlyphHardwareStatus(
-                available = false,
-                detail = "Glyph Matrix SDK is not bundled in this build."
-            )
+            return GlyphHardwareStatus(available = false, detail = "Glyph Matrix SDK is not bundled in this build.")
         }
 
         val matrix = detectMatrixSize()
-        val nothing = Build.MANUFACTURER.contains("nothing", ignoreCase = true) ||
-            Build.BRAND.contains("nothing", ignoreCase = true)
+        val nothing = Build.MANUFACTURER.contains("nothing", ignoreCase = true) || Build.BRAND.contains("nothing", ignoreCase = true)
         return if (matrix == 13 || (nothing && Build.MODEL.contains("4a", ignoreCase = true))) {
-            GlyphHardwareStatus(
-                available = true,
-                matrixSize = matrix ?: 13,
-                deviceLabel = "Nothing Phone (4a) Pro",
-                detail = "13×13 Glyph Matrix"
-            )
+            GlyphHardwareStatus(available = true, matrixSize = matrix ?: 13, deviceLabel = "Nothing Phone (4a) Pro", detail = "13×13 Glyph Matrix")
         } else {
             GlyphHardwareStatus(
                 available = false,
@@ -80,48 +73,22 @@ class NothingGlyphBridge(
     fun connect(onReady: (() -> Unit)? = null) {
         if (onReady != null) onReadyCallback = onReady
         closed = false
-
-        if (connected) {
-            onReady?.invoke()
-            return
-        }
+        if (connected) { onReady?.invoke(); return }
         if (connecting) return
-
-        // If init() already established the SDK binding, do not churn it just
-        // because the proxy service is temporarily disconnected. Android/Nothing
-        // may reconnect the existing binding on its own.
-        if (manager != null) {
-            scheduleRecovery()
-            return
-        }
-
+        if (manager != null) { scheduleRecovery(); return }
         initializeBinding()
     }
 
-    /**
-     * @return true only when the frame is already current or reached the SDK
-     * immediately. A false result means the newest frame is retained for
-     * delivery after the existing binding reconnects or the conservative
-     * recovery watchdog fires.
-     */
+    /** True when the frame is already current or reached the SDK immediately. */
     fun show(frame: IntArray): Boolean {
         if (frame.size != GlyphMatrixPatterns.SIZE * GlyphMatrixPatterns.SIZE) return false
-
         if (!connected) {
             pendingFrame = frame.copyOf()
-            if (manager == null && !connecting) {
-                connect()
-            } else {
-                scheduleRecovery()
-            }
+            if (manager == null && !connecting) connect() else scheduleRecovery()
             return false
         }
 
         if (sendFrame(frame)) return true
-
-        // A frame-send exception is a real transport failure, but repeatedly
-        // tearing down/rebinding every render tick made the Matrix less stable.
-        // Queue the newest frame and allow one delayed recovery attempt.
         pendingFrame = frame.copyOf()
         lastDeliveredFrame = null
         connected = false
@@ -141,13 +108,8 @@ class NothingGlyphBridge(
         if (instance != null) {
             runCatching {
                 val cls = instance.javaClass
-                if (appMatrix) {
-                    cls.methods.firstOrNull { it.name == "closeAppMatrix" && it.parameterCount == 0 }
-                        ?.invoke(instance)
-                } else {
-                    cls.methods.firstOrNull { it.name == "turnOff" && it.parameterCount == 0 }
-                        ?.invoke(instance)
-                }
+                if (appMatrix) cls.methods.firstOrNull { it.name == "closeAppMatrix" && it.parameterCount == 0 }?.invoke(instance)
+                else cls.methods.firstOrNull { it.name == "turnOff" && it.parameterCount == 0 }?.invoke(instance)
             }.onFailure { Log.w(TAG, "Unable to close Glyph Matrix display", it) }
             safeUnInit(instance)
         }
@@ -164,28 +126,18 @@ class NothingGlyphBridge(
 
     private fun initializeBinding() {
         if (closed || connected || connecting) return
-
         connecting = true
         val generation = ++connectionGeneration
 
         runCatching {
             val managerClass = Class.forName(MANAGER_CLASS)
             val callbackClass = Class.forName("$MANAGER_CLASS\$Callback")
-            val instance = managerClass
-                .getMethod("getInstance", Context::class.java)
-                .invoke(null, context.applicationContext)
+            val instance = managerClass.getMethod("getInstance", Context::class.java).invoke(null, context.applicationContext)
             manager = instance
 
-            val proxy = Proxy.newProxyInstance(
-                callbackClass.classLoader,
-                arrayOf(callbackClass)
-            ) { _, method, _ ->
-                // SDK callbacks may arrive on a binder thread. All bridge state
-                // is owned by the main looper to avoid callback/render races.
+            val proxy = Proxy.newProxyInstance(callbackClass.classLoader, arrayOf(callbackClass)) { _, method, _ ->
                 mainHandler.post {
-                    if (closed || generation != connectionGeneration || manager !== instance) {
-                        return@post
-                    }
+                    if (closed || generation != connectionGeneration || manager !== instance) return@post
                     when (method.name) {
                         "onServiceConnected" -> handleServiceConnected(instance, managerClass)
                         "onServiceDisconnected" -> handleServiceDisconnected()
@@ -195,12 +147,10 @@ class NothingGlyphBridge(
             }
             callback = proxy
             managerClass.getMethod("init", callbackClass).invoke(instance, proxy)
-
-            // If the SDK never delivers onServiceConnected, recover later. Do
-            // not repeatedly re-init on every requested animation frame.
             scheduleRecovery()
         }.onFailure {
             Log.w(TAG, "Glyph Matrix bridge unavailable", it)
+            diagnostics.recordSendFailure(it)
             val instance = manager
             if (instance != null) safeUnInit(instance)
             connecting = false
@@ -214,7 +164,7 @@ class NothingGlyphBridge(
 
     private fun handleServiceConnected(instance: Any, managerClass: Class<*>) {
         val registered = runCatching { register(instance, managerClass) }
-            .onFailure { Log.w(TAG, "Glyph registration failed", it) }
+            .onFailure { Log.w(TAG, "Glyph registration failed", it); diagnostics.recordSendFailure(it) }
             .isSuccess
 
         connecting = false
@@ -233,36 +183,30 @@ class NothingGlyphBridge(
 
         val pending = pendingFrame
         if (pending != null) {
-            if (sendFrame(pending)) {
-                pendingFrame = null
-            } else {
+            if (sendFrame(pending)) pendingFrame = null
+            else {
                 connected = false
                 lastDeliveredFrame = null
                 scheduleRecovery()
                 return
             }
         }
-
         onReadyCallback?.invoke()
     }
 
     private fun handleServiceDisconnected() {
         Log.w(TAG, "Glyph Matrix service disconnected; waiting for proxy recovery")
+        diagnostics.recordDisconnect()
         connected = false
         connecting = false
         lastDeliveredFrame = null
         recoveryDelayMs = INITIAL_RECOVERY_DELAY_MS
-
-        // Keep manager/callback alive here. The SDK binding can reconnect
-        // without Dayline calling init() again. The watchdog only rebuilds the
-        // binding if that natural recovery does not happen in time.
         scheduleRecovery()
     }
 
     private fun sendFrame(frame: IntArray): Boolean {
         val previous = lastDeliveredFrame
         if (previous != null && previous.contentEquals(frame)) return true
-
         val instance = manager ?: return false
         return runCatching {
             val name = if (appMatrix) "setAppMatrixFrame" else "setMatrixFrame"
@@ -271,9 +215,11 @@ class NothingGlyphBridge(
             } ?: error("$name(int[]) not available")
             method.invoke(instance, frame)
             lastDeliveredFrame = frame.copyOf()
+            diagnostics.recordFrame()
             true
         }.onFailure {
             Log.w(TAG, "Unable to send Glyph Matrix frame", it)
+            diagnostics.recordSendFailure(it)
         }.getOrDefault(false)
     }
 
@@ -281,7 +227,6 @@ class NothingGlyphBridge(
         mainHandler.removeCallbacks(recoveryRunnable)
         recoveryScheduled = false
         connectionGeneration++
-
         manager?.let(::safeUnInit)
         connected = false
         connecting = false
@@ -291,11 +236,8 @@ class NothingGlyphBridge(
     }
 
     private fun safeUnInit(instance: Any) {
-        runCatching {
-            instance.javaClass.methods
-                .firstOrNull { it.name == "unInit" && it.parameterCount == 0 }
-                ?.invoke(instance)
-        }.onFailure { Log.w(TAG, "Unable to unInit Glyph Matrix bridge", it) }
+        runCatching { instance.javaClass.methods.firstOrNull { it.name == "unInit" && it.parameterCount == 0 }?.invoke(instance) }
+            .onFailure { Log.w(TAG, "Unable to unInit Glyph Matrix bridge", it) }
     }
 
     private fun scheduleRecovery() {
@@ -306,20 +248,13 @@ class NothingGlyphBridge(
 
     private fun register(instance: Any, managerClass: Class<*>) {
         val glyphClass = Class.forName(GLYPH_CLASS)
-        // Nothing documents DEVICE_25111p for Phone (4a) Pro, but older SDK
-        // binaries have shipped without that field. Fall back to the documented
-        // target identifier so Dayline remains compatible while the SDK catches up.
-        val target = runCatching {
-            glyphClass.getField("DEVICE_25111p").get(null) as String
-        }.getOrElse { "25111p" }
+        val target = runCatching { glyphClass.getField("DEVICE_25111p").get(null) as String }.getOrElse { "25111p" }
         managerClass.getMethod("register", String::class.java).invoke(instance, target)
     }
 
     private fun detectMatrixSize(): Int? = runCatching {
         val common = Class.forName(COMMON_CLASS)
-        val method = common.methods.firstOrNull {
-            it.name == "getDeviceMatrixLength" && it.parameterCount == 0
-        } ?: return@runCatching null
+        val method = common.methods.firstOrNull { it.name == "getDeviceMatrixLength" && it.parameterCount == 0 } ?: return@runCatching null
         (method.invoke(null) as? Number)?.toInt()
     }.getOrNull()
 
@@ -335,10 +270,7 @@ class NothingGlyphBridge(
 
         fun openToyManager(context: Context): Boolean = runCatching {
             val intent = Intent().apply {
-                component = ComponentName(
-                    "com.nothing.thirdparty",
-                    "com.nothing.thirdparty.matrix.toys.manager.ToysManagerActivity"
-                )
+                component = ComponentName("com.nothing.thirdparty", "com.nothing.thirdparty.matrix.toys.manager.ToysManagerActivity")
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(intent)

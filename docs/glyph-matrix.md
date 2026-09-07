@@ -1,6 +1,6 @@
 # Dayline Glyph Matrix integration
 
-Dayline v0.14.7.beta provides an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
+Dayline v0.14.8.beta provides an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
 
 ## Dayline behavior
 
@@ -8,13 +8,11 @@ Dayline is intentionally eyes-first. The live idle face keeps only the expressio
 
 Every non-center animation is isolated by Center on both sides. The runtime follows `CENTER → animation → CENTER → next animation`, including Blink. A dedicated ~700 ms Center recovery is enforced before any due blink or motion can start.
 
-The Settings preview mirrors that same transition contract. It uses a single circular black preview surface and only draws illuminated matrix cells, so the old square-grid shape is no longer visible inside the circle.
-
 Automatic calendar/app-state symbols do not interrupt the face. Focus Mode is the only automatic Dayline timing behavior.
 
 ## Focus time announcements
 
-The persistent Focus timer and the old circular progress ring are both removed. Focus and Rest now keep the **same normal large eyes** as idle mode for nearly the entire phase.
+The persistent Focus timer and the old circular progress ring are both removed. Focus and Rest keep the **same normal large eyes** as idle mode for nearly the entire phase.
 
 At selected checkpoints, Dayline temporarily replaces the eyes with a centred `MM:SS` countdown:
 
@@ -37,6 +35,20 @@ Outside those 30-second windows, Focus does not alter the face at all. The norma
 
 The announcement timer uses a compact 3×5 numeric font that fits `MM:SS` across all 13 columns and is vertically centred in the Matrix because no eye pixels are drawn at the same time.
 
+## Glyph settings
+
+v0.14.8.beta simplifies the in-app Glyph configuration without changing the live hardware behavior.
+
+The main Settings page now contains only one **Dayline Glyph** row. Opening it shows five compact groups:
+
+- **Glyph** — enable state, hardware status and shortcut to Nothing Settings.
+- **Look** — brightness, Blink, Expressions, Motion and Reduce motion.
+- **Focus** — the 30-second checkpoint rule summarized as `Start · every 5 min · 1 min left`.
+- **Night** — quiet hours, start/end time and optional dimming.
+- **Test expressions** — Center, Left, Right, Blink, Happy, Wink, Hearts, Squint and Sleepy.
+
+The preview uses the same single circular surface as before but is smaller so controls have more breathing room. Long hardware/brightness/focus explanation paragraphs were removed from the sheet.
+
 Dayline keeps a simple 0–100% brightness control and maps it to the higher raw `IntArray` Matrix intensity range used by Nothing's official example project. Duplicate raw frames are suppressed to reduce visible flicker/twitching.
 
 ## Activating the AOD toy
@@ -44,7 +56,7 @@ Dayline keeps a simple 0–100% brightness control and maps it to the higher raw
 1. Install the GitHub **beta** APK.
 2. In Dayline open **Settings → Glyph → Dayline Glyph**.
 3. Enable **Dayline Glyph** and adjust brightness/animation behavior if wanted.
-4. Tap **ACTIVATE IN NOTHING SETTINGS**.
+4. Tap **OPEN NOTHING SETTINGS**.
 5. In Nothing OS select **Settings → Glyph Interface → Flip to Glyph → Always-on Glyph Toy → Dayline Eyes**.
 
 ## Open-source / SDK boundary
@@ -53,7 +65,7 @@ Dayline's own Glyph patterns, settings and reflection bridge are part of the MIT
 
 For GitHub beta CI, `.github/workflows/build-apk.yml` first validates that the AAR is absent and then downloads the official binary from `Nothing-Developer-Programme/GlyphMatrix-Developer-Kit` before compiling the beta flavor. `app/build.gradle.kts` only attaches the AAR to `betaImplementation` when the file exists.
 
-The Play flavor does not include the SDK in v0.14.7.beta. Nothing's Glyph SDK license restricts commercial use without written permission, so Play distribution should stay disabled for Glyph hardware until the appropriate permission/license is obtained.
+The Play flavor does not include the SDK in v0.14.8.beta. Nothing's Glyph SDK license restricts commercial use without written permission, so Play distribution should stay disabled for Glyph hardware until the appropriate permission/license is obtained.
 
 ## Release safety
 

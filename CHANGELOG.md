@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.15.2.beta — Daily Flow release alignment
+
+### Added
+- Added updater-facing `docs/releases/v0.15.2.beta.md` with concise **Added / Changed / Fixed** notes.
+
+### Changed
+- Republished the v0.15 Daily Flow milestone under a clean installable beta version after the `0.15.0`/`0.15.1` release-tag attempts could not publish a matching APK.
+- Kept the Daily Flow feature set unchanged: Today timeline interactions, two-way Calendar sync, recurrence polish, Upcoming filters, reminder reliability, navigation polish and the two-line Focus Glyph timer.
+
+### Fixed
+- Fixed tagged release identity by bumping the embedded beta APK to **versionCode 1502** and **versionName `0.15.2.beta`**, matching tag `v0.15.2.beta`.
+
 ## 0.15.0.beta — Daily Flow
 
 ### Added

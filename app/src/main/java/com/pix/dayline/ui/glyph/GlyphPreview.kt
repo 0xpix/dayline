@@ -1,13 +1,7 @@
 package com.pix.dayline.ui.glyph
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -15,7 +9,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.unit.dp
 import com.pix.dayline.glyph.GlyphMatrixPatterns
 import com.pix.dayline.model.DaylineGlyphSignal
 import kotlinx.coroutines.delay
@@ -26,35 +19,38 @@ fun GlyphMatrixPreview(
     modifier: Modifier = Modifier,
     animate: Boolean = true
 ) {
-    var visibleSignal by remember(signal) { mutableStateOf(signal) }
+    var visibleSignal by remember { mutableStateOf(DaylineGlyphSignal.CENTER) }
 
     LaunchedEffect(signal, animate) {
-        visibleSignal = signal
-        if (animate && signal == DaylineGlyphSignal.BLINK) {
-            visibleSignal = DaylineGlyphSignal.CENTER
-            delay(120)
-            visibleSignal = DaylineGlyphSignal.BLINK
-            delay(150)
-            visibleSignal = DaylineGlyphSignal.CENTER
+        if (!animate || signal == DaylineGlyphSignal.CENTER) {
+            visibleSignal = signal
+            return@LaunchedEffect
         }
+
+        // Match the real Glyph transition contract in Settings too. Every preview
+        // starts and ends on CENTER so rapidly tapping expressions never creates
+        // a misleading HAPPY -> SQUINT -> LEFT sequence.
+        visibleSignal = DaylineGlyphSignal.CENTER
+        delay(250)
+        visibleSignal = signal
+        delay(if (signal == DaylineGlyphSignal.BLINK) 350 else 900)
+        visibleSignal = DaylineGlyphSignal.CENTER
     }
 
-    Box(
-        modifier = modifier
-            .aspectRatio(1f)
-            .background(Color.Black, CircleShape)
-            .padding(12.dp)
-    ) {
-        Canvas(Modifier.fillMaxWidth().aspectRatio(1f)) {
-            drawMatrix(GlyphMatrixPatterns.frame(visibleSignal))
-        }
+    Canvas(modifier.aspectRatio(1f)) {
+        // One preview surface only. The old component drew a circular container
+        // plus 169 dark cells, which visually produced a square inside the circle.
+        drawCircle(Color.Black, radius = size.minDimension / 2f)
+        drawMatrix(GlyphMatrixPatterns.frame(visibleSignal))
     }
 }
 
 private fun DrawScope.drawMatrix(frame: IntArray) {
     val n = GlyphMatrixPatterns.SIZE
-    val gap = size.minDimension * 0.012f
-    val cell = (size.minDimension - gap * (n - 1)) / n
+    val padding = size.minDimension * 0.095f
+    val available = size.minDimension - padding * 2f
+    val gap = available * 0.012f
+    val cell = (available - gap * (n - 1)) / n
     val total = cell * n + gap * (n - 1)
     val x0 = (size.width - total) / 2f
     val y0 = (size.height - total) / 2f
@@ -62,22 +58,17 @@ private fun DrawScope.drawMatrix(frame: IntArray) {
     for (y in 0 until n) {
         for (x in 0 until n) {
             val brightness = frame[y * n + x]
-            val lit = brightness > 0
-            val color = if (lit) {
-                Color.White.copy(
-                    alpha = (brightness / GlyphMatrixPatterns.MAX_RAW_BRIGHTNESS.toFloat())
-                        .coerceIn(0.12f, 1f)
-                )
-            } else {
-                Color(0xFF1A1A1A)
-            }
+            if (brightness <= 0) continue
+
+            val alpha = (brightness / GlyphMatrixPatterns.MAX_RAW_BRIGHTNESS.toFloat())
+                .coerceIn(0.12f, 1f)
             val left = x0 + x * (cell + gap)
             val top = y0 + y * (cell + gap)
             drawRoundRect(
-                color = color,
+                color = Color.White.copy(alpha = alpha),
                 topLeft = Offset(left, top),
                 size = Size(cell, cell),
-                cornerRadius = CornerRadius(cell * 0.18f, cell * 0.18f)
+                cornerRadius = CornerRadius(cell * 0.22f, cell * 0.22f)
             )
         }
     }

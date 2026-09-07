@@ -599,6 +599,11 @@ private fun GlyphSettingsSheet(
                 Spacer(Modifier.width(12.dp))
                 TinyAction("+") { changeBrightness(32) }
             }
+            Text(
+                "100% uses the full raw Glyph Matrix intensity range.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             ToggleSettingRow("Frequent blink", preferences.blinkEnabled) {
                 update(preferences.copy(blinkEnabled = it))
             }
@@ -624,7 +629,7 @@ private fun GlyphSettingsSheet(
             Spacer(Modifier.height(8.dp))
             InfoRow("Progress ring", "Automatic")
             Text(
-                "For 25 / 5, 50 / 10 and custom focus cycles, pixels fill around the eyes one by one. Focus runs clockwise; break restarts in the opposite direction while the eye animations keep going.",
+                "A faint circular outline stays visible around the eyes. For 25 / 5, 50 / 10 and custom cycles, completed pixels brighten one by one; focus runs clockwise and break runs in reverse.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -666,18 +671,14 @@ private fun GlyphSettingsSheet(
                 "CENTER" to DaylineGlyphSignal.CENTER,
                 "LEFT" to DaylineGlyphSignal.LOOK_LEFT,
                 "RIGHT" to DaylineGlyphSignal.LOOK_RIGHT,
+                "BLINK" to DaylineGlyphSignal.BLINK,
                 "HAPPY" to DaylineGlyphSignal.HAPPY,
                 "WINK" to DaylineGlyphSignal.WINK,
-                "CURIOUS" to DaylineGlyphSignal.CURIOUS,
-                "PLAYFUL" to DaylineGlyphSignal.PLAYFUL,
-                "SURPRISED" to DaylineGlyphSignal.SURPRISED,
-                "SIDE EYE" to DaylineGlyphSignal.SIDE_EYE,
-                "EXCITED" to DaylineGlyphSignal.EXCITED,
-                "ROLLING" to DaylineGlyphSignal.ROLLING,
                 "HEARTS" to DaylineGlyphSignal.HEARTS,
+                "SQUINT" to DaylineGlyphSignal.SQUINT,
                 "SLEEPY" to DaylineGlyphSignal.SLEEPY
             )
-            tests.chunked(4).forEach { row ->
+            tests.chunked(3).forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     row.forEach { (label, signal) ->
                         Text(
@@ -690,13 +691,13 @@ private fun GlyphSettingsSheet(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+                    repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
 
             Spacer(Modifier.height(16.dp))
             Text(
-                "Blink runs automatically and more often now. Sleepy is kept as a rare expression rather than a normal idle state.",
+                "LEFT and RIGHT always return through CENTER before another expression. Blink is frequent; happy is common; sleepy stays rare.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

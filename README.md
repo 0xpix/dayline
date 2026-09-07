@@ -4,24 +4,33 @@
 
 Dayline is an open-source Android calendar and planner built with Kotlin, Jetpack Compose, Material 3 and Glance. It is local-first, deliberately minimal, and designed around **Today** instead of a dashboard.
 
-Current milestone: **v0.14.9.beta · Glyph reliability**
+Current milestone: **v0.15.0.beta · Daily Flow**
 
-## What v0.14.9.beta adds
+## What v0.15.0.beta adds
 
-- Fixed a real Glyph freeze path after Nothing's Matrix service disconnects: Dayline no longer keeps a stale manager that can queue frames forever without reconnecting.
-- The Glyph bridge now treats service disconnects, registration failures and frame-send failures as recoverable and reconnects automatically while retaining the newest pending frame.
-- Added connection-generation guards so late callbacks from an old SDK connection cannot take over a newer connection.
-- Made the Glyph render loop self-healing: one unexpected render/runtime exception can no longer escape the Handler callback and permanently stop all later animation ticks.
-- Added a lightweight **4-second frame heartbeat** for otherwise unchanged frames, helping the hardware recover if the Nothing service silently drops a displayed frame.
-- A frame is no longer marked as delivered when the bridge is disconnected; Dayline retries it on the next render tick while reconnection is in progress.
-- Focus time announcements and the normal eye animations keep their existing visual behavior; this beta is a reliability fix rather than another visual redesign.
-- Bumped beta versionCode to **1409** and beta versionName to `0.14.9.beta`.
+### Added
 
-The v0.14.8 Settings cleanup remains intact: widget controls live only in widget configuration, the main Settings hierarchy is clearer, and the Glyph sheet is compact.
+- **Two-way Android Calendar reconciliation** for Dayline-mapped events. Provider title, date/time, recurrence, exclusions and calendar moves now flow back into Dayline; external deletion removes the mapped local event.
+- Upcoming now has **Today / Tomorrow / 7 days / All** windows and a dedicated **Focus** filter.
+- Every tagged beta now requires a concise release-note file with **Added / Changed / Fixed** sections. Those notes are what the in-app updater shows.
 
-The v0.14.7 Glyph behavior also remains intact: Focus and Rest keep the normal large eyes most of the time, with 30-second `MM:SS` announcements at phase start, every five-minute remaining checkpoint and 1:00 remaining.
+### Changed
 
-The larger v0.12/v0.13 feature set also remains intact: calendar controls, recurrence scopes, timeline manipulation, focus cycles, tasks, templates, backup/ICS, per-widget configuration, GitHub beta updates and Play separation.
+- Today move and resize gestures are separated: the event body moves the event, while the bottom handle changes only the end time.
+- Today shows live end-time/duration feedback while resizing, with cleaner spacing and a quieter current-time marker.
+- Recurring edits default to **This occurrence**, with explicit **This + following** and **Entire series** choices. Direct Today move/resize of a recurring event also edits the visible occurrence instead of silently moving the master series.
+- Upcoming rows open the exact occurrence, while task completion remains a separate control.
+- Navigation selection keeps fixed geometry so rows do not jump when selected.
+- Focus Glyph announcements keep the existing 30-second checkpoint behavior but render **minutes on top and seconds underneath** for much better 13×13 readability.
+
+### Fixed
+
+- Fixed the Today bottom-handle bug where trying to change the end time could move the start time instead.
+- Reminder scheduling now falls back safely if exact-alarm permission changes and rebuilds after reboot, app update, clock/date or timezone changes.
+- The v0.14.9 Glyph reconnect/watchdog/heartbeat reliability fixes remain in place to prevent frozen timer/eye frames after Nothing's Matrix service disconnects.
+- Beta version is **1500 / `0.15.0.beta`**.
+
+The larger v0.12–v0.14 feature set remains intact: calendar controls, recurrence scopes, focus cycles, tasks, templates, backup/ICS, per-widget configuration, GitHub beta updates, Nothing Glyph integration and Play separation.
 
 ## Nothing Glyph Matrix distribution
 
@@ -45,6 +54,24 @@ Tagged GitHub beta APKs must keep using the same persistent beta signing key. An
 
 > If an older beta was signed with a different temporary/debug key, Android may require one uninstall/reinstall when moving to the persistent beta key. Back up Dayline first. After that baseline is installed, future signed betas can update in place with the same key.
 
+## Release notes
+
+Each beta release has a short updater-facing file at:
+
+```text
+docs/releases/<tag>.md
+```
+
+It must contain:
+
+```text
+## Added
+## Changed
+## Fixed
+```
+
+The tagged release workflow refuses to publish a beta without those sections. This keeps the in-app **Dayline update** sheet concise and readable instead of showing autogenerated commit/changelog noise.
+
 ## Privacy
 
 Dayline has no Dayline account, advertising SDK, analytics SDK or Dayline-operated cloud. Calendar access is optional and uses Android's Calendar Provider. GitHub beta update checks send an ordinary HTTPS request to GitHub's public release endpoint; Dayline calendar/task/focus data is not included. See [Privacy Policy](docs/privacy-policy.md) and [Data Safety Notes](docs/data-safety.md).
@@ -57,9 +84,9 @@ Requirements: JDK 17, Gradle 9.4.1, Android SDK API 37 and Build Tools 36.0.0.
 gradle :app:assembleBetaDebug :app:assemblePlayDebug --no-daemon
 ```
 
-GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.14.9.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
+GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.15.0.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
 
-Before publication, the tagged workflow verifies that the signed APK's embedded version matches the tag and that its Android `versionCode` follows Dayline's beta version convention.
+Before publication, the tagged workflow verifies that the signed APK's embedded version matches the tag, that its Android `versionCode` follows Dayline's beta version convention, and that the updater-facing release notes contain Added / Changed / Fixed sections.
 
 ## Google Play build
 

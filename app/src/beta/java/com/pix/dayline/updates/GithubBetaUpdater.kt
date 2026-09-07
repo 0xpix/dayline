@@ -23,12 +23,7 @@ import java.net.UnknownHostException
 import java.security.MessageDigest
 import java.time.Instant
 
-/**
- * GitHub beta update channel.
- *
- * Only the beta flavor gets this network/download implementation. The Play flavor
- * supplies an offline stub and does not request INTERNET or install-package access.
- */
+/** GitHub beta updater. The Play flavor supplies an offline stub. */
 object GithubBetaUpdater {
     private const val RELEASES_API = "https://api.github.com/repos/0xpix/dayline/releases?per_page=30"
     private const val USER_AGENT_PREFIX = "Dayline-Beta-Updater/"
@@ -105,9 +100,6 @@ object GithubBetaUpdater {
                     }
                 }
 
-                // A release must be newer in BOTH human version and Android
-                // versionCode terms. This prevents the UI from offering a tag whose
-                // APK Android would reject as the same/older installed build.
                 val newest = parsed
                     .filter {
                         DaylineVersion.isInstallableUpdate(
@@ -252,19 +244,18 @@ object GithubBetaUpdater {
         return value
             .lineSequence()
             .map { line ->
-                val trimmed = line.trim()
-                    .removePrefix("### ")
-                    .removePrefix("## ")
-                    .removePrefix("# ")
-                    .removePrefix("- ")
-                    .removePrefix("* ")
-                if (trimmed.startsWith("Full Changelog", ignoreCase = true)) {
-                    "Full changelog available on GitHub."
-                } else {
-                    trimmed
+                val plain = line.trim()
+                    .trimStart('#', '-', '*', ' ')
+                    .replace("**", "")
+                    .trim()
+                when {
+                    plain.startsWith("Full Changelog", ignoreCase = true) ->
+                        "Full changelog available on GitHub."
+                    plain.startsWith("http://") || plain.startsWith("https://") -> ""
+                    else -> plain
                 }
             }
-            .filter { it.isNotBlank() && !it.startsWith("http://") && !it.startsWith("https://") }
+            .filter { it.isNotBlank() }
             .distinct()
             .take(12)
             .joinToString("\n")

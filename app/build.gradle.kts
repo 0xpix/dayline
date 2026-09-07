@@ -55,79 +55,57 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
-    packaging {
-        resources.excludes += setOf(
-            "META-INF/AL2.0",
-            "META-INF/LGPL2.1"
-        )
-    }
+    val releaseStorePath = System.getenv("DAYLINE_KEYSTORE_FILE")
+    val releaseStorePassword = System.getenv("DAYLINE_KEYSTORE_PASSWORD")
+    val releaseKeyAlias = System.getenv("DAYLINE_KEY_ALIAS")
+    val releaseKeyPassword = System.getenv("DAYLINE_KEY_PASSWORD")
+    val hasReleaseSigning = listOf(
+        releaseStorePath,
+        releaseStorePassword,
+        releaseKeyAlias,
+        releaseKeyPassword
+    ).all { !it.isNullOrBlank() }
 
     signingConfigs {
-        create("betaRelease") {
-            val keystoreFile = System.getenv("DAYLINE_KEYSTORE_FILE")
-            if (!keystoreFile.isNullOrBlank()) {
-                storeFile = file(keystoreFile)
-                storePassword = System.getenv("DAYLINE_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("DAYLINE_KEY_ALIAS")
-                keyPassword = System.getenv("DAYLINE_KEY_PASSWORD")
-            }
-        }
-        create("playRelease") {
-            val keystoreFile = System.getenv("DAYLINE_PLAY_KEYSTORE_FILE")
-            if (!keystoreFile.isNullOrBlank()) {
-                storeFile = file(keystoreFile)
-                storePassword = System.getenv("DAYLINE_PLAY_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("DAYLINE_PLAY_KEY_ALIAS")
-                keyPassword = System.getenv("DAYLINE_PLAY_KEY_PASSWORD")
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(releaseStorePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
             }
         }
     }
 
     buildTypes {
-        getByName("debug") {
-            applicationIdSuffix = ".debug"
-            versionNameSuffix = "-debug"
-        }
         getByName("release") {
             isMinifyEnabled = false
-            signingConfig = null
-        }
-    }
-
-    androidComponents {
-        beforeVariants(selector().withBuildType("release")) { variantBuilder ->
-            when (variantBuilder.productFlavors.firstOrNull()?.second) {
-                "beta" -> variantBuilder.signingConfig = signingConfigs.getByName("betaRelease")
-                "play" -> variantBuilder.signingConfig = signingConfigs.getByName("playRelease")
+            isShrinkResources = false
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
             }
         }
     }
 }
 
 dependencies {
-    val composeBom = platform("androidx.compose:compose-bom:2026.06.00")
-    implementation(composeBom)
-    androidTestImplementation(composeBom)
-
-    implementation("androidx.activity:activity-compose:1.12.4")
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.foundation:foundation")
-    implementation("androidx.core:core-ktx:1.17.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.4")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
-    implementation("androidx.glance:glance-appwidget:1.1.1")
-    implementation("androidx.glance:glance-material3:1.1.1")
-
-    debugImplementation("androidx.compose.ui:ui-tooling")
-
+    val composeBom = platform("androidx.compose:compose-bom:2026.08.00")
     val glyphMatrixSdk = file("libs/glyph-matrix-sdk-2.0.aar")
     if (glyphMatrixSdk.exists()) {
         add("betaImplementation", files(glyphMatrixSdk))
     }
+    implementation(composeBom)
+
+    implementation("androidx.core:core-ktx:1.18.0")
+    implementation("androidx.activity:activity-compose:1.13.0")
+    implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.ui:ui-text-google-fonts")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
+    implementation("androidx.glance:glance-appwidget:1.2.0")
+    implementation("androidx.glance:glance-material3:1.2.0")
+
+    debugImplementation("androidx.compose.ui:ui-tooling")
 }

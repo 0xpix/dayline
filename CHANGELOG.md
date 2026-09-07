@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.15.4.beta — Update sheet + Focus timer polish
+
+### Added
+- Added a clean in-app **What's new** layout that parses updater-facing release notes into readable **Added / Changed / Fixed** groups.
+
+### Changed
+- Replaced the text-only update action with a distinct full-width **Download & update** button.
+- After a verified APK download, Dayline now immediately opens Android's installer; when install permission is required, the action becomes **Continue update**.
+- Narrowed the stacked Focus timer digits from 5 columns to 4 columns and centered each two-digit line with two columns of side padding.
+
+### Fixed
+- Fixed the update sheet rendering raw release Markdown and mixing changelog content with download/install actions.
+- Fixed Focus timer digits appearing too close to or over the visible Phone (4a) Pro Glyph Matrix border.
+- Bumped beta versionCode to **1504** and beta versionName to `0.15.4.beta`.
+
 ## 0.15.3.beta — Glyph stability hotfix
 
 ### Added

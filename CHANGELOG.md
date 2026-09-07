@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.14.8.beta — Settings cleanup
+
+- Removed the **Widgets** section from app Settings so widget font, emoji and behavior stay only in each widget's own configuration screen.
+- Increased the main Settings title and section-heading hierarchy so section titles are easier to distinguish from individual options.
+- Simplified the main Glyph section to a single Dayline Glyph entry instead of showing hardware and explanatory copy inline.
+- Rebuilt the Glyph settings sheet into compact **Glyph**, **Look**, **Focus**, **Night** and **Test expressions** sections.
+- Reduced the Glyph preview footprint and removed long explanatory text that made the sheet feel crowded.
+- Simplified Glyph option labels and kept only concise status/help text where it is useful.
+- Kept the v0.14.7 Focus checkpoint behavior unchanged: 30-second time announcements at phase start, every five-minute remaining checkpoint and 1:00 remaining.
+- Cleaned Beta Updates and About by removing redundant copy and combining build code + commit information.
+- Bumped beta versionCode to **1408** and beta versionName to `0.14.8.beta`.
+
 ## 0.14.7.beta — Focus time announcements
 
 - Removed the persistent Focus timer layout from the Glyph Matrix; Focus and Rest now keep the normal large expressive eyes most of the time.

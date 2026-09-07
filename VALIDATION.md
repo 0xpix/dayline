@@ -1,13 +1,13 @@
-# Dayline v0.16.0.beta — Validation Report
+# Dayline v0.16.1.beta — Validation Report
 
-This report tracks the current **v0.16.0.beta / versionCode 1600** source. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current **v0.16.1.beta / versionCode 1601** source. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
-- Beta target: **0.16.0.beta / 1600**.
-- `docs/releases/v0.16.0.beta.md` contains concise **Added / Changed / Fixed** updater notes.
+- Beta target: **0.16.1.beta / 1601**.
+- `docs/releases/v0.16.1.beta.md` contains concise **Added / Changed / Fixed** updater notes.
 - Beta/Play flavor separation remains intact; Play stays on the stable base version and does not package the Nothing SDK.
-- Tagged builds must verify signed APK versionName/versionCode against tag `v0.16.0.beta`.
+- Tagged builds must verify signed APK versionName/versionCode against tag `v0.16.1.beta`.
 - Static validation, Beta debug compile and Play debug compile must all pass before tagging.
 
 ## Planning engine
@@ -60,11 +60,19 @@ This report tracks the current **v0.16.0.beta / versionCode 1600** source. GitHu
 
 ## Today ↔ Upcoming swipe
 
-- Swipe left on Today transitions to Upcoming.
-- Swipe right on Upcoming transitions to Today.
-- Swipe transitions use ~300 ms directional horizontal slide plus a light fade.
+- Swipe left on Today opens Upcoming.
+- Swipe right on Upcoming returns to Today.
+- Main destination changes are intentionally **instant** in v0.16.1; the v0.16.0 full-page slide/fade transition is removed.
 - Vertical timeline scrolling remains separate from horizontal gesture detection.
 - Menu navigation remains available and unchanged.
+
+## Updater presentation
+
+- Release notes are parsed from curated `## Added`, `## Changed` and `## Fixed` headings.
+- Each section renders in its own visually separated card with independent spacing.
+- The three sections must not read as one continuous bullet list.
+- The distinct full-width **Download & update** action remains below the changelog.
+- Package, version and checksum verification remain unchanged.
 
 ## Beta diagnostics
 
@@ -79,12 +87,11 @@ This report tracks the current **v0.16.0.beta / versionCode 1600** source. GitHu
 - Android Calendar mapped events continue two-way reconciliation.
 - Recurrence edit scopes remain This occurrence / This + following / Entire series.
 - Reminder and Now Activity rescheduling remains enabled across reboot/time/timezone changes.
-- Updater uses curated Added / Changed / Fixed release notes with a distinct Download & update button.
-- Glyph keeps the conservative lifecycle/recovery strategy and the compact stacked Focus time display; v0.16 adds no new Glyph behavior.
+- Glyph keeps the conservative lifecycle/recovery strategy and the compact stacked Focus time display; v0.16.1 adds no new Glyph behavior.
 
 ## Android compile gate
 
-Before tagging `v0.16.0.beta`, GitHub Actions must pass:
+Before tagging `v0.16.1.beta`, GitHub Actions must pass:
 
 ```text
 :app:assembleBetaDebug

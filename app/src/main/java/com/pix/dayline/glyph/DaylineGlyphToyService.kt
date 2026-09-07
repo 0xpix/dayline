@@ -117,8 +117,12 @@ class DaylineGlyphToyService : Service() {
     }
 
     /**
-     * A single calm state machine keeps hardware updates stable. Left/right
-     * glances always return to CENTER before blink or another expression starts.
+     * A single calm state machine keeps hardware updates stable.
+     *
+     * Every non-centre animation is isolated by CENTER on both sides:
+     * CENTER -> animation -> CENTER -> next animation.
+     * This prevents sequences such as SLEEPY -> HAPPY -> RIGHT from visually
+     * blending together on the small 13x13 matrix.
      */
     private fun naturalExpression(
         prefs: GlyphPreferences,
@@ -126,34 +130,30 @@ class DaylineGlyphToyService : Service() {
     ): DaylineGlyphSignal {
         if (nextBlinkAt == 0L || nextMotionAt == 0L) scheduleNaturalMotion(force = true)
 
-        // Finish the current expression first. A side glance gets a dedicated
-        // centre recovery beat, so LEFT -> HAPPY / BLINK never looks like a jump.
+        // Complete a motion/expression, then always force a dedicated centre beat
+        // before blink or another expression can begin.
         if (motionUntil > 0L && now >= motionUntil) {
-            val completed = motionOverride
             motionUntil = 0L
             motionOverride = null
-            if (completed == DaylineGlyphSignal.LOOK_LEFT || completed == DaylineGlyphSignal.LOOK_RIGHT) {
-                centerRecoveryUntil = now + CENTER_RECOVERY_MS
-                if (nextBlinkAt <= centerRecoveryUntil) {
-                    nextBlinkAt = centerRecoveryUntil + Random.nextLong(350L, 900L)
-                }
-                return DaylineGlyphSignal.CENTER
-            }
+            beginCenterRecovery(now)
+            return DaylineGlyphSignal.CENTER
         }
 
         if (now < centerRecoveryUntil) return DaylineGlyphSignal.CENTER
 
-        // Do not let a blink interrupt an expression mid-frame. Finish the
-        // expression, centre if required, then blink.
+        // Hold the current expression until its time is complete.
         motionOverride?.let { return it }
 
+        // Blink is also treated as an expression and must return through CENTER.
         if (blinkUntil > 0L) {
             if (now < blinkUntil) return DaylineGlyphSignal.BLINK
             blinkUntil = 0L
+            beginCenterRecovery(now)
+            return DaylineGlyphSignal.CENTER
         }
 
         if (prefs.blinkEnabled && now >= nextBlinkAt) {
-            blinkUntil = now + 350L
+            blinkUntil = now + BLINK_HOLD_MS
             nextBlinkAt = now + Random.nextLong(2_200L, 4_800L)
             return DaylineGlyphSignal.BLINK
         }
@@ -166,6 +166,20 @@ class DaylineGlyphToyService : Service() {
         }
 
         return DaylineGlyphSignal.CENTER
+    }
+
+    private fun beginCenterRecovery(now: Long) {
+        centerRecoveryUntil = now + CENTER_RECOVERY_MS
+
+        // Nothing else may begin during the recovery beat. Push due timers just
+        // beyond it so the next animation always starts from a clearly visible
+        // centre frame rather than on the same renderer tick.
+        if (nextBlinkAt <= centerRecoveryUntil) {
+            nextBlinkAt = centerRecoveryUntil + Random.nextLong(350L, 900L)
+        }
+        if (nextMotionAt <= centerRecoveryUntil) {
+            nextMotionAt = centerRecoveryUntil + Random.nextLong(350L, 900L)
+        }
     }
 
     private fun randomExpression(): DaylineGlyphSignal {
@@ -310,5 +324,6 @@ class DaylineGlyphToyService : Service() {
 
     private companion object {
         const val CENTER_RECOVERY_MS = 500L
+        const val BLINK_HOLD_MS = 350L
     }
 }

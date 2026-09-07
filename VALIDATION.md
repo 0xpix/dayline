@@ -1,6 +1,6 @@
-# Dayline v0.14.7.beta — Validation Report
+# Dayline v0.14.8.beta — Validation Report
 
-This report tracks the current v0.14.7.beta source state. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current v0.14.8.beta source state. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
@@ -17,6 +17,30 @@ This report tracks the current v0.14.7.beta source state. GitHub Actions remains
 - Automatic Android app-data backup disabled: **PASS**
 - Notification seconds-chronometer / `HH:mm:ss` regression scan: **PASS**
 - Merge-marker / duplicate-import scan: **PASS**
+
+## Settings validation
+
+The app Settings screen is intentionally reduced in v0.14.8.beta.
+
+- The app-level **Widgets** section is removed.
+- Widget appearance/content controls remain owned by each widget configuration screen.
+- The main Settings title uses a larger display hierarchy.
+- Section headings use a title hierarchy that is visually stronger than the body-sized option rows.
+- Main Glyph Settings is a single clean entry instead of an inline hardware/status/explanation block.
+- Beta Updates removes redundant channel/help copy.
+- About combines Android build code and commit into one compact row.
+
+## Glyph settings validation
+
+The Glyph configuration sheet is split into five compact groups:
+
+- Glyph
+- Look
+- Focus
+- Night
+- Test expressions
+
+The preview is smaller, long explanatory paragraphs are removed, and control labels are shortened. The sheet still exposes enable state, hardware access, brightness, Blink, Expressions, Motion frequency, Reduce motion, Focus checkpoint behavior, quiet hours, dimming and expression tests.
 
 ## Glyph core validation
 
@@ -44,15 +68,14 @@ CENTER → animation → CENTER → next animation
 
 The Center recovery remains about **700 ms** for Look left/right, Happy, Wink, Hearts, Squint, Sleepy and Blink. Due blink/motion timers are pushed beyond that window so another animation cannot begin on the same renderer tick.
 
-The Settings preview mirrors the same `CENTER → expression → CENTER` contract. It uses a single circular black surface and draws only illuminated cells, eliminating the old visible square grid inside the circle.
+The Settings preview mirrors the same `CENTER → expression → CENTER` contract. It uses a single circular black surface and draws only illuminated cells.
 
 The Glyph runtime suppresses identical consecutive frames to reduce visible twitching.
 
 ## Focus behavior
 
-Focus remains the only automatic Dayline timing behavior on the live Glyph face.
+Focus behavior is unchanged from v0.14.7.beta.
 
-- The old circular progress perimeter and persistent top-eyes/bottom-timer layout are both removed.
 - Focus and Rest keep the normal large expressive eyes outside announcement windows.
 - A phase announces its start, every five-minute remaining checkpoint, and 1:00 remaining.
 - Each announcement replaces the eyes with a centred `MM:SS` timer for **30 seconds**.
@@ -60,8 +83,7 @@ Focus remains the only automatic Dayline timing behavior on the live Glyph face.
 - The timer remains live during the 30-second announcement window.
 - 25/5, 50/10 and custom focus cycles derive checkpoint times automatically.
 - Paused sessions use the persisted paused remaining time while the announcement is visible.
-- The `MM:SS` renderer uses a 3×5 digit font and one-column colon across all 13 columns.
-- Timer and eye frames share the same duplicate-frame guard, so hardware frames are only sent when something visible changes.
+- Timer and eye frames share the same duplicate-frame guard.
 
 ## Brightness behavior
 
@@ -86,11 +108,11 @@ Nothing's documentation names `Glyph.DEVICE_25111p`; Dayline first attempts that
 
 ## Android compile gate
 
-Before tagging `v0.14.7.beta`, GitHub Actions must pass:
+Before tagging `v0.14.8.beta`, GitHub Actions must pass:
 
 ```text
 :app:assembleBetaDebug
 :app:assemblePlayDebug
 ```
 
-For tag `v0.14.7.beta`, the tagged job additionally builds `:app:assembleBetaRelease`, verifies tag/APK version identity, verifies the signature, generates the SHA-256 checksum and publishes the GitHub prerelease.
+For tag `v0.14.8.beta`, the tagged job additionally builds `:app:assembleBetaRelease`, verifies tag/APK version identity, verifies the signature, generates the SHA-256 checksum and publishes the GitHub prerelease.

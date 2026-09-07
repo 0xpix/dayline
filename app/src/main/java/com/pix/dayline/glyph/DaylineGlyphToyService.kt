@@ -6,6 +6,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.Messenger
+import android.util.Log
 import com.pix.dayline.data.DaylineStore
 import com.pix.dayline.data.FocusRuntimeStore
 import com.pix.dayline.model.*
@@ -21,6 +22,10 @@ import kotlin.random.Random
  * stays visually clean: normal eyes remain on screen, then at phase start,
  * every 5-minute checkpoint and 1:00 remaining the face briefly transitions
  * through CENTER into a full-screen MM:SS countdown for 30 seconds.
+ *
+ * The render loop is self-healing: a single bad SDK/runtime tick cannot stop
+ * future animation updates, and unchanged frames are periodically resent as a
+ * lightweight heartbeat in case the Nothing service silently drops a frame.
  */
 class DaylineGlyphToyService : Service() {
     private val handler = Handler(Looper.getMainLooper())
@@ -38,6 +43,7 @@ class DaylineGlyphToyService : Service() {
     private var motionOverride: DaylineGlyphSignal? = null
     private var centerRecoveryUntil = 0L
     private var lastFrame: IntArray? = null
+    private var lastFrameSentAt = 0L
 
     private var announcementStage = AnnouncementStage.EYES
     private var announcementStageUntil = 0L
@@ -47,7 +53,7 @@ class DaylineGlyphToyService : Service() {
 
     private val systemMessenger by lazy {
         Messenger(Handler(Looper.getMainLooper()) {
-            renderNow()
+            safeRenderNow("system callback")
             true
         })
     }
@@ -64,9 +70,11 @@ class DaylineGlyphToyService : Service() {
     override fun onBind(intent: Intent?): IBinder? {
         running = true
         lastFrame = null
+        lastFrameSentAt = 0L
         resetAnnouncementState()
         scheduleNaturalMotion(force = true)
-        bridge.connect { renderNow() }
+        bridge.connect { safeRenderNow("bridge ready") }
+        handler.removeCallbacks(tick)
         handler.post(tick)
         return systemMessenger.binder
     }
@@ -84,15 +92,28 @@ class DaylineGlyphToyService : Service() {
     private val tick = object : Runnable {
         override fun run() {
             if (!running) return
-            renderNow()
-            val prefs = store.loadGlyphPreferences()
-            val delay = when {
-                prefs.mode == GlyphMode.OFF -> 30_000L
-                prefs.reduceMotion -> 1_000L
-                else -> 250L
-            }
-            handler.postDelayed(this, delay)
+
+            val delay = runCatching {
+                renderNow()
+                val prefs = store.loadGlyphPreferences()
+                when {
+                    prefs.mode == GlyphMode.OFF -> 30_000L
+                    prefs.reduceMotion -> 1_000L
+                    else -> 250L
+                }
+            }.onFailure {
+                // Handler callbacks stop permanently if an exception escapes.
+                // Never allow one bad render/SDK tick to freeze the Glyph face.
+                Log.w(TAG, "Glyph render tick failed; retrying", it)
+            }.getOrDefault(RENDER_RECOVERY_DELAY_MS)
+
+            if (running) handler.postDelayed(this, delay)
         }
+    }
+
+    private fun safeRenderNow(source: String) {
+        runCatching { renderNow() }
+            .onFailure { Log.w(TAG, "Glyph render failed from $source", it) }
     }
 
     private fun renderNow() {
@@ -452,10 +473,23 @@ class DaylineGlyphToyService : Service() {
     }
 
     private fun showIfChanged(frame: IntArray) {
+        val now = System.currentTimeMillis()
         val previous = lastFrame
-        if (previous != null && previous.contentEquals(frame)) return
-        lastFrame = frame.copyOf()
-        bridge.show(frame)
+        val unchanged = previous != null && previous.contentEquals(frame)
+
+        // Resend a stable frame occasionally. This is intentionally infrequent:
+        // it is only a recovery heartbeat, not part of the animation cadence.
+        if (unchanged && now - lastFrameSentAt < FRAME_HEARTBEAT_MS) return
+
+        if (bridge.show(frame)) {
+            lastFrame = frame.copyOf()
+            lastFrameSentAt = now
+        } else {
+            // The bridge retained the newest pending frame and is reconnecting.
+            // Do not mark this frame as delivered; the next render tick retries.
+            lastFrame = null
+            lastFrameSentAt = 0L
+        }
     }
 
     private fun scheduleNaturalMotion(force: Boolean = false) {
@@ -481,17 +515,21 @@ class DaylineGlyphToyService : Service() {
         centerRecoveryUntil = 0L
         motionOverride = null
         lastFrame = null
+        lastFrameSentAt = 0L
         resetAnnouncementState()
         handler.removeCallbacksAndMessages(null)
         bridge.close()
     }
 
     private companion object {
+        private const val TAG = "DaylineGlyph"
         const val CENTER_RECOVERY_MS = 700L
         const val BLINK_HOLD_MS = 350L
         const val ANNOUNCEMENT_DURATION_MS = 30_000L
         const val CHECKPOINT_DETECTION_WINDOW_SECONDS = 30L
         const val FIVE_MINUTES_SECONDS = 5L * 60L
         const val ONE_MINUTE_SECONDS = 60L
+        const val FRAME_HEARTBEAT_MS = 4_000L
+        const val RENDER_RECOVERY_DELAY_MS = 500L
     }
 }

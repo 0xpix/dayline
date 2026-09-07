@@ -1,12 +1,18 @@
 # Changelog
 
+## 0.14.4.beta — Centered Glyph transitions
+
+- Made **every non-center Glyph animation** transition through Center before another animation can begin: `CENTER → animation → CENTER → next animation`.
+- Applied the same Center recovery rule to Blink so expressions and blinks never visually blend together.
+- Added a dedicated ~500 ms Center recovery beat after every expression, not only left/right glances.
+- Delayed any due blink or motion until after the Center recovery window so two animations cannot start on the same renderer tick.
+- Bumped beta versionCode to **1404** and beta versionName to `0.14.4.beta`.
+
 ## 0.14.3.beta — Glyph polish
 
 - Removed Curious, Playful, Surprised, Side-eye, Excited and Rolling from the live eye loop and Settings preview.
 - Rebalanced idle behavior around Center, left/right glances, Happy, Wink, Hearts, Squint and rare Sleepy expressions.
-- Made **every non-center Glyph animation** transition through Center before another animation can begin: `CENTER → animation → CENTER → next animation`.
-- Applied the same Center recovery rule to Blink so expressions and blinks never visually blend together.
-- Added a dedicated ~500 ms center-recovery beat between animations.
+- Added a dedicated Center recovery after left/right glances.
 - Reworked Hearts into smaller, cleaner heart-eye patterns.
 - Rebuilt Focus progress as a circular perimeter around the face with a faint full outline and brighter completed pixels.
 - Focus advances clockwise; break advances in reverse while the eyes keep animating.

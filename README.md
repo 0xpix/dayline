@@ -26,7 +26,9 @@ Current milestone: **v0.17.0.beta · Flow**
 - Month view has clearer selection, calmer weekend treatment and a compact busy-day overflow mark.
 - Day Preview separates **ALL DAY / AGENDA / FREE TIME** and adds a clear **OPEN DAY** action.
 - Fit into my day now respects a task's earliest/deadline window instead of always searching an unconditional seven days.
-- The beta updater now preserves the literal **Added / Changed / Fixed** headings from GitHub release notes and records APK size metadata.
+- Android Calendar sync now preserves provider timezone identity for timed events through read, edit, reconciliation and write-back; quick edits also retain the new task scheduling metadata.
+- Widgets now refresh after reboot, app replacement, manual clock changes, timezone changes and date changes in addition to normal Dayline mutations.
+- The beta updater now preserves literal **Added / Changed / Fixed** headings, shows concise publish-date/APK-size metadata and verifies the reported APK byte size before install when GitHub provides it.
 - Glyph reliability behavior itself is unchanged; v0.17 only instruments successful frames, disconnects, recoveries and send failures for diagnosis.
 
 ### Fixed
@@ -34,6 +36,8 @@ Current milestone: **v0.17.0.beta · Flow**
 - Fixed the real updater parsing path that was stripping Markdown section headings before the UI could render Added / Changed / Fixed as separate cards.
 - Monthly recurrence on the 29th/30th/31st no longer silently shifts into a shorter month's last day.
 - All-day entries no longer consume timed free-space calculations or create false overlap conflicts.
+- Fixed timed Android Calendar events losing their provider timezone after a Dayline edit.
+- Fixed widgets being able to remain visually stale after system time/date/timezone changes.
 - Beta identity is **1700 / `0.17.0.beta`**.
 
 The v0.16 Planning milestone remains intact: Month view, Day preview, free-time detection, task duration, Fit into my day, event details, Quick Move, cleaner Upcoming, swipe Today ↔ Upcoming and beta diagnostics.

@@ -9,8 +9,8 @@ enum class GlyphFocusStyle { SUBTLE, ACTIVE }
 
 data class GlyphPreferences(
     // EYES_AND_STATES is kept only for backwards-compatible preference loading.
-    // The Glyph runtime now renders expressive eyes; active Focus cycles switch
-    // to compact top eyes plus a stable MM:SS countdown in the bottom rows.
+    // The Glyph runtime is eyes-first; Focus only interrupts them briefly with
+    // 30-second MM:SS announcements at start / 5-minute / 1-minute checkpoints.
     val mode: GlyphMode = GlyphMode.EYES_ONLY,
     val idleExpression: GlyphIdleExpression = GlyphIdleExpression.CENTER,
     val blinkEnabled: Boolean = true,

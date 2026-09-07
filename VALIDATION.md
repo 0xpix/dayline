@@ -1,15 +1,15 @@
-# Dayline v0.15.3.beta — Validation Report
+# Dayline v0.15.4.beta — Validation Report
 
-This report tracks the current v0.15.3.beta source state. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current v0.15.4.beta source state. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
-- Beta version target: **0.15.3.beta / versionCode 1503**.
+- Beta version target: **0.15.4.beta / versionCode 1504**.
 - Static project validator must pass.
 - Beta/Play flavor and permission separation must remain intact.
 - Tagged beta workflow verifies the signed APK's embedded `versionName` and `versionCode` against the Git tag before publication.
 - Tagged beta workflow requires `docs/releases/<tag>.md` with **Added / Changed / Fixed** sections and publishes that file as the GitHub release body used by the in-app updater.
-- `docs/releases/v0.15.3.beta.md` exists for this tag.
+- `docs/releases/v0.15.4.beta.md` exists for this tag.
 - GitHub beta updater requires a release to be newer by both semantic version and Android `versionCode`.
 - Proprietary Nothing `glyph-matrix-sdk-2.0.aar` remains absent from source and is fetched only by beta CI.
 - Play workflow does not fetch/package the Glyph Matrix SDK.
@@ -32,7 +32,7 @@ The v0.15 Today timeline uses separate gesture ownership.
 
 ## Android Calendar two-way validation
 
-For Dayline events with `calendarEventId`, Calendar Provider reconciliation now handles both directions.
+For Dayline events with `calendarEventId`, Calendar Provider reconciliation handles both directions.
 
 - Dayline edits continue to write through `AndroidCalendarSync.upsert()`.
 - Provider deletion removes the mapped local Dayline row.
@@ -75,9 +75,7 @@ Navigation selection keeps a fixed 16dp indicator slot and a fixed-size dot. Sel
 
 ## Glyph reliability + Focus readability
 
-v0.15.3 changes only Glyph transport reliability; it adds no new expression/state feature.
-
-The previous aggressive reconnect/heartbeat strategy is intentionally retired:
+The conservative Glyph transport introduced in v0.15.3 remains unchanged:
 
 - SDK callbacks are posted to the **main looper** before they mutate connection state.
 - `onServiceDisconnected` keeps the existing manager/callback binding alive first, allowing Nothing/Android to reconnect the proxy service naturally.
@@ -85,8 +83,8 @@ The previous aggressive reconnect/heartbeat strategy is intentionally retired:
 - A forced recovery performs a clean `unInit()` before obtaining/initializing the manager again.
 - Repeated recovery attempts back off up to **30 seconds** rather than looping every 750 ms.
 - Only the newest pending frame is retained while disconnected.
-- Connection generations still reject callbacks belonging to an old binding.
-- Duplicate unchanged frames are suppressed inside `NothingGlyphBridge`; the service's old 4-second resend request therefore does **not** result in another hardware SDK frame call.
+- Connection generations reject callbacks belonging to an old binding.
+- Duplicate unchanged frames are suppressed inside `NothingGlyphBridge`.
 - A real send failure clears the delivered-frame cache and enters the same delayed recovery path.
 - Render ticks remain protected so one unexpected renderer exception cannot permanently terminate later animation ticks.
 
@@ -98,23 +96,31 @@ The Focus checkpoint schedule remains unchanged:
 - each announcement lasts 30 seconds;
 - transition remains `eyes → CENTER → time → CENTER → eyes`.
 
-The timer presentation uses **minutes in the upper 5×5 digit row and seconds in the lower 5×5 digit row**. Both lines use two large centered digits with stable leading zeros.
+v0.15.4 keeps the stacked presentation but narrows each digit from **5 columns to 4 columns**. Each two-digit line is now **9 pixels wide** and centered at x=2..10, leaving two empty columns at both sides. Minutes stay on rows 1–5 and seconds on rows 7–11, preserving leading zeros while keeping the visible timer clear of the circular Matrix edge.
+
+## Update sheet validation
+
+The updater sheet reads the curated GitHub release body and now parses it into structured UI instead of rendering raw Markdown.
+
+- `## Added`, `## Changed` and `## Fixed` headings become separate in-app groups.
+- Markdown heading markers, bullet markers, bold markers and inline backticks are stripped from visible updater text.
+- A release without recognized sections still falls back to a simple **Changed** list.
+- The primary action is a full-width **Download & update** button.
+- After download/checksum/package/version verification succeeds, Dayline immediately calls the Android installer.
+- If Android requires install permission, the verified APK is kept and the action becomes **Continue update**.
+- GitHub release navigation remains a secondary **View on GitHub** action.
 
 ## Settings / widget ownership
 
 The v0.14.8 Settings cleanup remains intact. App Settings has no widget configuration section; widget appearance/content controls belong only to each widget's configuration screen.
 
-## Update notes behavior
-
-The updater sheet reads the GitHub release body. From v0.15.0 onward, the release workflow uses the curated `docs/releases/<tag>.md` file instead of autogenerated GitHub notes. This release uses `docs/releases/v0.15.3.beta.md`, keeping Added / Changed / Fixed concise enough for the in-app update sheet.
-
 ## Android compile gate
 
-Before tagging `v0.15.3.beta`, GitHub Actions must pass:
+Before tagging `v0.15.4.beta`, GitHub Actions must pass:
 
 ```text
 :app:assembleBetaDebug
 :app:assemblePlayDebug
 ```
 
-For tag `v0.15.3.beta`, the tagged job additionally builds `:app:assembleBetaRelease`, verifies tag/APK version identity and signature, validates the release-note file, generates the SHA-256 checksum and publishes the prerelease.
+For tag `v0.15.4.beta`, the tagged job additionally builds `:app:assembleBetaRelease`, verifies tag/APK version identity and signature, validates the release-note file, generates the SHA-256 checksum and publishes the prerelease.

@@ -4,6 +4,8 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.pix.dayline.model.GlyphHardwareStatus
 import java.lang.reflect.Proxy
@@ -12,6 +14,10 @@ import java.lang.reflect.Proxy
  * Reflection keeps the open-source tree buildable when Nothing's closed-source
  * Glyph Matrix AAR is absent. GitHub Actions downloads the official AAR before
  * building distributable APKs, so these classes are present in those APKs.
+ *
+ * The Nothing service can be restarted by the OS while an AOD toy is alive.
+ * Dayline therefore treats every disconnect/send failure as recoverable and
+ * reconnects while retaining only the newest pending frame.
  */
 class NothingGlyphBridge(
     private val context: Context,
@@ -20,7 +26,17 @@ class NothingGlyphBridge(
     private var manager: Any? = null
     private var callback: Any? = null
     private var connected = false
+    private var connecting = false
     private var pendingFrame: IntArray? = null
+    private var connectionGeneration = 0L
+
+    private val reconnectHandler = Handler(Looper.getMainLooper())
+    private val reconnectRunnable = Runnable {
+        if (!connected) {
+            invalidateConnection()
+            connect()
+        }
+    }
 
     fun status(): GlyphHardwareStatus {
         val managerPresent = classExists(MANAGER_CLASS)
@@ -52,7 +68,20 @@ class NothingGlyphBridge(
     }
 
     fun connect(onReady: (() -> Unit)? = null) {
-        if (manager != null) return
+        if (connected) {
+            onReady?.invoke()
+            return
+        }
+        if (connecting) return
+
+        // A non-null manager while disconnected is stale. This was the old
+        // freeze path: show() queued frames forever while connect() returned.
+        if (manager != null) invalidateConnection()
+
+        connecting = true
+        reconnectHandler.removeCallbacks(reconnectRunnable)
+        val generation = ++connectionGeneration
+
         runCatching {
             val managerClass = Class.forName(MANAGER_CLASS)
             val callbackClass = Class.forName("$MANAGER_CLASS\$Callback")
@@ -65,16 +94,41 @@ class NothingGlyphBridge(
                 callbackClass.classLoader,
                 arrayOf(callbackClass)
             ) { _, method, _ ->
+                if (generation != connectionGeneration) return@newProxyInstance null
+
                 when (method.name) {
                     "onServiceConnected" -> {
-                        runCatching { register(instance, managerClass) }
+                        val registered = runCatching { register(instance, managerClass) }
                             .onFailure { Log.w(TAG, "Glyph registration failed", it) }
+                            .isSuccess
+
+                        connecting = false
+                        if (!registered) {
+                            connected = false
+                            scheduleReconnect()
+                            return@newProxyInstance null
+                        }
+
                         connected = true
-                        pendingFrame?.let { sendFrame(it) }
-                        pendingFrame = null
+                        reconnectHandler.removeCallbacks(reconnectRunnable)
+
+                        val pending = pendingFrame
+                        if (pending != null) {
+                            if (sendFrame(pending)) {
+                                pendingFrame = null
+                            } else {
+                                pendingFrame = pending.copyOf()
+                                recoverConnection()
+                                return@newProxyInstance null
+                            }
+                        }
                         onReady?.invoke()
                     }
-                    "onServiceDisconnected" -> connected = false
+
+                    "onServiceDisconnected" -> {
+                        Log.w(TAG, "Glyph Matrix service disconnected; reconnecting")
+                        recoverConnection()
+                    }
                 }
                 null
             }
@@ -82,51 +136,92 @@ class NothingGlyphBridge(
             managerClass.getMethod("init", callbackClass).invoke(instance, proxy)
         }.onFailure {
             Log.w(TAG, "Glyph Matrix bridge unavailable", it)
+            connecting = false
+            connected = false
             manager = null
             callback = null
-            connected = false
+            scheduleReconnect()
         }
     }
 
-    fun show(frame: IntArray) {
-        if (frame.size != GlyphMatrixPatterns.SIZE * GlyphMatrixPatterns.SIZE) return
-        if (manager == null) connect()
+    /**
+     * @return true only when the frame reached the SDK call immediately.
+     * A false result means the newest frame was retained and reconnection is in
+     * progress; callers should retry rather than treating it as delivered.
+     */
+    fun show(frame: IntArray): Boolean {
+        if (frame.size != GlyphMatrixPatterns.SIZE * GlyphMatrixPatterns.SIZE) return false
+
         if (!connected) {
             pendingFrame = frame.copyOf()
-            return
+            connect()
+            return false
         }
-        sendFrame(frame)
+
+        if (sendFrame(frame)) return true
+
+        pendingFrame = frame.copyOf()
+        recoverConnection()
+        return false
     }
 
     fun close() {
-        val instance = manager ?: return
-        runCatching {
-            val cls = instance.javaClass
-            if (appMatrix) {
-                cls.methods.firstOrNull { it.name == "closeAppMatrix" && it.parameterCount == 0 }
-                    ?.invoke(instance)
-            } else {
-                cls.methods.firstOrNull { it.name == "turnOff" && it.parameterCount == 0 }
+        reconnectHandler.removeCallbacks(reconnectRunnable)
+        connectionGeneration++
+
+        val instance = manager
+        if (instance != null) {
+            runCatching {
+                val cls = instance.javaClass
+                if (appMatrix) {
+                    cls.methods.firstOrNull { it.name == "closeAppMatrix" && it.parameterCount == 0 }
+                        ?.invoke(instance)
+                } else {
+                    cls.methods.firstOrNull { it.name == "turnOff" && it.parameterCount == 0 }
+                        ?.invoke(instance)
+                }
+                cls.methods.firstOrNull { it.name == "unInit" && it.parameterCount == 0 }
                     ?.invoke(instance)
             }
-            cls.methods.firstOrNull { it.name == "unInit" && it.parameterCount == 0 }
-                ?.invoke(instance)
         }
+
         connected = false
+        connecting = false
         pendingFrame = null
         manager = null
         callback = null
     }
 
-    private fun sendFrame(frame: IntArray) {
-        val instance = manager ?: return
-        runCatching {
+    private fun sendFrame(frame: IntArray): Boolean {
+        val instance = manager ?: return false
+        return runCatching {
             val name = if (appMatrix) "setAppMatrixFrame" else "setMatrixFrame"
             val method = instance.javaClass.methods.firstOrNull {
                 it.name == name && it.parameterTypes.size == 1 && it.parameterTypes[0] == IntArray::class.java
             } ?: error("$name(int[]) not available")
             method.invoke(instance, frame)
-        }.onFailure { Log.w(TAG, "Unable to send Glyph Matrix frame", it) }
+            true
+        }.onFailure {
+            Log.w(TAG, "Unable to send Glyph Matrix frame; reconnecting", it)
+        }.getOrDefault(false)
+    }
+
+    private fun recoverConnection() {
+        invalidateConnection()
+        scheduleReconnect()
+    }
+
+    private fun invalidateConnection() {
+        connectionGeneration++
+        connected = false
+        connecting = false
+        manager = null
+        callback = null
+    }
+
+    private fun scheduleReconnect() {
+        reconnectHandler.removeCallbacks(reconnectRunnable)
+        reconnectHandler.postDelayed(reconnectRunnable, RECONNECT_DELAY_MS)
     }
 
     private fun register(instance: Any, managerClass: Class<*>) {
@@ -150,6 +245,7 @@ class NothingGlyphBridge(
 
     companion object {
         private const val TAG = "DaylineGlyph"
+        private const val RECONNECT_DELAY_MS = 750L
         private const val MANAGER_CLASS = "com.nothing.ketchum.GlyphMatrixManager"
         private const val GLYPH_CLASS = "com.nothing.ketchum.Glyph"
         private const val COMMON_CLASS = "com.nothing.ketchum.Common"

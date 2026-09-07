@@ -13,8 +13,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.pix.dayline.BuildConfig
+import com.pix.dayline.data.UpdateUiState
 import com.pix.dayline.model.GlyphHardwareStatus
-import com.pix.dayline.model.UpdateUiState
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter

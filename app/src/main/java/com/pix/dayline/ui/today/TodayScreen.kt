@@ -2,6 +2,7 @@ package com.pix.dayline.ui.today
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -46,39 +47,59 @@ import kotlin.math.roundToInt
 fun TodayScreen(
     items: List<DaylineItem>,
     showOrb: Boolean,
+    date: LocalDate = LocalDate.now(),
     onMenu: () -> Unit,
     onAdd: (LocalDate) -> Unit,
     onAddAt: (LocalDate, LocalTime) -> Unit,
+    onAddTaskAt: (LocalDate, LocalTime) -> Unit = { _, _ -> },
+    onStartFocusAt: (LocalDate, LocalTime, LocalTime) -> Unit = { _, _, _ -> },
     onEdit: (DaylineItem) -> Unit,
     onToggleTask: (DaylineItem, LocalDate) -> Unit,
     onReschedule: (DaylineItem) -> Unit,
     onResize: (DaylineItem) -> Unit = onReschedule,
     onScheduleTask: (DaylineItem) -> Unit = onReschedule,
+    onReturnToday: () -> Unit = {},
     onSwipeUpcoming: () -> Unit = {}
 ) {
     var now by remember { mutableStateOf(LocalTime.now()) }
-    var today by remember { mutableStateOf(LocalDate.now()) }
     var dragTotal by remember { mutableFloatStateOf(0f) }
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
+    val actualToday = LocalDate.now()
 
-    fun scrollToNow() {
-        val minute = now.hour * 60 + now.minute
-        val fraction = ((minute - 360).coerceIn(0, 960) / 960f)
+    fun scrollNear(time: LocalTime, animate: Boolean = true) {
+        val minute = time.hour * 60 + time.minute
+        val fraction = ((minute - 330).coerceIn(0, 1020) / 1020f)
         val target = (fraction * scrollState.maxValue.coerceAtLeast(1)).roundToInt()
-        scope.launch { scrollState.animateScrollTo(target) }
+        scope.launch {
+            if (animate) scrollState.animateScrollTo(target) else scrollState.scrollTo(target)
+        }
+    }
+
+    fun handleTodayButton() {
+        if (date != LocalDate.now()) onReturnToday() else scrollNear(now)
     }
 
     LaunchedEffect(Unit) {
         while (true) {
             now = LocalTime.now()
-            today = LocalDate.now()
             delay(30_000L)
         }
     }
 
-    val todaysItems = items.filter { it.occursOn(today) }
+    val dayItems = items.filter { it.occursOn(date) }
         .sortedWith(compareBy<DaylineItem> { it.startTime == null }.thenBy { it.startTime })
+
+    // On first display, land slightly before the useful part of the day instead
+    // of always starting at the top. This waits for the scroll range to exist.
+    LaunchedEffect(date, dayItems.map { it.id to it.startTime }) {
+        delay(160L)
+        val target = when {
+            date == LocalDate.now() -> now.minusMinutes(45)
+            else -> dayItems.firstOrNull { it.startTime != null }?.startTime ?: LocalTime.of(8, 0)
+        }
+        scrollNear(target, animate = false)
+    }
 
     Box(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
@@ -103,24 +124,24 @@ fun TodayScreen(
                 .padding(start = 32.dp, end = 32.dp, top = 48.dp, bottom = 138.dp)
         ) {
             if (showOrb) {
-                DayGlyph(items = todaysItems, date = today)
+                DayGlyph(items = dayItems, date = date)
                 Spacer(Modifier.height(20.dp))
             }
 
             Text(
-                today.format(DateTimeFormatter.ofPattern("EEE · dd MMM", Locale.getDefault())).uppercase(Locale.getDefault()),
-                style = MaterialTheme.typography.labelMedium,
+                date.format(DateTimeFormatter.ofPattern("EEE · dd MMM", Locale.getDefault())).uppercase(Locale.getDefault()),
+                style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(9.dp))
             Text(
-                greetingText(now, today),
+                if (date == actualToday) greetingText(now, date) else dayHeading(date),
                 style = MaterialTheme.typography.displayMedium,
                 color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(Modifier.height(14.dp))
             Text(
-                todaySummary(todaysItems),
+                todaySummary(dayItems),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -128,35 +149,41 @@ fun TodayScreen(
             Text(
                 "Swipe left for Upcoming",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .65f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .58f)
             )
 
             Spacer(Modifier.height(30.dp))
             DayTimeline(
-                items = todaysItems,
-                date = today,
+                items = dayItems,
+                date = date,
                 emptyText = "Your day is clear.",
                 onEdit = onEdit,
                 onToggleTask = onToggleTask,
                 onReschedule = onReschedule,
                 onResize = onResize,
                 onCreateAt = onAddAt,
+                onCreateTaskAt = onAddTaskAt,
+                onStartFocusAt = onStartFocusAt,
                 onScheduleTask = onScheduleTask,
-                onCurrentTimeTap = ::scrollToNow
+                onCurrentTimeTap = { if (date == LocalDate.now()) scrollNear(now) },
+                onAutoScroll = { delta ->
+                    scope.launch { scrollState.scrollBy(delta.coerceIn(-64f, 64f)) }
+                }
             )
         }
 
         FloatingControls(
             modifier = Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 28.dp),
             onMenu = onMenu,
-            onToday = ::scrollToNow,
-            onAdd = { onAdd(today) }
+            onToday = ::handleTodayButton,
+            onAdd = { onAdd(date) }
         )
     }
 }
 
 private fun todaySummary(items: List<DaylineItem>): String {
     val intervals = items.mapNotNull { item ->
+        if (item.allDay) return@mapNotNull null
         val start = item.startTime ?: return@mapNotNull null
         val end = item.endTime?.takeIf { it.isAfter(start) }
             ?: start.plusMinutes(if (item.kind.name == "TASK") item.estimatedDurationMinutes.toLong() else 60L)
@@ -170,21 +197,22 @@ private fun todaySummary(items: List<DaylineItem>): String {
     var currentEnd: Int? = null
     intervals.forEach { (start, end) ->
         if (currentStart == null) {
-            currentStart = start
-            currentEnd = end
+            currentStart = start; currentEnd = end
         } else if (start <= currentEnd!!) {
             currentEnd = maxOf(currentEnd!!, end)
         } else {
-            busy += currentEnd!! - currentStart!!
-            currentStart = start
-            currentEnd = end
+            busy += currentEnd!! - currentStart!!; currentStart = start; currentEnd = end
         }
     }
     if (currentStart != null) busy += currentEnd!! - currentStart!!
 
     val open = (1440 - busy).coerceAtLeast(0)
-    val blocks = intervals.size
-    return "BUSY ${durationShort(busy)}   ·   OPEN ${durationShort(open)}   ·   $blocks ${if (blocks == 1) "BLOCK" else "BLOCKS"}"
+    val allDay = items.count { it.allDay || (it.kind.name == "EVENT" && it.startTime == null) }
+    val timed = intervals.size
+    return buildString {
+        append("BUSY ${durationShort(busy)}   ·   OPEN ${durationShort(open)}   ·   $timed ${if (timed == 1) "BLOCK" else "BLOCKS"}")
+        if (allDay > 0) append("   ·   $allDay ALL DAY")
+    }
 }
 
 private fun durationShort(minutes: Int): String {
@@ -209,12 +237,15 @@ private fun greetingText(now: LocalTime, date: LocalDate): String {
     return "$greeting.\n$dayName, $monthName ${ordinal(date.dayOfMonth)}."
 }
 
+private fun dayHeading(date: LocalDate): String {
+    val dayName = date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
+    val monthName = date.month.getDisplayName(TextStyle.FULL, Locale.getDefault())
+    return "$dayName.\n$monthName ${ordinal(date.dayOfMonth)}."
+}
+
 private fun ordinal(day: Int): String {
     val suffix = if (day in 11..13) "th" else when (day % 10) {
-        1 -> "st"
-        2 -> "nd"
-        3 -> "rd"
-        else -> "th"
+        1 -> "st"; 2 -> "nd"; 3 -> "rd"; else -> "th"
     }
     return "$day$suffix"
 }

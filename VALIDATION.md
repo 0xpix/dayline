@@ -35,7 +35,15 @@ Current live expression set:
 
 Curious, Playful, Surprised, Side-eye, Excited and Rolling are retained only as harmless legacy enum values and render back to Center if encountered.
 
-Directional behavior remains Left < Center < Right. Left/right glances now include a dedicated Center recovery beat before another expression begins.
+Directional behavior remains Left < Center < Right.
+
+Every non-center live animation now follows the same transition contract:
+
+```text
+CENTER → animation → CENTER → next animation
+```
+
+The ~500 ms Center recovery applies to Look left/right, Happy, Wink, Hearts, Squint, Sleepy and Blink. Due blink/motion timers are pushed beyond the recovery window so another animation cannot begin on the same renderer tick.
 
 The Glyph runtime suppresses identical consecutive frames to reduce visible twitching.
 

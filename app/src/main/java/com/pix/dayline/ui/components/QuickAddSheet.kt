@@ -482,6 +482,17 @@ fun QuickAddSheet(
                             date
                         }
 
+                        val resolvedAllDay = kind == AgendaKind.EVENT && startTime == null
+                        val preservedTimeZone = if (
+                            kind == AgendaKind.EVENT &&
+                            startTime != null &&
+                            editing?.allDay != true
+                        ) {
+                            editing?.timeZoneId
+                        } else {
+                            null
+                        }
+
                         val saved = DaylineItem(
                             id = editing?.id ?: UUID.randomUUID().toString(),
                             title = title.text.trim(),
@@ -509,6 +520,11 @@ fun QuickAddSheet(
                             bufferBeforeMinutes = bufferBefore,
                             bufferAfterMinutes = bufferAfter,
                             priority = priority,
+                            estimatedDurationMinutes = editing?.estimatedDurationMinutes ?: 30,
+                            earliestDate = editing?.earliestDate,
+                            deadlineDate = editing?.deadlineDate,
+                            allDay = resolvedAllDay,
+                            timeZoneId = preservedTimeZone,
                             color = itemColor,
                             spaceId = spaceId,
                             details = editing?.details ?: emptyList(),

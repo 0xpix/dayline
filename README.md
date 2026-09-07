@@ -12,14 +12,14 @@ Dayline Glyph turns the Nothing Phone (4a) Pro's 13×13 Glyph Matrix into an eye
 
 - The Glyph now stays focused on **expressive eyes + Focus Mode**. Automatic calendar/app-state symbols no longer interrupt the face.
 - Large solid dot-matrix eyes with **Center, Look left/right, Blink, Wink, Happy, Hearts, Squint and Sleepy**.
-- **Look left/right always return through Center** before another expression starts, so transitions do not jump awkwardly.
+- **Every non-center animation returns through Center** before another animation starts: `CENTER → expression → CENTER → next expression`.
 - More frequent natural blinking, more Happy, and much rarer Sleepy behavior.
 - Removed the weaker Curious, Playful, Surprised, Side-eye, Excited and Rolling expressions from the live loop and Settings preview.
 - Reworked Hearts into a smaller, cleaner heart-eye pattern.
 - Focus cycles keep the eyes alive while a **circular pixel progress path** fills around them for **25/5, 50/10 and custom** focus cycles.
 - Focus progresses clockwise; break progresses in reverse.
 - The focus perimeter stays faintly visible so early progress reads as a circle instead of a stray line.
-- Glyph brightness now maps Dayline's simple 0–100% control to the higher raw intensity range used by Nothing's official `IntArray` Matrix examples.
+- Glyph brightness maps Dayline's simple 0–100% control to the higher raw intensity range used by Nothing's official `IntArray` Matrix examples.
 - Stable frame delivery suppresses duplicate frames to reduce visible twitching/flicker.
 - Simplified Glyph settings: enable, hardware, brightness, blink, expressions/glances, motion frequency, Focus behavior, quiet hours and a compact expression preview.
 - A Phone (4a) Pro AOD Glyph Toy service remains available in the GitHub beta flavor, with a shortcut to Nothing's Glyph Toys manager.

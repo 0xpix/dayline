@@ -31,6 +31,7 @@ class NothingGlyphBridge(
     private var connecting = false
     private var closed = false
     private var pendingFrame: IntArray? = null
+    private var lastDeliveredFrame: IntArray? = null
     private var connectionGeneration = 0L
     private var recoveryScheduled = false
     private var recoveryDelayMs = INITIAL_RECOVERY_DELAY_MS
@@ -98,9 +99,10 @@ class NothingGlyphBridge(
     }
 
     /**
-     * @return true only when the frame reached the SDK call immediately.
-     * A false result means the newest frame is retained for delivery after the
-     * existing binding reconnects or the conservative recovery watchdog fires.
+     * @return true only when the frame is already current or reached the SDK
+     * immediately. A false result means the newest frame is retained for
+     * delivery after the existing binding reconnects or the conservative
+     * recovery watchdog fires.
      */
     fun show(frame: IntArray): Boolean {
         if (frame.size != GlyphMatrixPatterns.SIZE * GlyphMatrixPatterns.SIZE) return false
@@ -121,6 +123,7 @@ class NothingGlyphBridge(
         // tearing down/rebinding every render tick made the Matrix less stable.
         // Queue the newest frame and allow one delayed recovery attempt.
         pendingFrame = frame.copyOf()
+        lastDeliveredFrame = null
         connected = false
         connecting = false
         recoveryDelayMs = INITIAL_RECOVERY_DELAY_MS
@@ -152,6 +155,7 @@ class NothingGlyphBridge(
         connected = false
         connecting = false
         pendingFrame = null
+        lastDeliveredFrame = null
         manager = null
         callback = null
         onReadyCallback = null
@@ -201,6 +205,7 @@ class NothingGlyphBridge(
             if (instance != null) safeUnInit(instance)
             connecting = false
             connected = false
+            lastDeliveredFrame = null
             manager = null
             callback = null
             scheduleRecovery()
@@ -215,6 +220,7 @@ class NothingGlyphBridge(
         connecting = false
         if (!registered) {
             connected = false
+            lastDeliveredFrame = null
             recoveryDelayMs = INITIAL_RECOVERY_DELAY_MS
             scheduleRecovery()
             return
@@ -231,6 +237,7 @@ class NothingGlyphBridge(
                 pendingFrame = null
             } else {
                 connected = false
+                lastDeliveredFrame = null
                 scheduleRecovery()
                 return
             }
@@ -243,6 +250,7 @@ class NothingGlyphBridge(
         Log.w(TAG, "Glyph Matrix service disconnected; waiting for proxy recovery")
         connected = false
         connecting = false
+        lastDeliveredFrame = null
         recoveryDelayMs = INITIAL_RECOVERY_DELAY_MS
 
         // Keep manager/callback alive here. The SDK binding can reconnect
@@ -252,6 +260,9 @@ class NothingGlyphBridge(
     }
 
     private fun sendFrame(frame: IntArray): Boolean {
+        val previous = lastDeliveredFrame
+        if (previous != null && previous.contentEquals(frame)) return true
+
         val instance = manager ?: return false
         return runCatching {
             val name = if (appMatrix) "setAppMatrixFrame" else "setMatrixFrame"
@@ -259,6 +270,7 @@ class NothingGlyphBridge(
                 it.name == name && it.parameterTypes.size == 1 && it.parameterTypes[0] == IntArray::class.java
             } ?: error("$name(int[]) not available")
             method.invoke(instance, frame)
+            lastDeliveredFrame = frame.copyOf()
             true
         }.onFailure {
             Log.w(TAG, "Unable to send Glyph Matrix frame", it)
@@ -273,6 +285,7 @@ class NothingGlyphBridge(
         manager?.let(::safeUnInit)
         connected = false
         connecting = false
+        lastDeliveredFrame = null
         manager = null
         callback = null
     }

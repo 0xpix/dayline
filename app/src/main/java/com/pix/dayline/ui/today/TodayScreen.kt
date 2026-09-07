@@ -76,8 +76,12 @@ fun TodayScreen(
         }
     }
 
+    fun scrollToNow() {
+        scrollNear(now)
+    }
+
     fun handleTodayButton() {
-        if (date != LocalDate.now()) onReturnToday() else scrollNear(now)
+        if (date != LocalDate.now()) onReturnToday() else scrollToNow()
     }
 
     LaunchedEffect(Unit) {
@@ -165,7 +169,7 @@ fun TodayScreen(
                 onCreateTaskAt = onAddTaskAt,
                 onStartFocusAt = onStartFocusAt,
                 onScheduleTask = onScheduleTask,
-                onCurrentTimeTap = { if (date == LocalDate.now()) scrollNear(now) },
+                onCurrentTimeTap = { if (date == LocalDate.now()) scrollToNow() },
                 onAutoScroll = { delta ->
                     scope.launch { scrollState.scrollBy(delta.coerceIn(-64f, 64f)) }
                 }

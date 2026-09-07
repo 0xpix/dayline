@@ -1,6 +1,6 @@
 # Dayline Glyph Matrix integration
 
-Dayline v0.14.8.beta provides an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
+Dayline v0.14.9.beta provides an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
 
 ## Dayline behavior
 
@@ -35,11 +35,27 @@ Outside those 30-second windows, Focus does not alter the face at all. The norma
 
 The announcement timer uses a compact 3×5 numeric font that fits `MM:SS` across all 13 columns and is vertically centred in the Matrix because no eye pixels are drawn at the same time.
 
+## Reliability / freeze recovery
+
+v0.14.9.beta adds recovery around the Nothing Matrix service itself.
+
+Previously, a temporary SDK service disconnect could leave Dayline with `connected = false` while an old manager object was still present. New frames would then be queued, but the bridge would not initialize a fresh connection, so the hardware could remain frozen on the last visible frame indefinitely.
+
+The bridge now:
+
+- invalidates stale manager/callback state when the Nothing service disconnects;
+- reconnects after disconnects, registration failures and frame-send failures;
+- retains only the newest pending frame while reconnecting;
+- ignores callbacks from older connection generations;
+- does not tell the renderer that a queued/failed frame was successfully delivered.
+
+The AOD service also protects its Handler render loop so an unexpected exception in one tick cannot terminate all later ticks. Stable frames are resent every **4 seconds** as a lightweight recovery heartbeat; normal changed animation/timer frames are still sent immediately.
+
 ## Glyph settings
 
-v0.14.8.beta simplifies the in-app Glyph configuration without changing the live hardware behavior.
+v0.14.8.beta simplified the in-app Glyph configuration without changing the live hardware behavior.
 
-The main Settings page now contains only one **Dayline Glyph** row. Opening it shows five compact groups:
+The main Settings page contains only one **Dayline Glyph** row. Opening it shows five compact groups:
 
 - **Glyph** — enable state, hardware status and shortcut to Nothing Settings.
 - **Look** — brightness, Blink, Expressions, Motion and Reduce motion.
@@ -49,7 +65,7 @@ The main Settings page now contains only one **Dayline Glyph** row. Opening it s
 
 The preview uses the same single circular surface as before but is smaller so controls have more breathing room. Long hardware/brightness/focus explanation paragraphs were removed from the sheet.
 
-Dayline keeps a simple 0–100% brightness control and maps it to the higher raw `IntArray` Matrix intensity range used by Nothing's official example project. Duplicate raw frames are suppressed to reduce visible flicker/twitching.
+Dayline keeps a simple 0–100% brightness control and maps it to the higher raw `IntArray` Matrix intensity range used by Nothing's official example project. Duplicate raw frames are suppressed between recovery heartbeat frames to reduce visible flicker/twitching.
 
 ## Activating the AOD toy
 
@@ -65,7 +81,7 @@ Dayline's own Glyph patterns, settings and reflection bridge are part of the MIT
 
 For GitHub beta CI, `.github/workflows/build-apk.yml` first validates that the AAR is absent and then downloads the official binary from `Nothing-Developer-Programme/GlyphMatrix-Developer-Kit` before compiling the beta flavor. `app/build.gradle.kts` only attaches the AAR to `betaImplementation` when the file exists.
 
-The Play flavor does not include the SDK in v0.14.8.beta. Nothing's Glyph SDK license restricts commercial use without written permission, so Play distribution should stay disabled for Glyph hardware until the appropriate permission/license is obtained.
+The Play flavor does not include the SDK in v0.14.9.beta. Nothing's Glyph SDK license restricts commercial use without written permission, so Play distribution should stay disabled for Glyph hardware until the appropriate permission/license is obtained.
 
 ## Release safety
 

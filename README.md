@@ -4,9 +4,9 @@
 
 Dayline is an open-source Android calendar and planner built with Kotlin, Jetpack Compose, Material 3 and Glance. It is local-first, deliberately minimal, and designed around **Today** instead of a dashboard.
 
-Current milestone: **v0.15.0.beta · Daily Flow**
+Current milestone: **v0.15.2.beta · Daily Flow**
 
-## What v0.15.0.beta adds
+## What v0.15.2.beta adds
 
 ### Added
 
@@ -28,7 +28,7 @@ Current milestone: **v0.15.0.beta · Daily Flow**
 - Fixed the Today bottom-handle bug where trying to change the end time could move the start time instead.
 - Reminder scheduling now falls back safely if exact-alarm permission changes and rebuilds after reboot, app update, clock/date or timezone changes.
 - The v0.14.9 Glyph reconnect/watchdog/heartbeat reliability fixes remain in place to prevent frozen timer/eye frames after Nothing's Matrix service disconnects.
-- Beta version is **1500 / `0.15.0.beta`**.
+- Corrected the release identity after skipped/failed `0.15.0`/`0.15.1` tag attempts: beta is now **1502 / `0.15.2.beta`**.
 
 The larger v0.12–v0.14 feature set remains intact: calendar controls, recurrence scopes, focus cycles, tasks, templates, backup/ICS, per-widget configuration, GitHub beta updates, Nothing Glyph integration and Play separation.
 
@@ -84,7 +84,7 @@ Requirements: JDK 17, Gradle 9.4.1, Android SDK API 37 and Build Tools 36.0.0.
 gradle :app:assembleBetaDebug :app:assemblePlayDebug --no-daemon
 ```
 
-GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.15.0.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
+GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.15.2.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
 
 Before publication, the tagged workflow verifies that the signed APK's embedded version matches the tag, that its Android `versionCode` follows Dayline's beta version convention, and that the updater-facing release notes contain Added / Changed / Fixed sections.
 

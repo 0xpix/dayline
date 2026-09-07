@@ -91,9 +91,6 @@ fun SettingsScreen(
     val context = LocalContext.current
     var openSheet by remember { mutableStateOf<SettingsSheet?>(null) }
 
-    // Widget appearance/content controls deliberately live only in each widget's
-    // own configuration screen. Keep these parameters in the public screen
-    // signature for source compatibility with the existing app state wiring.
     @Suppress("UNUSED_VARIABLE")
     val widgetSettingsOwnedByWidget = listOf(
         widgetFontChoice,
@@ -208,7 +205,10 @@ fun SettingsScreen(
                 SectionGap()
                 SettingsGroup("Beta updates") {
                     ToggleSettingRow("Automatic daily check", autoBetaUpdates, onAutoBetaUpdates)
-                    SelectorRow("Check for updates", updateActionLabel(updateState)) {
+                    SelectorRow(
+                        if (updateState.status == UpdateStatus.AVAILABLE) "Update available" else "Check for updates",
+                        updateActionLabel(updateState)
+                    ) {
                         if (updateState.status == UpdateStatus.AVAILABLE && updateState.release != null) {
                             openSheet = SettingsSheet.UPDATE
                         } else {
@@ -707,118 +707,210 @@ private fun TinyAction(label: String, onClick: () -> Unit) {
     )
 }
 
+private data class UpdateNoteSection(
+    val title: String,
+    val items: List<String>
+)
+
+private fun cleanUpdateNoteLine(line: String): String = line
+    .trim()
+    .trimStart('•', '-', '*', ' ')
+    .replace("**", "")
+    .replace("`", "")
+    .trim()
+
+private fun parseUpdateNotes(raw: String): List<UpdateNoteSection> {
+    val sections = mutableListOf<UpdateNoteSection>()
+    var title: String? = null
+    var items = mutableListOf<String>()
+
+    fun flush() {
+        val currentTitle = title ?: return
+        if (items.isNotEmpty()) {
+            sections += UpdateNoteSection(currentTitle, items.toList())
+        }
+        items = mutableListOf()
+    }
+
+    raw.lines().forEach { rawLine ->
+        val line = rawLine.trim()
+        when {
+            line.startsWith("## ") -> {
+                flush()
+                title = line.removePrefix("## ").trim()
+            }
+            line.isBlank() -> Unit
+            title != null -> {
+                cleanUpdateNoteLine(line).takeIf { it.isNotBlank() }?.let(items::add)
+            }
+        }
+    }
+    flush()
+
+    val ordered = listOf("Added", "Changed", "Fixed").mapNotNull { expected ->
+        sections.firstOrNull { it.title.equals(expected, ignoreCase = true) }
+    }
+    if (ordered.isNotEmpty()) return ordered
+
+    val fallback = raw.lines()
+        .map(::cleanUpdateNoteLine)
+        .filter { it.isNotBlank() && !it.startsWith("#") }
+    return listOf(
+        UpdateNoteSection(
+            title = "Changed",
+            items = fallback.ifEmpty { listOf("Bug fixes and Dayline polish.") }
+        )
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun UpdateSheet(release: BetaRelease, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val sections = remember(release.notes) { parseUpdateNotes(release.notes) }
     var downloading by remember(release.tagName) { mutableStateOf(false) }
     var downloadedApk by remember(release.tagName) { mutableStateOf<File?>(null) }
     var message by remember(release.tagName) { mutableStateOf<String?>(null) }
+
+    fun installVerified(apk: File) {
+        when (val result = GithubBetaUpdater.install(context, apk)) {
+            GithubBetaUpdater.InstallResult.Started ->
+                message = "Verified · Android installer opened"
+            GithubBetaUpdater.InstallResult.PermissionRequested ->
+                message = "Allow Dayline β to install apps, then tap Continue update."
+            is GithubBetaUpdater.InstallResult.Error ->
+                message = result.message
+        }
+    }
 
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.background) {
         Column(
             Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 26.dp)
-                .padding(bottom = 34.dp)
+                .padding(horizontal = 28.dp)
+                .padding(bottom = 32.dp)
         ) {
-            Text("Dayline update", style = MaterialTheme.typography.displaySmall)
-            Spacer(Modifier.height(10.dp))
-            Text(
-                release.versionName,
-                style = MaterialTheme.typography.displayMedium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
+            Text("Update available", style = MaterialTheme.typography.displaySmall)
             Spacer(Modifier.height(8.dp))
             Text(
-                release.title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.height(24.dp))
-            SettingsSubhead("Release notes")
-            Spacer(Modifier.height(10.dp))
-            Text(
-                release.notes.ifBlank { "Bug fixes and Dayline polish." },
-                style = MaterialTheme.typography.bodyLarge,
+                release.versionName,
+                style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.onBackground
             )
-            Spacer(Modifier.height(28.dp))
-
-            val actionLabel = when {
-                release.apkUrl.isNullOrBlank() -> "OPEN GITHUB RELEASE  ›"
-                downloading -> "DOWNLOADING…"
-                downloadedApk != null -> "INSTALL UPDATE  ›"
-                else -> "DOWNLOAD UPDATE  ›"
-            }
-            Text(
-                actionLabel,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(enabled = !downloading) {
-                        if (release.apkUrl.isNullOrBlank()) {
-                            GithubBetaUpdater.openRelease(context, release)
-                        } else {
-                            val apk = downloadedApk
-                            if (apk == null) {
-                                downloading = true
-                                message = null
-                                scope.launch {
-                                    GithubBetaUpdater.download(context.applicationContext, release)
-                                        .onSuccess {
-                                            downloadedApk = it
-                                            message = "Download verified · ready to install"
-                                        }
-                                        .onFailure {
-                                            message = it.message ?: "Download failed"
-                                        }
-                                    downloading = false
-                                }
-                            } else {
-                                when (val result = GithubBetaUpdater.install(context, apk)) {
-                                    GithubBetaUpdater.InstallResult.Started ->
-                                        message = "Android installer opened"
-                                    GithubBetaUpdater.InstallResult.PermissionRequested ->
-                                        message = "Allow Dayline β to install apps, then tap Install update again"
-                                    is GithubBetaUpdater.InstallResult.Error ->
-                                        message = result.message
-                                }
-                            }
-                        }
-                    }
-                    .padding(vertical = 12.dp),
-                style = MaterialTheme.typography.titleMedium,
-                color = if (downloading) MaterialTheme.colorScheme.onSurfaceVariant
-                else MaterialTheme.colorScheme.onBackground
-            )
-
-            if (release.htmlUrl.isNotBlank()) {
+            if (release.title.isNotBlank() && !release.title.contains(release.versionName, ignoreCase = true)) {
+                Spacer(Modifier.height(4.dp))
                 Text(
-                    "OPEN RELEASE NOTES",
-                    modifier = Modifier
-                        .clickable { GithubBetaUpdater.openRelease(context, release) }
-                        .padding(vertical = 8.dp),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            message?.let {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    it,
+                    release.title,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Spacer(Modifier.height(8.dp))
+
+            Spacer(Modifier.height(26.dp))
+            Text("What's new", style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(14.dp))
+
+            sections.forEachIndexed { sectionIndex, section ->
+                Text(
+                    section.title.uppercase(),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+                section.items.forEach { item ->
+                    Row(
+                        Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Text(
+                            "•",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            item,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                }
+                if (sectionIndex != sections.lastIndex) Spacer(Modifier.height(10.dp))
+            }
+
+            Spacer(Modifier.height(22.dp))
+
+            val actionLabel = when {
+                release.apkUrl.isNullOrBlank() -> "View release"
+                downloading -> "Downloading…"
+                downloadedApk != null -> "Continue update"
+                else -> "Download & update"
+            }
+            androidx.compose.material3.Button(
+                onClick = {
+                    if (release.apkUrl.isNullOrBlank()) {
+                        GithubBetaUpdater.openRelease(context, release)
+                    } else {
+                        val readyApk = downloadedApk
+                        if (readyApk != null) {
+                            installVerified(readyApk)
+                        } else {
+                            downloading = true
+                            message = null
+                            scope.launch {
+                                GithubBetaUpdater.download(context.applicationContext, release)
+                                    .onSuccess { apk ->
+                                        downloadedApk = apk
+                                        installVerified(apk)
+                                    }
+                                    .onFailure {
+                                        message = it.message ?: "Download failed"
+                                    }
+                                downloading = false
+                            }
+                        }
+                    }
+                },
+                enabled = !downloading,
+                modifier = Modifier.fillMaxWidth().height(54.dp)
+            ) {
+                Text(actionLabel, style = MaterialTheme.typography.titleMedium)
+            }
+
+            message?.let {
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (it.contains("failed", ignoreCase = true) || it.contains("error", ignoreCase = true)) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
             Text(
-                "Dayline verifies package, version and checksum before Android opens the installer.",
-                style = MaterialTheme.typography.bodyMedium,
+                "Package, version and checksum are verified before Android opens the installer.",
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            if (release.htmlUrl.isNotBlank()) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "View on GitHub",
+                    modifier = Modifier
+                        .clickable { GithubBetaUpdater.openRelease(context, release) }
+                        .padding(vertical = 10.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

@@ -21,6 +21,7 @@ This report tracks the current **v0.17.0.beta / versionCode 1700** source. GitHu
 - Drag/resize previews show exact start/end information and can auto-scroll the Today column.
 - Past timed items fade without being removed from the day.
 - Today initially positions near the current time; a Month-selected date positions near its first useful block.
+- The Today control still returns a historical Month-opened day to the real current day, and on the real current day returns the timeline to now.
 
 ## Month + Day Preview
 
@@ -53,6 +54,15 @@ This report tracks the current **v0.17.0.beta / versionCode 1700** source. GitHu
 - `free Friday afternoon`-style queries return tappable free windows that open event creation at that time.
 - Normal results are grouped by occurrence date.
 
+## Calendar + timezone behavior
+
+- Provider all-day instances are interpreted in UTC and remain separate from the timed day rail.
+- Timed provider instances are interpreted with `EVENT_TIMEZONE` when available instead of silently forcing the device timezone.
+- Mapped-event reconciliation stores all-day state and timezone identity alongside title/date/time/recurrence changes.
+- Timed writes set `EVENT_TIMEZONE` / `EVENT_END_TIMEZONE` and calculate DTSTART/DTEND/EXDATE using the event timezone.
+- Recurrence UNTIL conversion preserves the intended event-zone end date while serializing the provider rule in UTC.
+- Calendar deletion/reconciliation behavior from v0.15 remains intact.
+
 ## Recurrence regression tests
 
 CI runs pure JVM tests before Android assembly.
@@ -63,12 +73,19 @@ CI runs pure JVM tests before Android assembly.
 - Buffered busy windows merge correctly.
 - Task suggestions obey earliest/deadline bounds.
 
+## Widgets
+
+- Normal app mutations still trigger a Glance refresh and record the last refresh time.
+- Reboot, app replacement, manual clock changes, timezone changes and date changes now also resync widgets in addition to reminders/Now Activity.
+- Widget configuration remains owned by the widget configuration screen, not main app Settings.
+
 ## Updater
 
-- GitHub release-body cleanup must preserve literal `## Added`, `## Changed`, `## Fixed` headings.
+- GitHub release-body cleanup preserves literal `## Added`, `## Changed`, `## Fixed` headings.
 - Settings continues rendering each heading in a separate card.
-- APK size is retained in `BetaRelease` metadata for updater presentation/diagnostics.
+- APK size is retained in `BetaRelease`, shown as concise release metadata and verified against the downloaded file when GitHub reports a size.
 - Package/version/checksum verification remains mandatory before the installer opens.
+- GitHub 404/rate/network failures use concise current errors rather than claiming a public repository is private.
 
 ## Beta diagnostics
 

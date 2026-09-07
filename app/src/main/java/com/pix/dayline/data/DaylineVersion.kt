@@ -1,6 +1,6 @@
 package com.pix.dayline.data
 
-/** Small, Android-independent version comparator used by the GitHub beta channel. */
+/** Small, Android-independent version helpers used by the GitHub beta channel. */
 object DaylineVersion {
     fun compare(left: String, right: String): Int {
         val a = numeric(left)
@@ -23,6 +23,32 @@ object DaylineVersion {
     }
 
     fun hasNumericVersion(value: String): Boolean = numeric(value).isNotEmpty()
+
+    /**
+     * Dayline's current beta versionCode convention is minor*100 + patch:
+     * 0.14.5 -> 1405, 0.13.1 -> 1301.
+     *
+     * Older pre-0.13 betas used a different scheme, so callers should only use
+     * this as an installability guard for current/newer releases.
+     */
+    fun betaVersionCode(value: String): Long? {
+        val parts = numeric(value)
+        if (parts.size < 3) return null
+        val major = parts[0].toLong()
+        val minor = parts[1].toLong()
+        val patch = parts[2].toLong()
+        return major * 1_000_000L + minor * 100L + patch
+    }
+
+    fun isInstallableUpdate(
+        candidateVersion: String,
+        currentVersion: String,
+        currentVersionCode: Long
+    ): Boolean {
+        if (compare(candidateVersion, currentVersion) <= 0) return false
+        val candidateCode = betaVersionCode(candidateVersion) ?: return true
+        return candidateCode > currentVersionCode
+    }
 
     private fun numeric(value: String): List<Int> = normalize(value)
         .split('.')

@@ -162,7 +162,7 @@ fun SettingsScreen(
                     }
                 )
                 Text(
-                    "Expressive eyes stay active. Focus cycles use smaller top eyes with a live MM:SS countdown at the bottom.",
+                    "Expressive eyes stay active. Focus briefly replaces them with time at phase start, every 5 minutes and 1 minute remaining.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -552,7 +552,7 @@ private fun GlyphSettingsSheet(
             Text("Dayline Glyph", style = MaterialTheme.typography.headlineLarge)
             Spacer(Modifier.height(6.dp))
             Text(
-                "Expressive eyes + Focus timer. Nothing else interrupts the face.",
+                "Expressive eyes + brief Focus time announcements. Nothing else interrupts the face.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -627,9 +627,9 @@ private fun GlyphSettingsSheet(
             SectionGap()
             Text("FOCUS MODE", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
-            InfoRow("Focus timer", "Automatic")
+            InfoRow("Time announcements", "30 seconds")
             Text(
-                "For 25 / 5, 50 / 10 and custom cycles, smaller eyes keep animating at the top while the current Focus or Rest phase counts down as MM:SS at the bottom. Left and right shift the full eye pair just like normal mode.",
+                "The normal eyes stay active during Focus and Rest. At phase start, every 5-minute remaining checkpoint and 1:00 remaining, Dayline goes through CENTER, shows the live MM:SS countdown for 30 seconds, then returns through CENTER to the eyes.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

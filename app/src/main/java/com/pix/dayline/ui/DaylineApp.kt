@@ -16,9 +16,9 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -132,22 +132,30 @@ fun DaylineApp() {
             val previousError = calendarSyncError
             val probe = AndroidCalendarSync.probe(appContext)
             if (probe.isSuccess) {
-                // A Dayline-created event can also be deleted from Google Calendar,
-                // Outlook, etc. Reconcile mapped rows before loading the overlay so a
-                // provider-side deletion cannot reappear as a local Dayline event.
+                // Reconcile every Dayline row mapped to Android Calendar. This is
+                // not only a deletion check: external title/time/recurrence/calendar
+                // changes must become the new local source of truth as well.
+                val before = items
                 val reconciled = AndroidCalendarSync.reconcileDeletedMappedItems(
                     appContext,
-                    items
+                    before
                 )
 
-                if (reconciled.size != items.size) {
-                    val removedIds = items.map { it.id }.toSet() - reconciled.map { it.id }.toSet()
-                    items.filter { it.id in removedIds }.forEach {
+                if (reconciled != before) {
+                    val reconciledIds = reconciled.map { it.id }.toSet()
+                    before.filterNot { it.id in reconciledIds }.forEach {
                         NotificationScheduler.cancel(appContext, it)
                         NowActivityScheduler.cancel(appContext, it)
                     }
+
                     items = reconciled
                     store.saveItems(reconciled)
+                    NotificationScheduler.syncAll(appContext, reconciled)
+                    if (nowActivityEnabled) {
+                        NowActivityScheduler.syncAll(appContext, reconciled)
+                    } else {
+                        NowActivityScheduler.cancelAll(appContext, reconciled)
+                    }
                 }
 
                 deviceCalendars = AndroidCalendarSync.listCalendars(appContext)
@@ -550,9 +558,65 @@ fun DaylineApp() {
             addRequest = null
         }
 
-        fun changeWithUndo(updated: DaylineItem, message: String) {
+        fun changeWithUndo(
+            updated: DaylineItem,
+            message: String,
+            occurrenceDate: LocalDate? = null
+        ) {
             val previous = items.firstOrNull { it.id == updated.id }
             if (previous == null || updated.calendarReadOnly) return
+
+            // Direct manipulation on Today represents the occurrence the user
+            // can actually see. For a recurring master, move/resize/schedule a
+            // detached occurrence instead of silently moving the entire series.
+            if (previous.recurrence != Recurrence.ONCE && occurrenceDate != null) {
+                val snapshot = items
+                var next = SeriesEditor.apply(
+                    existingItems = snapshot,
+                    original = previous,
+                    edited = updated.copy(startDate = occurrenceDate),
+                    occurrenceDate = occurrenceDate,
+                    scope = RecurrenceEditScope.THIS_OCCURRENCE
+                )
+
+                if (calendarSyncEnabled && AndroidCalendarSync.hasWritePermission(appContext)) {
+                    next = next.map { candidate ->
+                        if (
+                            candidate.kind == AgendaKind.EVENT &&
+                            !candidate.calendarReadOnly &&
+                            (candidate.id == previous.id || candidate.seriesParentId == previous.id)
+                        ) {
+                            publishIfNeeded(candidate)
+                        } else candidate
+                    }
+                }
+
+                val published = next
+                persistItems(published)
+                emitGlyph(DaylineGlyphSignal.MOVED, 2)
+                if (calendarSyncEnabled) refreshCalendarOverlay()
+
+                scope.launch {
+                    val result = snackbarHostState.showSnackbar(
+                        message = message,
+                        actionLabel = "UNDO",
+                        duration = SnackbarDuration.Short
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        val oldIds = snapshot.map { it.id }.toSet()
+                        published.filterNot { it.id in oldIds }.forEach { created ->
+                            AndroidCalendarSync.deleteMappedEvent(appContext, created)
+                        }
+                        val restored = snapshot.map { candidate ->
+                            if (candidate.id == previous.id) publishIfNeeded(candidate) else candidate
+                        }
+                        persistItems(restored)
+                        if (calendarSyncEnabled) refreshCalendarOverlay()
+                    }
+                }
+                return
+            }
+
             val saved = publishIfNeeded(updated)
             persistItems(items.map { if (it.id == updated.id) saved else it })
             emitGlyph(DaylineGlyphSignal.MOVED, 2)
@@ -684,9 +748,27 @@ fun DaylineApp() {
                         onAddAt = { date, time -> addRequest = AddRequest(date, AgendaKind.EVENT, time) },
                         onEdit = { openItem(it, LocalDate.now()) },
                         onToggleTask = ::toggleTask,
-                        onReschedule = { changeWithUndo(it, "Moved ${it.title} to ${it.startTime}") },
-                        onResize = { changeWithUndo(it, "Resized ${it.title} to ${it.endTime}") },
-                        onScheduleTask = { changeWithUndo(it, "Scheduled ${it.title} at ${it.startTime}") }
+                        onReschedule = {
+                            changeWithUndo(
+                                it,
+                                "Moved ${it.title} to ${it.startTime}",
+                                LocalDate.now()
+                            )
+                        },
+                        onResize = {
+                            changeWithUndo(
+                                it,
+                                "Resized ${it.title} to ${it.endTime}",
+                                LocalDate.now()
+                            )
+                        },
+                        onScheduleTask = {
+                            changeWithUndo(
+                                it,
+                                "Scheduled ${it.title} at ${it.startTime}",
+                                LocalDate.now()
+                            )
+                        }
                     )
 
                     DaylineScreen.CALENDAR -> CalendarScreen(

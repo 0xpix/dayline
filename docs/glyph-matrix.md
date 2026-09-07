@@ -1,6 +1,6 @@
 # Dayline Glyph Matrix integration
 
-Dayline v0.15.3.beta provides an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
+Dayline v0.15.4.beta provides an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
 
 ## Dayline behavior
 
@@ -33,26 +33,29 @@ Examples:
 
 Outside those 30-second windows, Focus does not alter the face. The normal Center / left / right / blink / wink / happy / hearts / squint / sleepy animation state machine continues unchanged.
 
-### v0.15 timer layout
+### v0.15.4 timer layout
 
-The timing logic is unchanged. A Focus time such as `14:54` is rendered as two large centered lines:
+The timing logic is unchanged. A Focus time such as `14:54` is still rendered as two centered lines:
 
 ```text
 14
 54
 ```
 
-- **Minutes** use two 5×5 digits in rows 1–5.
-- **Seconds** use two 5×5 digits in rows 7–11.
-- Each line is 11 pixels wide and centered with one empty column at each side.
+v0.15.4 reduces the digit width so the timer sits more comfortably inside the circular visible Matrix area:
+
+- **Minutes** use two 4×5 digits in rows 1–5.
+- **Seconds** use two 4×5 digits in rows 7–11.
+- Each line is 9 pixels wide: `4 + 1 gap + 4`.
+- Digits occupy x=2..10, leaving **two empty columns on both sides**.
 - Leading zeros remain visible, so `05:07` displays `05` above `07`.
 - No eyes, colon, progress ring or other pixels compete with the timer during the announcement.
 
 ## Reliability / freeze recovery
 
-v0.15.3 replaces the aggressive v0.14.9 recovery strategy after real-device testing showed that repeated reinitialization and heartbeat traffic could make freezes more frequent.
+The conservative v0.15.3 transport remains unchanged in v0.15.4.beta.
 
-Nothing's Matrix SDK owns a bound proxy service, so Dayline now follows a more conservative lifecycle:
+Nothing's Matrix SDK owns a bound proxy service, so Dayline follows a conservative lifecycle:
 
 - SDK callback state is serialized onto the **main looper** so binder callbacks cannot race the animation renderer.
 - When `onServiceDisconnected` fires, Dayline keeps the existing manager/callback binding alive first and waits for the system proxy to reconnect naturally.
@@ -63,7 +66,7 @@ Nothing's Matrix SDK owns a bound proxy service, so Dayline now follows a more c
 - A real frame-send exception enters the same delayed recovery path instead of immediately starting a reconnect loop.
 - Duplicate unchanged frames are suppressed inside `NothingGlyphBridge`, so the old service-level 4-second heartbeat request does **not** produce redundant `setMatrixFrame()` traffic on the hardware.
 
-The AOD render loop is still exception-protected so one unexpected render failure cannot permanently stop later animation ticks.
+The AOD render loop is exception-protected so one unexpected render failure cannot permanently stop later animation ticks.
 
 This design deliberately favors a stable long-lived SDK binding over frequent proactive reconnects.
 
@@ -93,7 +96,7 @@ Dayline's own Glyph patterns, settings and reflection bridge are part of the MIT
 
 For GitHub beta CI, `.github/workflows/build-apk.yml` first validates that the AAR is absent and then downloads the official binary from `Nothing-Developer-Programme/GlyphMatrix-Developer-Kit` before compiling the beta flavor. `app/build.gradle.kts` only attaches the AAR to `betaImplementation` when the file exists.
 
-The Play flavor does not include the SDK in v0.15.3.beta. Nothing's Glyph SDK license restricts commercial use without written permission, so Play distribution should stay disabled for Glyph hardware until the appropriate permission/license is obtained.
+The Play flavor does not include the SDK in v0.15.4.beta. Nothing's Glyph SDK license restricts commercial use without written permission, so Play distribution should stay disabled for Glyph hardware until the appropriate permission/license is obtained.
 
 ## Release safety
 

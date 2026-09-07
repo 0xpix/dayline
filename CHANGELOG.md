@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.14.6.beta — Focus timer Glyph
+
+- Replaced the Focus progress ring with a dedicated **top eyes + bottom `MM:SS` timer** layout on the 13×13 Glyph Matrix.
+- Kept normal idle mode's large expressive eyes unchanged.
+- Added a separate compact Focus eye renderer so animations stay in the top rows while the timer owns rows 8–12.
+- Left the middle rows intentionally empty so Focus timing never collides visually with the face.
+- Reused the same `CENTER → expression → CENTER → next expression` animation state machine during Focus and Rest.
+- Made Focus Look Left/Look Right shift the entire compact eye pair left/right, matching the behavior of normal idle eyes.
+- Kept Blink, Wink, Happy, Hearts, Squint and rare Sleepy available above the timer.
+- Added a compact 3×5 numeric font that fits `MM:SS` exactly across all 13 matrix columns.
+- Focus, Rest and paused sessions now show their actual remaining phase time directly; 25/5, 50/10 and custom cycles are supported.
+- Kept duplicate-frame suppression so the once-per-second countdown does not cause unnecessary extra frame traffic.
+- Bumped beta versionCode to **1406** and beta versionName to `0.14.6.beta`.
+
 ## 0.14.5.beta — Updater + Glyph preview fix
 
 - Fixed beta update discovery so a GitHub release must be newer by both semantic version and Android `versionCode` before Dayline offers it.

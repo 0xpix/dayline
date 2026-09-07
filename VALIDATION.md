@@ -1,68 +1,68 @@
-# Dayline v0.13.1.beta — Validation Report
+# Dayline v0.14.0.beta — Validation Report
 
-This report records checks performed on the v0.13.1.beta source package. GitHub Actions remains the authoritative Android/Compose compile gate because this execution environment does not include a complete Android SDK/Gradle toolchain.
+This report records checks performed on the v0.14.0.beta source package. GitHub Actions remains the authoritative Android/Compose compile gate because this execution environment does not contain the Android SDK/Gradle toolchain used by the project.
 
 ## Release checks
 
-- Static project validator: **PASS**
-- XML resource parsing across main/beta/play source sets: **PASS**
-- Manifest component/resource checks: **PASS**
-- GitHub Actions workflow YAML parsing: **PASS**
-- Beta/play flavor and permission separation checks: **PASS**
-- GitHub beta signing workflow contract: **PASS**
+- Static project validator: **PASS — 0 errors / 0 warnings**
+- Kotlin sources discovered: **55**
+- XML resources/manifests parsed: **28**
+- GitHub Actions workflow YAML parse: **PASS**
+- Beta/Play flavor and permission separation: **PASS**
+- GitHub beta signing / explicit Build Tools `apksigner` contract: **PASS**
 - Play signing/AAB workflow contract: **PASS**
-- Main/Play manifest has no beta updater `INTERNET` or `REQUEST_INSTALL_PACKAGES` permission: **PASS**
-- Beta manifest contains only the updater network/install permissions plus FileProvider: **PASS**
+- Proprietary Nothing `glyph-matrix-sdk-2.0.aar` absent from source tree: **PASS**
+- GitHub beta workflow checks AAR absence before fetching the official SDK: **PASS**
+- Play workflow does not fetch/package the Glyph Matrix SDK: **PASS**
+- Main/Play manifest has no beta updater Internet/install permission and no Nothing Glyph permission: **PASS**
+- Beta manifest contains Nothing Glyph permission, Glyph Toy service and AOD metadata: **PASS**
 - Automatic Android app-data backup disabled: **PASS**
-- Promoted-notification API/permission path removed: **PASS**
-- Notification system chronometer / `HH:mm:ss` path removed: **PASS**
-- Android-independent Kotlin model/data compile: **PASS**
-- Recurrence, edit-scope, ICS, overlap, custom-focus and version-ordering logic tests: **PASS**
-- Source merge-marker / duplicate-import scan: **PASS**
-- ZIP integrity: **PASS (full and update archives)**
+- Notification seconds-chronometer / `HH:mm:ss` regression scan: **PASS**
+- Merge-marker / duplicate-import scan: **PASS**
 
-## v0.13 beta updater
+## Glyph core validation
 
-`beta` builds use package `com.pix.dayline.beta` and query the public `0xpix/dayline` GitHub Releases list. The checker ignores drafts, includes prereleases, compares semantic numeric versions, chooses the newest version newer than the installed beta, and prefers a tag/beta-matching APK asset.
+The Android-independent Glyph model and 13×13 pattern renderer compile with the local Kotlin compiler.
 
-The update UI exposes Checking / Up to date / Available / Retry states, last-check time and release notes. Downloaded APKs are checked against the release SHA-256 when present, verified to belong to the currently installed beta package and required to carry a newer Android version code before Dayline opens Android's package installer. Installation is never silent.
+Runtime-independent tests passed for every defined Glyph signal:
 
-Automatic checks are optional, no more than daily, and use an inexact non-wakeup alarm. Calendar, task, focus, widget and backup contents are never included in the GitHub request.
+- every matrix frame is exactly **13×13 / 169 cells**
+- every brightness value is within **0..255**
+- every state renders a non-empty pattern
+- `LOOK_LEFT` has a lower horizontal light centroid than `CENTER`
+- `LOOK_RIGHT` has a higher horizontal light centroid than `CENTER`
+- `BLINK` uses fewer illuminated cells than open center eyes
+- 32 eye/app-state patterns validated
 
-The `play` flavor provides an offline updater stub and does not receive the beta updater's network/install permissions.
+Directional result: **5.0 < 6.0 < 7.0** for Left < Center < Right.
 
-## Notification presentation
+## v0.14 Glyph behavior
 
-The Now notification does not use Android's seconds chronometer. Examples:
+Dayline Glyph is designed to remain eye-dominant. Idle behavior supports Center, Curious, Sleepy and Happy base expressions, optional 4–9 second natural blinking and Rare / Normal / Frequent random glances.
 
-- `RESEARCH` + `42M LEFT · ENDS 09:00`
-- `FOCUS · Research` + `18M · ●●○○○ · 2/5`
-- `REST · Research` + `4M · ●●○○○ · 2/5`
+Blink is explicitly animated **CENTER → BLINK → CENTER**. App-derived states are latched only when the state changes, displayed for the configured short duration, then the eye loop resumes. Focus can continue with focused/squint eyes and optional active brightness pulsing; Rest can fall back to Sleepy eyes or be disabled.
 
-The event time range remains a quiet subtext line and normal text refreshes at minute boundaries. Focus phase and event-end alarms still occur at their actual boundaries.
+Brief signals include Next event, Reminder soon, Focus, Rest, Task done, Conflict, Free now, Day open, No plans, Event start/end, Moved, Sync OK/error, Missed and Go. A persistent priority/expiry queue lets app actions interrupt the AOD toy without permanently replacing the face.
 
-## CI compile repair from 2026-09-06
+Quiet hours, dim-at-night, reduce-motion and return-to-eyes settings are persisted in Dayline backups.
 
-The first GitHub Actions compile attempt exposed two concrete Kotlin integration errors in both beta and Play debug variants:
+## Nothing Phone (4a) Pro integration
 
-1. `BetaUpdateScheduler` called the suspend `BetaUpdateChecker.check(...)` API from a plain executor callback. The receiver now keeps `goAsync()` alive while the check runs in `CoroutineScope(Dispatchers.IO).launch`.
-2. The `SettingsScreen` integration omitted the existing widget font, emoji and auto-slide values/callbacks. All six arguments are now wired back to `DaylineStore` and refresh placed widgets after a change.
+The beta flavor registers `DaylineGlyphToyService` as an AOD-capable Glyph Toy and targets the documented Phone (4a) Pro 13×13 matrix. The hardware bridge uses reflection so the open-source tree and Play flavor remain buildable without committing Nothing's proprietary AAR.
 
-The local static validator and named-argument consistency check pass after these repairs. GitHub Actions remains the authoritative Android compiler confirmation.
+Nothing's documentation names `Glyph.DEVICE_25111p`; a public SDK issue reports that some current binaries do not expose that field. Dayline first attempts the field and falls back to the documented `25111p` registration target string.
+
+The GitHub beta CI fetches `glyph-matrix-sdk-2.0.aar` directly from Nothing's official developer repository only after verifying the binary was not committed. The Play flavor intentionally excludes the SDK pending commercial licensing permission.
 
 ## Final Android compile gate
 
-Run on GitHub Actions before creating the release tag:
+Before tagging the release, GitHub Actions must pass:
 
 ```text
 :app:assembleBetaDebug
 :app:assemblePlayDebug
 ```
 
-For `v0.13.1.beta`, the tagged job additionally builds and verifies `:app:assembleBetaRelease`, generates its SHA-256 checksum and publishes a GitHub prerelease. Do not consider the release Android-compile-confirmed until that workflow is green.
+For tag `v0.14.0.beta`, the tagged job additionally builds `:app:assembleBetaRelease`, verifies the APK with Android Build Tools 36.0.0 `apksigner`, generates the SHA-256 checksum and publishes the GitHub prerelease.
 
-## v0.13.1.beta workflow hotfix
-
-- Beta release signature verification now invokes `apksigner` by its installed Android Build Tools 36.0.0 path instead of assuming it is on `PATH`.
-- Play release APK verification uses the same explicit SDK path.
-- Android versionCode is 1301 and versionName resolves to `0.13.1.beta` for the beta flavor.
+Do not treat v0.14.0.beta as Android-compile-confirmed until that workflow is green.

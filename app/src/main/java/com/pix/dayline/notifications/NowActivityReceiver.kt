@@ -3,6 +3,11 @@ package com.pix.dayline.notifications
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.pix.dayline.data.DaylineStore
+import com.pix.dayline.data.FocusRuntimeStore
+import com.pix.dayline.glyph.GlyphRuntimeStore
+import com.pix.dayline.model.DaylineGlyphSignal
+import com.pix.dayline.model.GlyphMode
 
 class NowActivityReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -10,15 +15,41 @@ class NowActivityReceiver : BroadcastReceiver() {
         val appContext = context.applicationContext
 
         when (intent.action) {
-            ACTION_START -> NowActivityScheduler.handleStart(appContext, itemId)
-            ACTION_PHASE -> NowActivityScheduler.handlePhase(appContext, itemId)
-            ACTION_END -> NowActivityScheduler.handleEnd(appContext, itemId)
+            ACTION_START -> {
+                NowActivityScheduler.handleStart(appContext, itemId)
+                emit(appContext, DaylineGlyphSignal.EVENT_STARTED)
+            }
+            ACTION_PHASE -> {
+                NowActivityScheduler.handlePhase(appContext, itemId)
+                val runtime = FocusRuntimeStore(appContext).load(itemId)
+                emit(
+                    appContext,
+                    if (runtime?.focus == false) DaylineGlyphSignal.REST else DaylineGlyphSignal.FOCUS
+                )
+            }
+            ACTION_END -> {
+                NowActivityScheduler.handleEnd(appContext, itemId)
+                emit(appContext, DaylineGlyphSignal.EVENT_ENDED, 2)
+            }
             ACTION_REFRESH -> NowActivityScheduler.handleRefresh(appContext, itemId)
             ACTION_PAUSE -> NowActivityScheduler.togglePause(appContext, itemId)
-            ACTION_SKIP_REST -> NowActivityScheduler.skipRest(appContext, itemId)
+            ACTION_SKIP_REST -> {
+                NowActivityScheduler.skipRest(appContext, itemId)
+                emit(appContext, DaylineGlyphSignal.FOCUS)
+            }
             ACTION_PLUS_FIVE -> NowActivityScheduler.extendPhase(appContext, itemId, 5)
-            ACTION_FINISH -> NowActivityScheduler.finishNow(appContext, itemId)
+            ACTION_FINISH -> {
+                NowActivityScheduler.finishNow(appContext, itemId)
+                emit(appContext, DaylineGlyphSignal.EVENT_ENDED, 2)
+            }
         }
+    }
+
+    private fun emit(context: Context, signal: DaylineGlyphSignal, seconds: Int? = null) {
+        val prefs = DaylineStore(context).loadGlyphPreferences()
+        if (!prefs.enabled || prefs.mode != GlyphMode.EYES_AND_STATES || !prefs.showAppStates) return
+        val duration = seconds ?: prefs.stateDurationSeconds
+        GlyphRuntimeStore(context).enqueue(signal, duration.coerceIn(1, 10) * 1_000L)
     }
 
     companion object {

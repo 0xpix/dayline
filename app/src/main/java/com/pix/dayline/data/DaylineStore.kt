@@ -375,6 +375,53 @@ class DaylineStore(context: Context) {
         editor.apply()
     }
 
+
+    fun loadGlyphPreferences(): GlyphPreferences {
+        val raw = prefs.getString(KEY_GLYPH_PREFERENCES, null) ?: return GlyphPreferences()
+        return runCatching {
+            val json = JSONObject(raw)
+            GlyphPreferences(
+                mode = enumValue(json.optString("mode"), GlyphMode.EYES_AND_STATES),
+                idleExpression = enumValue(json.optString("idleExpression"), GlyphIdleExpression.CENTER),
+                blinkEnabled = json.optBoolean("blinkEnabled", true),
+                randomGlancesEnabled = json.optBoolean("randomGlancesEnabled", true),
+                glanceFrequency = enumValue(json.optString("glanceFrequency"), GlyphGlanceFrequency.RARE),
+                showAppStates = json.optBoolean("showAppStates", true),
+                stateDurationSeconds = json.optInt("stateDurationSeconds", 3).coerceIn(2, 10),
+                returnToEyes = json.optBoolean("returnToEyes", true),
+                reminderFlashSeconds = json.optInt("reminderFlashSeconds", 5).coerceIn(2, 10),
+                focusStyle = enumValue(json.optString("focusStyle"), GlyphFocusStyle.SUBTLE),
+                restAnimation = json.optBoolean("restAnimation", true),
+                quietHoursEnabled = json.optBoolean("quietHoursEnabled", true),
+                quietStart = json.optString("quietStart", "23:00").let { LocalTime.parse(it) },
+                quietEnd = json.optString("quietEnd", "07:00").let { LocalTime.parse(it) },
+                dimAtNight = json.optBoolean("dimAtNight", true),
+                reduceMotion = json.optBoolean("reduceMotion", false)
+            )
+        }.getOrDefault(GlyphPreferences())
+    }
+
+    fun saveGlyphPreferences(value: GlyphPreferences) {
+        val json = JSONObject()
+            .put("mode", value.mode.name)
+            .put("idleExpression", value.idleExpression.name)
+            .put("blinkEnabled", value.blinkEnabled)
+            .put("randomGlancesEnabled", value.randomGlancesEnabled)
+            .put("glanceFrequency", value.glanceFrequency.name)
+            .put("showAppStates", value.showAppStates)
+            .put("stateDurationSeconds", value.stateDurationSeconds.coerceIn(2, 10))
+            .put("returnToEyes", value.returnToEyes)
+            .put("reminderFlashSeconds", value.reminderFlashSeconds.coerceIn(2, 10))
+            .put("focusStyle", value.focusStyle.name)
+            .put("restAnimation", value.restAnimation)
+            .put("quietHoursEnabled", value.quietHoursEnabled)
+            .put("quietStart", value.quietStart.toString())
+            .put("quietEnd", value.quietEnd.toString())
+            .put("dimAtNight", value.dimAtNight)
+            .put("reduceMotion", value.reduceMotion)
+        prefs.edit().putString(KEY_GLYPH_PREFERENCES, json.toString()).apply()
+    }
+
     fun loadShowOrb(): Boolean = prefs.getBoolean(KEY_SHOW_ORB, true)
     fun saveShowOrb(show: Boolean) {
         prefs.edit().putBoolean(KEY_SHOW_ORB, show).apply()
@@ -678,6 +725,7 @@ class DaylineStore(context: Context) {
         private const val KEY_AVAILABLE_BETA_RELEASE = "available_beta_release"
         private const val KEY_LAST_CALENDAR_SYNC_AT = "last_calendar_sync_at"
         private const val KEY_LAST_CALENDAR_SYNC_ERROR = "last_calendar_sync_error"
+        private const val KEY_GLYPH_PREFERENCES = "glyph_preferences"
         private const val KEY_SHOW_ORB = "show_orb"
         private const val KEY_WEEK_STARTS_MONDAY = "week_starts_monday"
         private const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"

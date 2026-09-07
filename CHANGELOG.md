@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.14.0.beta — Dayline Glyph beta
+
+- Added a Phone (4a) Pro 13×13 Glyph Matrix integration for GitHub beta builds.
+- Added Off / Eyes only / Eyes + app states modes and persistent Glyph preferences.
+- Added solid eye expressions with corrected left/right direction and fast center → blink → center animation.
+- Added natural blink/glance behavior with Rare / Normal / Frequent glance cadence.
+- Added brief app-state signals for upcoming events, reminders, focus/rest, task completion, conflicts, free blocks/day open, event start/end, moved items, sync status and go/leave cues.
+- Added priority/expiry queueing so important Dayline states interrupt the eyes without taking over permanently.
+- Added subtle/active focus behavior, optional rest animation, quiet hours, night dimming and reduced motion.
+- Added a live in-app 13×13 preview plus hardware test controls.
+- Added a beta-only AOD Glyph Toy service and shortcut to Nothing's Glyph Toys manager.
+- Kept the proprietary Nothing SDK out of the repository; GitHub beta CI downloads it from Nothing's official developer kit at build time.
+- Kept the Play flavor free of the Glyph Matrix SDK pending commercial licensing.
+- Added compatibility fallback for SDK builds that document Phone (4a) Pro but do not yet expose `Glyph.DEVICE_25111p`.
+- Bumped Android versionCode to 1400 and beta versionName to `0.14.0.beta`.
+
 ## 0.13.1.beta — Release workflow hotfix
 
 - Fixed GitHub beta-release signature verification: the workflow now calls the `apksigner` binary from Android Build Tools 36.0.0 directly instead of assuming it is on the shell `PATH`.

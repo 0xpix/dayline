@@ -4,33 +4,41 @@
 
 Dayline is an open-source Android calendar and planner built with Kotlin, Jetpack Compose, Material 3 and Glance. It is local-first, deliberately minimal, and designed around **Today** instead of a dashboard.
 
-Current milestone: **v0.13.1.beta · update & reliability beta**
+Current milestone: **v0.14.0.beta · Dayline Glyph beta**
 
-## What v0.13.1.beta adds
+## What v0.14.0.beta adds
 
-This beta is focused on reliability, direct manipulation and making the GitHub beta channel usable before Play testing:
+Dayline Glyph turns the Phone (4a) Pro's 13×13 Glyph Matrix into a calm, eyes-first companion for the calendar:
 
-1. A GitHub release updater that reads the public Releases list, including prereleases, instead of relying on `/releases/latest`.
-2. A minimal update sheet with version, release notes, verified APK download and Android install flow.
-3. Version, versionCode/build, update channel and short Git commit identity in Settings → About.
-4. Optional low-impact automatic update checks, at most once per day for GitHub beta builds.
-5. Calendar sync health with last successful sync, provider errors and per-calendar SYNCED / HIDDEN / READ ONLY state.
-6. Further Now-notification polish: no `HH:mm:ss`, no system chronometer, minute-level refresh, progress, focus/rest state and compact session dots.
-7. Undo for move, resize, delete, task scheduling and Task → Event conversion.
-8. Tappable overlap markers that explain conflicting blocks in a compact sheet.
-9. Command-style Search for `today`, `tomorrow`, `unfinished`, `focus`, tasks/events, month names, titles, Spaces and calendar names; results open the matching occurrence.
-10. Today polish: visible date marker, larger resize target, exact drag/resize previews, 15-minute haptic snaps and return-to-now behavior.
+- Three modes: **Off**, **Eyes only**, and **Eyes + app states**.
+- Solid dot-matrix eyes with Center, Look left/right, Blink, Wink, Happy, Sleepy, Curious and other expressions.
+- Natural eye loop with a fast **center → blink → center** animation and optional random glances.
+- Brief Dayline signals for **Next event, Reminder soon, Focus, Rest, Task done, Conflict, Free now / Day open, Event start/end, Moved, Sync and Go**.
+- Eyes remain dominant: derived app states interrupt the face only briefly, then the eye loop resumes.
+- Focus can use a subtle or active pulse; Rest can be disabled independently.
+- Quiet hours, night dimming and reduced-motion controls.
+- A live 13×13 in-app preview plus hardware test buttons for the main expressions and states.
+- Persistent Glyph settings are included in Dayline's existing JSON backup/restore.
+- A Phone (4a) Pro AOD Glyph Toy service for the GitHub beta flavor, with a direct shortcut to Nothing's Glyph Toys manager.
 
-It keeps the larger v0.12 feature set: per-calendar controls, recurring edit scopes, timeline move/resize/tap-to-create, 25/5 + 50/10 + custom focus cycles, buffers, templates, richer tasks, backup/ICS, per-widget configuration, smart widget states, haptics and first-run setup.
+The larger v0.12/v0.13 feature set remains intact: calendar controls, recurrence scopes, timeline manipulation, focus cycles, tasks, templates, backup/ICS, widget configuration, GitHub beta updates and Play separation.
+
+## Nothing Glyph Matrix distribution
+
+The open-source repository does **not** contain Nothing's proprietary Glyph Matrix AAR. The GitHub beta workflow verifies that the binary is absent from source, then fetches `glyph-matrix-sdk-2.0.aar` from Nothing's official developer repository for the beta build. The `play` flavor deliberately does not include this SDK while commercial licensing is unresolved. See [Glyph Matrix integration](docs/glyph-matrix.md).
+
+On Phone (4a) Pro, after installing the beta:
+
+1. Open Dayline → **Settings → Glyph → Dayline Glyph** and choose **Eyes only** or **Eyes + states**.
+2. Tap **ACTIVATE IN NOTHING SETTINGS**.
+3. Select **Dayline Eyes** under **Settings → Glyph Interface → Flip to Glyph → Always-on Glyph Toy**.
 
 ## Distribution channels
 
-Dayline deliberately separates GitHub and Play behavior:
+- **Dayline β (`com.pix.dayline.beta`)** — GitHub beta APK with the public GitHub updater and the optional Nothing Glyph Matrix integration.
+- **Dayline (`com.pix.dayline`)** — Play flavor with no GitHub updater permissions and no proprietary Glyph Matrix SDK in this beta milestone.
 
-- **Dayline β (`com.pix.dayline.beta`)** — open-source GitHub beta APK with the GitHub Releases updater, APK verification and Android's normal install confirmation flow.
-- **Dayline (`com.pix.dayline`)** — Play flavor with no GitHub-updater permissions; stable updates are delivered by Google Play.
-
-Only the beta flavor requests `INTERNET` and `REQUEST_INSTALL_PACKAGES` for the self-update flow. The Play flavor does not receive those permissions.
+Only the beta flavor requests `INTERNET`, `REQUEST_INSTALL_PACKAGES`, and Nothing's `com.nothing.ketchum.permission.ENABLE`. The Play flavor does not receive those permissions.
 
 Tagged GitHub beta APKs must keep using the same persistent beta signing key. Android will reject an in-place update if a later APK is signed with a different key. See [GitHub beta updates](docs/github-beta-updates.md) and [GitHub beta signing](docs/github-beta-signing.md).
 
@@ -48,7 +56,7 @@ Requirements: JDK 17, Gradle 9.4.1, Android SDK API 37 and Build Tools 36.0.0.
 gradle :app:assembleBetaDebug :app:assemblePlayDebug --no-daemon
 ```
 
-GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.13.1.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
+GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.14.0.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
 
 ## Google Play build
 

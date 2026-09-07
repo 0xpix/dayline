@@ -11,10 +11,10 @@ android {
         applicationId = "com.pix.dayline"
         minSdk = 26
         targetSdk = 36
-        // v0.12.8.beta used versionCode 33. Keep a large monotonic code so
-        // Android accepts this beta and leaves room for 0.13.x follow-ups.
-        versionCode = 1301
-        versionName = "0.13.1"
+        // Keep beta version codes monotonic across the GitHub channel.
+        // v0.14.0.beta uses 1400 so Android accepts it over the 0.13.x betas.
+        versionCode = 1400
+        versionName = "0.14.0"
 
         val commit = (System.getenv("GITHUB_SHA") ?: "local").take(7)
         buildConfigField("String", "GIT_COMMIT", "\"$commit\"")
@@ -81,6 +81,10 @@ android {
 
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2026.08.00")
+    val glyphMatrixSdk = file("libs/glyph-matrix-sdk-2.0.aar")
+    if (glyphMatrixSdk.exists()) {
+        add("betaImplementation", files(glyphMatrixSdk))
+    }
     implementation(composeBom)
 
     implementation("androidx.core:core-ktx:1.18.0")

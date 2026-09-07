@@ -46,6 +46,7 @@ required = [
     "docs/play-store-checklist.md",
     "docs/github-beta-updates.md",
     "docs/github-beta-signing.md",
+    "docs/glyph-matrix.md",
     ".github/workflows/build-apk.yml",
     ".github/workflows/play-release.yml",
 ]
@@ -158,8 +159,8 @@ for kind, name in re.findall(r"@([A-Za-z0-9_]+)/([A-Za-z0-9_]+)", manifest_text)
 # Build/release config.
 gradle = read(APP / "build.gradle.kts")
 for token, label in (
-    ('versionName = "0.13.1"', "app versionName must be 0.13.1 before beta suffix"),
-    ('versionCode = 1301', "app versionCode must be 1301"),
+    ('versionName = "0.14.0"', "app versionName must be 0.14.0 before beta suffix"),
+    ('versionCode = 1400', "app versionCode must be 1400"),
     ('targetSdk = 36', "targetSdk 36 expected"),
     ('compileSdk = 37', "compileSdk 37 expected"),
     ('create("beta")', "beta product flavor missing"),
@@ -171,6 +172,16 @@ for token, label in (
 ):
     if token not in gradle:
         fail(label)
+
+for token in (
+    'file("libs/glyph-matrix-sdk-2.0.aar")',
+    'add("betaImplementation", files(glyphMatrixSdk))',
+):
+    if token not in gradle:
+        fail(f"Glyph beta dependency guard missing: {token}")
+
+if (APP / "libs/glyph-matrix-sdk-2.0.aar").exists():
+    fail("Proprietary Nothing Glyph Matrix AAR must not be committed or packaged in the source ZIP")
 
 play = read(ROOT / ".github/workflows/play-release.yml")
 for token in (
@@ -196,6 +207,20 @@ if 'android:allowBackup="false"' not in manifest_text:
     fail("Android automatic app backup should remain disabled")
 if "POST_PROMOTED_NOTIFICATIONS" in manifest_text:
     fail("Promoted notification permission should not be declared")
+
+for token in (
+    "com.nothing.ketchum.permission.ENABLE",
+    "com.pix.dayline.glyph.DaylineGlyphToyService",
+    "com.nothing.glyph.TOY",
+    "com.nothing.glyph.toy.aod_support",
+    'android:value="1"',
+):
+    if token not in beta_manifest_text:
+        fail(f"Beta Glyph Toy manifest missing {token}")
+if "com.nothing.ketchum.permission.ENABLE" in manifest_text:
+    fail("Main/Play manifest must not request Nothing Glyph permission")
+if "NothingKey" in beta_manifest_text:
+    warn("Legacy NothingKey metadata is present even though the Matrix kit does not document it")
 
 # Notification presentation.
 notification_sources = "\n".join(
@@ -228,6 +253,16 @@ for token in (
 ):
     if token not in build_workflow:
         fail(f"GitHub beta workflow missing {token}")
+
+for token in (
+    "Verify Nothing SDK binary is not committed",
+    "GlyphMatrix-Developer-Kit/main/glyph-matrix-sdk-2.0.aar",
+    "app/libs/glyph-matrix-sdk-2.0.aar",
+):
+    if token not in build_workflow:
+        fail(f"GitHub beta Glyph SDK workflow missing {token}")
+if "glyph-matrix-sdk-2.0.aar" in play:
+    fail("Play workflow must not fetch/package the Nothing Glyph Matrix SDK")
 
 updater = read(APP / "src/beta/java/com/pix/dayline/updates/GithubBetaUpdater.kt")
 for token in (
@@ -287,6 +322,15 @@ feature_checks = {
     "build identity": "BuildConfig.GIT_COMMIT" in all_kotlin and "BuildConfig.VERSION_CODE" in all_kotlin,
     "calendar sync health": "saveCalendarSyncHealth" in all_kotlin and "Sync health" in all_kotlin,
     "return to now": "scrollToNow" in all_kotlin,
+    "glyph preferences": "GlyphPreferences" in all_kotlin and "GlyphMode" in all_kotlin,
+    "glyph 13x13 patterns": "GlyphMatrixPatterns" in all_kotlin and "const val SIZE = 13" in all_kotlin,
+    "glyph eyes": "LOOK_LEFT" in all_kotlin and "LOOK_RIGHT" in all_kotlin and "BLINK" in all_kotlin,
+    "glyph app states": "REMINDER_SOON" in all_kotlin and "CONFLICT" in all_kotlin and "DAY_OPEN" in all_kotlin,
+    "glyph runtime queue": "GlyphRuntimeStore" in all_kotlin and "priority" in all_kotlin,
+    "glyph state resolver": "GlyphStateResolver" in all_kotlin and "inQuietHours" in all_kotlin,
+    "glyph hardware bridge": "NothingGlyphBridge" in all_kotlin and "setAppMatrixFrame" in all_kotlin,
+    "glyph AOD toy": "DaylineGlyphToyService" in all_kotlin and "Always-on Glyph Toy" in all_kotlin,
+    "glyph live preview": "GlyphMatrixPreview" in all_kotlin and "TEST GLYPH" in all_kotlin,
 }
 for label, ok in feature_checks.items():
     if not ok:
@@ -306,7 +350,7 @@ for path in [*kotlin_files, *ROOT.glob("*.md"), *ROOT.glob("docs/*.md")]:
     if any(marker in text for marker in ("<<<<<<<", ">>>>>>>")):
         fail(f"Merge marker left in {path.relative_to(ROOT)}")
 
-print("Dayline v0.13.1.beta release validation")
+print("Dayline v0.14.0.beta release validation")
 print(f"  Kotlin files: {len(kotlin_files)}")
 print(f"  XML files: {len(list((APP / 'src').rglob('*.xml')))}")
 print(f"  Errors: {len(ERRORS)}")

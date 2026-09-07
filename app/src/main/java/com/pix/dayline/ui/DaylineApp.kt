@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.pix.dayline.BuildConfig
 import com.pix.dayline.data.*
+import com.pix.dayline.glyph.*
 import com.pix.dayline.model.*
 import com.pix.dayline.notifications.NotificationScheduler
 import com.pix.dayline.notifications.NowActivityScheduler
@@ -77,6 +78,7 @@ fun DaylineApp() {
     var widgetFontChoice by remember { mutableStateOf(store.loadWidgetFontChoice()) }
     var widgetEmojiChoice by remember { mutableStateOf(store.loadWidgetEmojiChoice()) }
     var widgetAutoSlide by remember { mutableStateOf(store.loadWidgetAutoSlide()) }
+    var glyphPreferences by remember { mutableStateOf(store.loadGlyphPreferences()) }
     var nowActivityEnabled by remember { mutableStateOf(store.loadNowActivityEnabled()) }
     var calendarSyncEnabled by remember { mutableStateOf(store.loadCalendarSyncEnabled()) }
     var calendarPreferences by remember { mutableStateOf(store.loadCalendarPreferences()) }
@@ -107,6 +109,19 @@ fun DaylineApp() {
     }
     var lastCalendarSyncAt by remember { mutableStateOf(store.loadLastCalendarSyncAt()) }
     var calendarSyncError by remember { mutableStateOf(store.loadLastCalendarSyncError()) }
+    val glyphRuntime = remember(appContext) { GlyphRuntimeStore(appContext) }
+    val glyphController = remember(appContext) { DaylineGlyphController(appContext) }
+    var glyphHardwareStatus by remember { mutableStateOf(glyphController.status()) }
+
+    fun emitGlyph(signal: DaylineGlyphSignal, seconds: Int? = null) {
+        if (!glyphPreferences.enabled || glyphPreferences.mode == GlyphMode.EYES_ONLY) return
+        val chosen = seconds ?: when (signal) {
+            DaylineGlyphSignal.REMINDER_SOON -> glyphPreferences.reminderFlashSeconds
+            else -> glyphPreferences.stateDurationSeconds
+        }
+        val duration = if (glyphPreferences.returnToEyes) chosen else 30
+        glyphRuntime.enqueue(signal, duration.coerceIn(1, 30) * 1_000L)
+    }
 
     fun updateWidgets() {
         scope.launch { DaylineWidgetUpdater.updateAll(appContext) }
@@ -114,6 +129,7 @@ fun DaylineApp() {
 
     fun refreshCalendarOverlay() {
         if (calendarSyncEnabled && AndroidCalendarSync.hasReadPermission(appContext)) {
+            val previousError = calendarSyncError
             val probe = AndroidCalendarSync.probe(appContext)
             if (probe.isSuccess) {
                 // A Dayline-created event can also be deleted from Google Calendar,
@@ -142,12 +158,14 @@ fun DaylineApp() {
                 lastCalendarSyncAt = System.currentTimeMillis()
                 calendarSyncError = null
                 store.saveCalendarSyncHealth(lastCalendarSyncAt, null)
+                if (previousError != null) emitGlyph(DaylineGlyphSignal.SYNC_OK, 2)
             } else {
                 deviceCalendars = emptyList()
                 calendarItems = emptyList()
                 calendarSyncError = probe.exceptionOrNull()?.message
                     ?: "Calendar provider could not be reached."
                 store.saveCalendarSyncHealth(lastCalendarSyncAt, calendarSyncError)
+                emitGlyph(DaylineGlyphSignal.SYNC_ERROR)
             }
         } else {
             deviceCalendars = emptyList()
@@ -226,6 +244,7 @@ fun DaylineApp() {
         widgetFontChoice = store.loadWidgetFontChoice()
         widgetEmojiChoice = store.loadWidgetEmojiChoice()
         widgetAutoSlide = store.loadWidgetAutoSlide()
+        glyphPreferences = store.loadGlyphPreferences()
         nowActivityEnabled = store.loadNowActivityEnabled()
         calendarSyncEnabled = store.loadCalendarSyncEnabled()
         calendarPreferences = store.loadCalendarPreferences()
@@ -328,6 +347,10 @@ fun DaylineApp() {
         }.getOrNull() ?: return@rememberLauncherForActivityResult
         val imported = DaylineTransfer.importIcs(raw)
         if (imported.isNotEmpty()) persistItems(items + imported)
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { glyphController.close() }
     }
 
     LaunchedEffect(Unit) {
@@ -514,6 +537,11 @@ fun DaylineApp() {
             }
 
             persistItems(next)
+            val conflict = item.kind == AgendaKind.EVENT && item.startTime != null && next.any { other ->
+                other.id != item.id && other.kind == AgendaKind.EVENT &&
+                    other.occursOn(occurrenceDate) && item.overlaps(other)
+            }
+            if (conflict) emitGlyph(DaylineGlyphSignal.CONFLICT)
             requestNotificationIfNeeded(item)
             if (calendarSyncEnabled) refreshCalendarOverlay()
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -527,6 +555,7 @@ fun DaylineApp() {
             if (previous == null || updated.calendarReadOnly) return
             val saved = publishIfNeeded(updated)
             persistItems(items.map { if (it.id == updated.id) saved else it })
+            emitGlyph(DaylineGlyphSignal.MOVED, 2)
             if (calendarSyncEnabled) refreshCalendarOverlay()
             scope.launch {
                 val result = snackbarHostState.showSnackbar(
@@ -586,6 +615,7 @@ fun DaylineApp() {
             )
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             persistItems(items.map { if (it.id == item.id) updated else it })
+            if (date in updated.completedDates) emitGlyph(DaylineGlyphSignal.TASK_DONE, 2)
             if (taskDetail?.id == item.id) taskDetail = updated
         }
 
@@ -712,6 +742,8 @@ fun DaylineApp() {
                         widgetFontChoice = widgetFontChoice,
                         widgetEmojiChoice = widgetEmojiChoice,
                         widgetAutoSlide = widgetAutoSlide,
+                        glyphPreferences = glyphPreferences,
+                        glyphHardwareStatus = glyphHardwareStatus,
                         nowActivityEnabled = nowActivityEnabled,
                         calendarSyncEnabled = calendarSyncEnabled,
                         calendarPreferences = calendarPreferences,
@@ -745,6 +777,27 @@ fun DaylineApp() {
                             widgetAutoSlide = it
                             store.saveWidgetAutoSlide(it)
                             updateWidgets()
+                        },
+                        onGlyphPreferences = {
+                            glyphPreferences = it
+                            store.saveGlyphPreferences(it)
+                            if (!it.enabled) glyphRuntime.clear()
+                            glyphHardwareStatus = glyphController.status()
+                        },
+                        onGlyphTest = { signal ->
+                            if (signal == DaylineGlyphSignal.BLINK) glyphController.blinkPreview()
+                            else glyphController.preview(signal)
+                            glyphHardwareStatus = glyphController.status()
+                        },
+                        onOpenGlyphManager = {
+                            val opened = NothingGlyphBridge.openToyManager(appContext)
+                            if (!opened) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        "Open Settings › Glyph Interface › Flip to Glyph › Always-on Glyph Toy"
+                                    )
+                                }
+                            }
                         },
                         onNowActivityEnabled = {
                             nowActivityEnabled = it

@@ -12,3 +12,6 @@ keystore.properties
 release-signing.properties
 # Android local config / build output
 **/build/
+
+# Nothing Glyph Matrix SDK is closed-source and fetched only during beta builds.
+app/libs/*.aar

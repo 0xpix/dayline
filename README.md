@@ -4,23 +4,23 @@
 
 Dayline is an open-source Android calendar and planner built with Kotlin, Jetpack Compose, Material 3 and Glance. It is local-first, deliberately minimal, and designed around **Today** instead of a dashboard.
 
-Current milestone: **v0.14.7.beta · Focus time announcements**
+Current milestone: **v0.14.8.beta · Settings cleanup**
 
-## What v0.14.7.beta adds
+## What v0.14.8.beta adds
 
-- Removed the persistent Focus timer layout from the Glyph Matrix; normal Focus and Rest visuals now use the same large expressive eyes as idle mode.
-- Focus time is shown only as a temporary **30-second `MM:SS` announcement**, replacing the eyes completely while it is visible.
-- Added the clean transition contract `eyes → CENTER → time → CENTER → eyes`, so a checkpoint never cuts directly from Happy/Left/Wink/etc. into the timer.
-- Option B checkpoint schedule is now used for every Focus and Rest phase: show the phase **start**, then every **5-minute remaining checkpoint**, then **1:00 remaining**.
-- Examples: 25/5 Focus announces 25:00, 20:00, 15:00, 10:00, 05:00 and 01:00; its Rest phase announces 05:00 and 01:00.
-- 50/10 and custom cycles follow the same rule automatically.
-- During each 30-second announcement the displayed time remains live and continues counting down; paused Focus keeps the persisted remaining value frozen.
-- After the 30-second time window, the Glyph returns through Center and restarts the normal expressive-eye animation cadence.
-- Bumped beta versionCode to **1407** and beta versionName to `0.14.7.beta`.
+- Removed the **Widgets** section from the app Settings screen. Widget font, emoji, title behavior, Space/calendar/content and background controls now belong only to each widget's own configuration screen.
+- Reworked the Settings hierarchy with a larger main title and larger section headings so titles are clearly separated from selectable rows.
+- Simplified the main Glyph entry to one clean **Dayline Glyph** row instead of hardware/status/explanation content on the main Settings page.
+- Rebuilt the Glyph sheet around five compact sections: **Glyph**, **Look**, **Focus**, **Night** and **Test expressions**.
+- Reduced the Glyph preview size and removed long explanatory paragraphs and raw-brightness copy that made the sheet feel crowded.
+- Simplified Glyph labels: Blink, Expressions, Motion, Time check-ins and concise night controls.
+- Focus Settings now summarize the checkpoint behavior as `Start · every 5 min · 1 min left`, with the existing 30-second time announcements unchanged.
+- Cleaned Beta Updates and About by removing redundant channel/help copy and combining build code + commit into one line.
+- Bumped beta versionCode to **1408** and beta versionName to `0.14.8.beta`.
 
-The v0.14.5 updater and preview protections remain intact: versionCode-aware update discovery, tag/APK release validation, clean circular Settings preview, centered expression transitions and clearer release notes.
+The v0.14.7 Glyph behavior remains intact: Focus and Rest keep the normal large eyes most of the time, with 30-second `MM:SS` announcements at phase start, every five-minute remaining checkpoint and 1:00 remaining.
 
-The larger v0.12/v0.13 feature set also remains intact: calendar controls, recurrence scopes, timeline manipulation, focus cycles, tasks, templates, backup/ICS, widget configuration, GitHub beta updates and Play separation.
+The larger v0.12/v0.13 feature set also remains intact: calendar controls, recurrence scopes, timeline manipulation, focus cycles, tasks, templates, backup/ICS, per-widget configuration, GitHub beta updates and Play separation.
 
 ## Nothing Glyph Matrix distribution
 
@@ -30,7 +30,7 @@ On Phone (4a) Pro, after installing the beta:
 
 1. Open Dayline → **Settings → Glyph → Dayline Glyph**.
 2. Enable **Dayline Glyph** and adjust brightness/animation behavior if wanted.
-3. Tap **ACTIVATE IN NOTHING SETTINGS**.
+3. Tap **OPEN NOTHING SETTINGS**.
 4. Select **Dayline Eyes** under **Settings → Glyph Interface → Flip to Glyph → Always-on Glyph Toy**.
 
 ## Distribution channels
@@ -56,7 +56,7 @@ Requirements: JDK 17, Gradle 9.4.1, Android SDK API 37 and Build Tools 36.0.0.
 gradle :app:assembleBetaDebug :app:assemblePlayDebug --no-daemon
 ```
 
-GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.14.7.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
+GitHub Actions compiles both debug flavors on `main`. Beta tags such as `v0.14.8.beta` additionally produce a persistently signed beta APK plus SHA-256 checksum and publish them as a GitHub prerelease.
 
 Before publication, the tagged workflow verifies that the signed APK's embedded version matches the tag and that its Android `versionCode` follows Dayline's beta version convention.
 

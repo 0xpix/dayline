@@ -20,7 +20,8 @@ data class BetaRelease(
     val htmlUrl: String,
     val apkName: String? = null,
     val apkUrl: String? = null,
-    val checksumUrl: String? = null
+    val checksumUrl: String? = null,
+    val apkSizeBytes: Long? = null
 )
 
 data class UpdateUiState(

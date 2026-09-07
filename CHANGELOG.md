@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.16.1.beta — Navigation + updater polish
+
+### Added
+- Added visually separated updater cards for **Added**, **Changed** and **Fixed** release-note sections.
+
+### Changed
+- Removed the global page slide/fade transition so main destinations switch instantly and cleanly.
+- Kept Today → Upcoming left-swipe and Upcoming → Today right-swipe gestures without animating the whole page.
+
+### Fixed
+- Fixed updater notes appearing like one uninterrupted changelog block despite having section headings.
+- Bumped beta versionCode to **1601** and beta versionName to `0.16.1.beta`.
+
 ## 0.16.0.beta — Planning
 
 ### Added

@@ -56,12 +56,12 @@ fun NavigationSheet(
 
                 Text(
                     current.label,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(24.dp))
 
             NavigationGroup("PLAN") {
                 NavigationRow("Today", DaylineScreen.TODAY, current, onSelect)
@@ -70,14 +70,14 @@ fun NavigationSheet(
                 NavigationRow("Search", DaylineScreen.SEARCH, current, onSelect)
             }
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(20.dp))
 
             NavigationGroup("ORGANIZE") {
                 NavigationRow("Tasks", DaylineScreen.TASKS, current, onSelect)
                 NavigationRow("Spaces", DaylineScreen.SPACES, current, onSelect)
             }
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(20.dp))
 
             NavigationGroup("DAYLINE") {
                 NavigationRow("Settings", DaylineScreen.SETTINGS, current, onSelect)
@@ -105,12 +105,10 @@ private fun NavigationGroup(
     Text(
         label,
         style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
-            alpha = 0.62f
-        )
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f)
     )
 
-    Spacer(Modifier.height(5.dp))
+    Spacer(Modifier.height(6.dp))
     content()
 }
 
@@ -127,31 +125,34 @@ private fun NavigationRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(
-                interactionSource = remember {
-                    MutableInteractionSource()
-                },
+                interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = { onSelect(screen) }
             )
-            .padding(vertical = 9.dp),
+            .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Keep a fixed 16dp indicator slot so selecting a destination never
+        // changes row geometry or makes labels/icons jump sideways.
         Box(
-            modifier = Modifier
-                .size(if (selected) 7.dp else 5.dp)
-                .background(
-                    if (selected) {
-                        MaterialTheme.colorScheme.onBackground
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                            alpha = 0.22f
-                        )
-                    },
-                    CircleShape
-                )
-        )
+            modifier = Modifier.size(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .background(
+                        if (selected) {
+                            MaterialTheme.colorScheme.onBackground
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.22f)
+                        },
+                        CircleShape
+                    )
+            )
+        }
 
-        Spacer(Modifier.size(14.dp))
+        Spacer(Modifier.size(12.dp))
 
         Text(
             text = label,

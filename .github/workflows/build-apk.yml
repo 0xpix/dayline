@@ -82,7 +82,6 @@ jobs:
             -o app/libs/glyph-matrix-sdk-2.0.aar
           test -s app/libs/glyph-matrix-sdk-2.0.aar
 
-
       - name: Set up Java 17
         uses: actions/setup-java@v6
         with:
@@ -140,6 +139,42 @@ jobs:
           DAYLINE_KEY_ALIAS: ${{ secrets.DAYLINE_BETA_KEY_ALIAS }}
           DAYLINE_KEY_PASSWORD: ${{ secrets.DAYLINE_BETA_KEY_PASSWORD }}
         run: gradle :app:assembleBetaRelease --no-daemon --stacktrace
+
+      - name: Verify beta APK version matches tag
+        shell: bash
+        run: |
+          AAPT="$ANDROID_SDK_ROOT/build-tools/36.0.0/aapt"
+          test -x "$AAPT"
+          BADGING="$($AAPT dump badging app/build/outputs/apk/beta/release/app-beta-release.apk | head -n 1)"
+          python3 - "$GITHUB_REF_NAME" "$BADGING" <<'PY'
+          import re
+          import sys
+
+          tag = sys.argv[1].removeprefix("v")
+          badging = sys.argv[2]
+          match = re.search(r"versionCode='(\d+)'.*versionName='([^']+)'", badging)
+          if not match:
+              raise SystemExit("Could not read APK versionCode/versionName")
+
+          version_code = int(match.group(1))
+          version_name = match.group(2)
+          if version_name != tag:
+              raise SystemExit(
+                  f"Tag/APK versionName mismatch: tag={tag}, apk={version_name}"
+              )
+
+          numbers = re.match(r"^(\d+)\.(\d+)\.(\d+)", tag)
+          if not numbers:
+              raise SystemExit(f"Unsupported beta tag format: {tag}")
+          major, minor, patch = map(int, numbers.groups())
+          expected_code = major * 1_000_000 + minor * 100 + patch
+          if version_code != expected_code:
+              raise SystemExit(
+                  f"Tag/APK versionCode mismatch: expected={expected_code}, apk={version_code}"
+              )
+
+          print(f"Verified {version_name} / versionCode {version_code}")
+          PY
 
       - name: Verify beta APK signature
         run: |

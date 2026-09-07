@@ -5,10 +5,9 @@ import com.pix.dayline.model.DaylineGlyphSignal
 /**
  * Native 13×13 frames for the Phone (4a) Pro Glyph Matrix.
  *
- * Idle mode keeps Dayline's large expressive eyes. Focus mode uses a separate
- * compact layout: small expressive eyes live at the top of the matrix while a
- * stable MM:SS countdown owns the bottom five rows. The timer never mixes with
- * the eye pixels and the normal CENTER -> expression -> CENTER rhythm remains.
+ * Dayline keeps the large expressive eyes as its permanent face. Focus mode no
+ * longer mixes a timer or progress UI with the eyes. At selected checkpoints
+ * the face is temporarily replaced by a centred MM:SS countdown frame.
  */
 object GlyphMatrixPatterns {
     const val SIZE = 13
@@ -48,9 +47,6 @@ object GlyphMatrixPatterns {
             }
         }
 
-        // -----------------------------------------------------------------
-        // Normal / idle face. These large patterns stay unchanged by Focus.
-        // -----------------------------------------------------------------
         fun roundedEye(x: Int, y: Int = 4) {
             pattern(
                 x, y,
@@ -344,113 +340,6 @@ object GlyphMatrixPatterns {
             }
         }
 
-        // -----------------------------------------------------------------
-        // Focus face. Rows 0..4 belong to the eyes, rows 8..12 to MM:SS.
-        // Rows 5..7 intentionally stay empty to keep both zones separated.
-        // -----------------------------------------------------------------
-        fun smallOpenEye(x: Int) {
-            pattern(
-                x, 1,
-                ".##.",
-                "####",
-                ".##."
-            )
-        }
-
-        fun smallClosedEye(x: Int) {
-            hLine(x, x + 3, 2)
-        }
-
-        fun smallHappyEye(x: Int) {
-            pattern(
-                x, 1,
-                ".##.",
-                "#..#"
-            )
-        }
-
-        fun smallSleepyEye(x: Int) {
-            pattern(
-                x, 1,
-                "####",
-                ".##."
-            )
-        }
-
-        fun smallSquintEye(x: Int) {
-            pattern(
-                x, 1,
-                "#..#",
-                ".##.",
-                "#..#"
-            )
-        }
-
-        fun smallHeartEye(x: Int) {
-            pattern(
-                x, 1,
-                "#..#",
-                "####",
-                ".##."
-            )
-        }
-
-        fun focusCenterEyes() {
-            smallOpenEye(1)
-            smallOpenEye(8)
-        }
-
-        fun focusLeftEyes() {
-            // Same directional rule as idle mode: shift the complete eye pair left.
-            smallOpenEye(0)
-            smallOpenEye(7)
-        }
-
-        fun focusRightEyes() {
-            // Same directional rule as idle mode: shift the complete eye pair right.
-            smallOpenEye(2)
-            smallOpenEye(9)
-        }
-
-        fun renderFocusEyes() {
-            when (signal) {
-                DaylineGlyphSignal.LOOK_LEFT -> focusLeftEyes()
-                DaylineGlyphSignal.LOOK_RIGHT -> focusRightEyes()
-
-                DaylineGlyphSignal.BLINK -> {
-                    smallClosedEye(1)
-                    smallClosedEye(8)
-                }
-
-                DaylineGlyphSignal.WINK -> {
-                    smallOpenEye(1)
-                    smallClosedEye(8)
-                }
-
-                DaylineGlyphSignal.HAPPY -> {
-                    smallHappyEye(1)
-                    smallHappyEye(8)
-                }
-
-                DaylineGlyphSignal.SLEEPY -> {
-                    smallSleepyEye(1)
-                    smallSleepyEye(8)
-                }
-
-                DaylineGlyphSignal.SQUINT -> {
-                    smallSquintEye(1)
-                    smallSquintEye(8)
-                }
-
-                DaylineGlyphSignal.HEARTS -> {
-                    smallHeartEye(1)
-                    smallHeartEye(8)
-                }
-
-                else -> focusCenterEyes()
-            }
-        }
-
         fun digitRows(digit: Int): Array<String> = when (digit) {
             0 -> arrayOf("###", "#.#", "#.#", "#.#", "###")
             1 -> arrayOf(".#.", "##.", ".#.", ".#.", "###")
@@ -468,28 +357,27 @@ object GlyphMatrixPatterns {
         fun drawDigit(digit: Int, x: Int) {
             digitRows(digit).forEachIndexed { row, glyph ->
                 glyph.forEachIndexed { column, pixel ->
-                    if (pixel == '#') set(x + column, 8 + row)
+                    if (pixel == '#') set(x + column, TIMER_Y + row)
                 }
             }
         }
 
         fun drawTimer(remainingSeconds: Long) {
             // MM:SS fills all 13 columns exactly: 3 + 3 + 1 + 3 + 3.
-            // Focus cycles above 99:59 are clamped visually until they enter range.
+            // The timer replaces the eyes completely while an announcement is active.
             val clamped = remainingSeconds.coerceIn(0L, 99L * 60L + 59L)
             val minutes = (clamped / 60L).toInt()
             val seconds = (clamped % 60L).toInt()
 
             drawDigit(minutes / 10, 0)
             drawDigit(minutes % 10, 3)
-            set(6, 9)
-            set(6, 11)
+            set(6, TIMER_Y + 1)
+            set(6, TIMER_Y + 3)
             drawDigit(seconds / 10, 7)
             drawDigit(seconds % 10, 10)
         }
 
         if (focusRemainingSeconds != null) {
-            renderFocusEyes()
             drawTimer(focusRemainingSeconds)
         } else {
             renderNormalSignal()
@@ -497,4 +385,6 @@ object GlyphMatrixPatterns {
 
         return pixels
     }
+
+    private const val TIMER_Y = 4
 }

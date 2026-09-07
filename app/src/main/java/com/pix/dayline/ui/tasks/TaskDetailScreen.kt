@@ -1,5 +1,6 @@
 package com.pix.dayline.ui.tasks
 
+import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -55,21 +56,29 @@ fun TaskDetailScreen(
 
     fun pickDueTime() {
         val initial = working.startTime ?: LocalTime.of(17, 0)
-        TimePickerDialog(
-            context,
-            { _, hour, minute ->
-                val start = LocalTime.of(hour, minute)
-                persist(
-                    working.copy(
-                        startTime = start,
-                        endTime = start.plusMinutes(working.estimatedDurationMinutes.toLong())
-                    )
+        TimePickerDialog(context, { _, hour, minute ->
+            val start = LocalTime.of(hour, minute)
+            persist(working.copy(startTime = start, endTime = start.plusMinutes(working.estimatedDurationMinutes.toLong()), allDay = false))
+        }, initial.hour, initial.minute, true).show()
+    }
+
+    fun pickWindowDate(earliest: Boolean) {
+        val initial = if (earliest) working.earliestDate ?: working.startDate else working.deadlineDate ?: working.startDate.plusDays(7)
+        DatePickerDialog(context, { _, year, month, day ->
+            val chosen = LocalDate.of(year, month + 1, day)
+            val next = if (earliest) {
+                working.copy(
+                    earliestDate = chosen,
+                    deadlineDate = working.deadlineDate?.takeIf { !it.isBefore(chosen) }
                 )
-            },
-            initial.hour,
-            initial.minute,
-            true
-        ).show()
+            } else {
+                working.copy(
+                    deadlineDate = chosen,
+                    earliestDate = working.earliestDate?.takeIf { !it.isAfter(chosen) }
+                )
+            }
+            persist(next)
+        }, initial.year, initial.monthValue - 1, initial.dayOfMonth).show()
     }
 
     Box(
@@ -82,64 +91,40 @@ fun TaskDetailScreen(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                 .padding(start = 32.dp, end = 32.dp, top = 92.dp, bottom = 110.dp)
         ) {
-            Text(
-                "‹ Tasks",
-                modifier = Modifier.clickable { onBack() },
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.height(48.dp))
-            Text(
-                working.title,
-                style = MaterialTheme.typography.displayMedium.copy(fontSize = 38.sp, lineHeight = 40.sp)
-            )
+            Text("‹ Tasks", modifier = Modifier.heightIn(min = 48.dp).clickable { onBack() }.wrapContentHeight(Alignment.CenterVertically), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(36.dp))
+            Text(working.title, style = MaterialTheme.typography.displayMedium.copy(fontSize = 38.sp, lineHeight = 40.sp))
             Spacer(Modifier.height(24.dp))
 
             MetaRow("▦", space?.name ?: "No space")
-            MetaRow(
-                "◷",
-                buildString {
-                    append(working.startDate.format(DateTimeFormatter.ofPattern("EEE, MMM d")))
-                    working.startTime?.let { append(", ${it.format(TIME)}") }
-                },
-                onClick = ::pickDueTime
-            )
+            MetaRow("◷", buildString {
+                append(working.startDate.format(DateTimeFormatter.ofPattern("EEE, MMM d")))
+                working.startTime?.let { append(", ${it.format(TIME)}") }
+            }, onClick = ::pickDueTime)
             MetaRow("⌛", "Estimate · ${durationLabel(working.estimatedDurationMinutes)}") {
                 val next = nextEstimate(working.estimatedDurationMinutes)
-                val start = working.startTime
-                persist(
-                    working.copy(
-                        estimatedDurationMinutes = next,
-                        endTime = start?.plusMinutes(next.toLong())
-                    )
-                )
+                persist(working.copy(estimatedDurationMinutes = next, endTime = working.startTime?.plusMinutes(next.toLong())))
+            }
+            MetaRow("→", "Earliest · ${working.earliestDate?.format(DATE) ?: "Any day"}") { pickWindowDate(true) }
+            MetaRow("⌁", "Deadline · ${working.deadlineDate?.format(DATE) ?: "None"}") { pickWindowDate(false) }
+            if (working.earliestDate != null || working.deadlineDate != null) {
+                Text("CLEAR SCHEDULING WINDOW", modifier = Modifier.heightIn(min = 44.dp).clickable { persist(working.copy(earliestDate = null, deadlineDate = null)) }.wrapContentHeight(Alignment.CenterVertically), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             MetaRow("↻", working.recurrence.name.lowercase().replace('_', ' '))
-            MetaRow(
-                "!",
-                "Priority · ${working.priority.name.lowercase()}",
-                onClick = {
-                    persist(
-                        working.copy(
-                            priority = when (working.priority) {
-                                TaskPriority.LOW -> TaskPriority.NORMAL
-                                TaskPriority.NORMAL -> TaskPriority.HIGH
-                                TaskPriority.HIGH -> TaskPriority.LOW
-                            }
-                        )
-                    )
-                }
-            )
+            MetaRow("!", "Priority · ${working.priority.name.lowercase()}") {
+                persist(working.copy(priority = when (working.priority) {
+                    TaskPriority.LOW -> TaskPriority.NORMAL
+                    TaskPriority.NORMAL -> TaskPriority.HIGH
+                    TaskPriority.HIGH -> TaskPriority.LOW
+                }))
+            }
             MetaRow("♢", working.reminderMinutes?.let { "$it min before" } ?: "No reminder")
 
             Spacer(Modifier.height(24.dp))
+            Text("FIT INTO MY DAY  ›", modifier = Modifier.heightIn(min = 48.dp).clickable { fitOpen = true }.wrapContentHeight(Alignment.CenterVertically), style = MaterialTheme.typography.labelLarge)
             Text(
-                "FIT INTO MY DAY  ›",
-                modifier = Modifier.clickable { fitOpen = true }.padding(vertical = 9.dp),
-                style = MaterialTheme.typography.labelLarge
-            )
-            Text(
-                "Finds free ${durationLabel(working.estimatedDurationMinutes)} blocks locally from your calendar.",
+                if (working.earliestDate != null || working.deadlineDate != null) "Finds a free ${durationLabel(working.estimatedDurationMinutes)} block inside your scheduling window."
+                else "Finds free ${durationLabel(working.estimatedDurationMinutes)} blocks locally from your calendar.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -149,34 +134,19 @@ fun TaskDetailScreen(
             Spacer(Modifier.height(8.dp))
 
             working.details.forEach { detail ->
-                Row(Modifier.fillMaxWidth().padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier.size(20.dp)
-                            .border(1.5.dp, working.color.composeColor().copy(alpha = .65f), CircleShape)
-                            .background(
-                                if (detail.done) working.color.composeColor().copy(alpha = .25f)
-                                else androidx.compose.ui.graphics.Color.Transparent,
-                                CircleShape
-                            )
-                            .clickable {
-                                persist(
-                                    working.copy(details = working.details.map {
-                                        if (it.id == detail.id) it.copy(done = !it.done) else it
-                                    })
-                                )
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            }
-                    )
+                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(28.dp).border(1.5.dp, working.color.composeColor().copy(alpha = .65f), CircleShape)
+                        .background(if (detail.done) working.color.composeColor().copy(alpha = .25f) else androidx.compose.ui.graphics.Color.Transparent, CircleShape)
+                        .clickable {
+                            persist(working.copy(details = working.details.map { if (it.id == detail.id) it.copy(done = !it.done) else it }))
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        })
                     Spacer(Modifier.width(14.dp))
-                    Text(
-                        detail.text,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = if (detail.done) .4f else 1f)
-                    )
+                    Text(detail.text, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onBackground.copy(alpha = if (detail.done) .4f else 1f))
                 }
             }
 
-            Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("+", style = MaterialTheme.typography.titleMedium, color = working.color.composeColor())
                 Spacer(Modifier.width(12.dp))
                 BasicTextField(
@@ -185,139 +155,63 @@ fun TaskDetailScreen(
                     modifier = Modifier.weight(1f),
                     textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onBackground),
                     singleLine = true,
-                    decorationBox = { inner ->
-                        Box {
-                            if (detailText.text.isBlank()) {
-                                Text("Subtask", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .45f))
-                            }
-                            inner()
-                        }
-                    }
+                    decorationBox = { inner -> Box { if (detailText.text.isBlank()) Text("Subtask", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .45f)); inner() } }
                 )
                 if (detailText.text.isNotBlank()) {
-                    Text(
-                        "Add",
-                        modifier = Modifier.clickable {
-                            persist(
-                                working.copy(
-                                    details = working.details + TaskDetail(UUID.randomUUID().toString(), detailText.text.trim())
-                                )
-                            )
-                            detailText = TextFieldValue("")
-                        },
-                        style = MaterialTheme.typography.labelMedium
-                    )
+                    Text("Add", modifier = Modifier.clickable {
+                        persist(working.copy(details = working.details + TaskDetail(UUID.randomUUID().toString(), detailText.text.trim())))
+                        detailText = TextFieldValue("")
+                    }.padding(12.dp), style = MaterialTheme.typography.labelMedium)
                 }
             }
 
             Spacer(Modifier.height(32.dp))
-            Text(
-                "Convert to event",
-                modifier = Modifier.clickable {
-                    val start = working.startTime ?: LocalTime.of(9, 0)
-                    onSave(
-                        working.copy(
-                            kind = AgendaKind.EVENT,
-                            startTime = start,
-                            endTime = start.plusMinutes(working.estimatedDurationMinutes.toLong())
-                        )
-                    )
-                    onBack()
-                },
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Spacer(Modifier.height(10.dp))
-            Text(
-                if (working.startTime == null) "Set a due time" else "Change due time",
-                modifier = Modifier.clickable { pickDueTime() },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.height(38.dp))
-            Text(
-                "Delete",
-                modifier = Modifier.clickable { onDelete(working) },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text("Convert to event", modifier = Modifier.heightIn(min = 48.dp).clickable {
+                val start = working.startTime ?: LocalTime.of(9, 0)
+                onSave(working.copy(kind = AgendaKind.EVENT, startTime = start, endTime = start.plusMinutes(working.estimatedDurationMinutes.toLong()), allDay = false))
+                onBack()
+            }.wrapContentHeight(Alignment.CenterVertically), style = MaterialTheme.typography.bodyLarge)
+            Text(if (working.startTime == null) "Set a due time" else "Change due time", modifier = Modifier.heightIn(min = 48.dp).clickable { pickDueTime() }.wrapContentHeight(Alignment.CenterVertically), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(22.dp))
+            Text("Delete", modifier = Modifier.heightIn(min = 48.dp).clickable { onDelete(working) }.wrapContentHeight(Alignment.CenterVertically), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
-        Text(
-            "✓",
-            modifier = Modifier.align(Alignment.BottomEnd).padding(28.dp).size(52.dp)
-                .background(MaterialTheme.colorScheme.onBackground, CircleShape)
-                .clickable {
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onSave(working)
-                    onBack()
-                }.padding(13.dp),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.background
-        )
+        Text("✓", modifier = Modifier.align(Alignment.BottomEnd).padding(28.dp).size(52.dp).background(MaterialTheme.colorScheme.onBackground, CircleShape).clickable {
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress); onSave(working); onBack()
+        }.padding(13.dp), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.background)
     }
 
     if (fitOpen) {
-        FitTaskSheet(
-            task = working,
-            items = items,
-            onChoose = { slot ->
-                persist(
-                    working.copy(
-                        startDate = slot.date,
-                        startTime = slot.start,
-                        endTime = slot.end
-                    )
-                )
-                fitOpen = false
-            },
-            onDismiss = { fitOpen = false }
-        )
+        FitTaskSheet(task = working, items = items, onChoose = { slot ->
+            persist(working.copy(startDate = slot.date, startTime = slot.start, endTime = slot.end, allDay = false))
+            fitOpen = false
+        }, onDismiss = { fitOpen = false })
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FitTaskSheet(
-    task: DaylineItem,
-    items: List<DaylineItem>,
-    onChoose: (FreeSlot) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val suggestions = remember(items, task.id, task.estimatedDurationMinutes) {
-        PlanningEngine.suggestions(
-            items = items.filterNot { it.id == task.id },
-            fromDate = LocalDate.now(),
-            durationMinutes = task.estimatedDurationMinutes,
-            horizonDays = 7,
-            maxResults = 5
-        )
+private fun FitTaskSheet(task: DaylineItem, items: List<DaylineItem>, onChoose: (FreeSlot) -> Unit, onDismiss: () -> Unit) {
+    val suggestions = remember(items, task.id, task.estimatedDurationMinutes, task.earliestDate, task.deadlineDate) {
+        PlanningEngine.suggestionsForTask(items, task, maxResults = 6)
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 28.dp).padding(bottom = 36.dp)) {
             Text("Fit into my day", style = MaterialTheme.typography.displaySmall)
             Spacer(Modifier.height(7.dp))
-            Text(
-                "${task.estimatedDurationMinutes} min · next 7 days",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text(buildString {
+                append("${task.estimatedDurationMinutes} min")
+                task.earliestDate?.let { append(" · from ${it.format(DATE)}") }
+                task.deadlineDate?.let { append(" · by ${it.format(DATE)}") }
+                if (task.earliestDate == null && task.deadlineDate == null) append(" · next 7 days")
+            }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(24.dp))
-            if (suggestions.isEmpty()) {
-                Text("No free block fits this task.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                suggestions.forEach { slot ->
-                    Row(
-                        Modifier.fillMaxWidth().clickable { onChoose(slot) }.padding(vertical = 11.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(dayLabel(slot.date), style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            "${slot.start.format(TIME)} — ${slot.end.format(TIME)}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+            if (suggestions.isEmpty()) Text("No free block fits this task inside the selected window.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            else suggestions.forEach { slot ->
+                Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable { onChoose(slot) }.padding(vertical = 11.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(dayLabel(slot.date), style = MaterialTheme.typography.bodyLarge)
+                    Text("${slot.start.format(TIME)} — ${slot.end.format(TIME)}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -326,10 +220,7 @@ private fun FitTaskSheet(
 
 @Composable
 private fun MetaRow(icon: String, value: String, onClick: (() -> Unit)? = null) {
-    Row(
-        Modifier.padding(vertical = 5.dp).then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier), verticalAlignment = Alignment.CenterVertically) {
         Text(icon, modifier = Modifier.width(30.dp), style = MaterialTheme.typography.bodyLarge)
         Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
@@ -354,3 +245,4 @@ private fun dayLabel(date: LocalDate): String = when (date) {
 }
 
 private val TIME = DateTimeFormatter.ofPattern("HH:mm")
+private val DATE = DateTimeFormatter.ofPattern("MMM d")

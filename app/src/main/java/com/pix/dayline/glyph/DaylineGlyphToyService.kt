@@ -17,9 +17,10 @@ import kotlin.random.Random
 /**
  * Phone (4a) Pro Always-on Glyph Toy.
  *
- * Dayline keeps expressive eyes as the permanent visual language. During Focus
- * the same animation state machine drives a smaller eye set at the top while the
- * bottom of the 13×13 matrix shows the current phase countdown as MM:SS.
+ * Dayline keeps expressive eyes as the permanent visual language. Focus mode
+ * stays visually clean: normal eyes remain on screen, then at phase start,
+ * every 5-minute checkpoint and 1:00 remaining the face briefly transitions
+ * through CENTER into a full-screen MM:SS countdown for 30 seconds.
  */
 class DaylineGlyphToyService : Service() {
     private val handler = Handler(Looper.getMainLooper())
@@ -37,6 +38,12 @@ class DaylineGlyphToyService : Service() {
     private var motionOverride: DaylineGlyphSignal? = null
     private var centerRecoveryUntil = 0L
     private var lastFrame: IntArray? = null
+
+    private var announcementStage = AnnouncementStage.EYES
+    private var announcementStageUntil = 0L
+    private var activeAnnouncementKey: String? = null
+    private var activeAnnouncementPhaseKey: String? = null
+    private var lastAnnouncedKey: String? = null
 
     private val systemMessenger by lazy {
         Messenger(Handler(Looper.getMainLooper()) {
@@ -57,6 +64,7 @@ class DaylineGlyphToyService : Service() {
     override fun onBind(intent: Intent?): IBinder? {
         running = true
         lastFrame = null
+        resetAnnouncementState()
         scheduleNaturalMotion(force = true)
         bridge.connect { renderNow() }
         handler.post(tick)
@@ -96,21 +104,23 @@ class DaylineGlyphToyService : Service() {
 
         val nowMillis = System.currentTimeMillis()
         val brightness = currentBrightness(prefs)
+        val phase = focusPhase(nowMillis)
+        val presentation = focusPresentation(phase, nowMillis)
 
         // Manual expression previews from Settings are allowed, but all
         // priority > 0 app-state signals remain intentionally ignored.
         val preview = runtime.current(nowMillis)?.takeIf { it.priority == 0 }
         val expression = when {
+            presentation.forceCenter -> DaylineGlyphSignal.CENTER
             preview != null -> preview
             prefs.reduceMotion -> DaylineGlyphSignal.CENTER
             else -> naturalExpression(prefs, nowMillis)
         }
 
-        val focus = focusOverlay(nowMillis)
         val frame = GlyphMatrixPatterns.frame(
             signal = expression,
             brightness = brightness,
-            focusRemainingSeconds = focus?.remainingSeconds
+            focusRemainingSeconds = presentation.timerSeconds
         )
         showIfChanged(frame)
     }
@@ -185,12 +195,166 @@ class DaylineGlyphToyService : Service() {
         }
     }
 
-    private data class FocusOverlay(
-        val remainingSeconds: Long
+    private enum class AnnouncementStage {
+        EYES,
+        PRE_CENTER,
+        TIME,
+        POST_CENTER
+    }
+
+    private data class FocusPhase(
+        val remainingSeconds: Long,
+        val totalSeconds: Long,
+        val phaseKey: String
     )
 
-    /** Resolve the currently active event's 25/5, 50/10 or custom phase timer. */
-    private fun focusOverlay(nowMillis: Long): FocusOverlay? {
+    private data class FocusPresentation(
+        val timerSeconds: Long? = null,
+        val forceCenter: Boolean = false
+    )
+
+    /**
+     * Focus announcement contract:
+     *
+     * eyes -> CENTER -> time for 30s -> CENTER -> eyes
+     *
+     * Time is announced at phase start, every five-minute remaining checkpoint,
+     * and at 1:00 remaining. The timer stays live during the 30-second window.
+     */
+    private fun focusPresentation(
+        phase: FocusPhase?,
+        nowMillis: Long
+    ): FocusPresentation {
+        if (phase == null) {
+            return finishAnnouncementWhenFocusEnds(nowMillis)
+        }
+
+        // If Focus/Rest advanced to another persisted/fallback phase while an
+        // announcement was active, finish the old visual cleanly before the new
+        // phase-start checkpoint is allowed to announce.
+        if (
+            announcementStage != AnnouncementStage.EYES &&
+            activeAnnouncementPhaseKey != null &&
+            activeAnnouncementPhaseKey != phase.phaseKey
+        ) {
+            if (announcementStage != AnnouncementStage.POST_CENTER) {
+                announcementStage = AnnouncementStage.POST_CENTER
+                announcementStageUntil = nowMillis + CENTER_RECOVERY_MS
+            }
+            return FocusPresentation(forceCenter = true)
+        }
+
+        when (announcementStage) {
+            AnnouncementStage.PRE_CENTER -> {
+                if (nowMillis < announcementStageUntil) {
+                    return FocusPresentation(forceCenter = true)
+                }
+                announcementStage = AnnouncementStage.TIME
+                announcementStageUntil = nowMillis + ANNOUNCEMENT_DURATION_MS
+                return FocusPresentation(timerSeconds = phase.remainingSeconds)
+            }
+
+            AnnouncementStage.TIME -> {
+                if (nowMillis < announcementStageUntil) {
+                    return FocusPresentation(timerSeconds = phase.remainingSeconds)
+                }
+                announcementStage = AnnouncementStage.POST_CENTER
+                announcementStageUntil = nowMillis + CENTER_RECOVERY_MS
+                return FocusPresentation(forceCenter = true)
+            }
+
+            AnnouncementStage.POST_CENTER -> {
+                if (nowMillis < announcementStageUntil) {
+                    return FocusPresentation(forceCenter = true)
+                }
+                announcementStage = AnnouncementStage.EYES
+                announcementStageUntil = 0L
+                activeAnnouncementKey = null
+                activeAnnouncementPhaseKey = null
+                scheduleNaturalMotion(force = true)
+                return FocusPresentation(forceCenter = true)
+            }
+
+            AnnouncementStage.EYES -> Unit
+        }
+
+        val checkpoint = announcementCheckpoint(phase) ?: return FocusPresentation()
+        val key = "${phase.phaseKey}:$checkpoint"
+        if (key == lastAnnouncedKey) return FocusPresentation()
+
+        lastAnnouncedKey = key
+        activeAnnouncementKey = key
+        activeAnnouncementPhaseKey = phase.phaseKey
+        announcementStage = AnnouncementStage.PRE_CENTER
+        announcementStageUntil = nowMillis + CENTER_RECOVERY_MS
+        prepareCenterForAnnouncement()
+        return FocusPresentation(forceCenter = true)
+    }
+
+    private fun finishAnnouncementWhenFocusEnds(nowMillis: Long): FocusPresentation {
+        return when (announcementStage) {
+            AnnouncementStage.EYES -> FocusPresentation()
+            AnnouncementStage.POST_CENTER -> {
+                if (nowMillis < announcementStageUntil) {
+                    FocusPresentation(forceCenter = true)
+                } else {
+                    resetAnnouncementState()
+                    scheduleNaturalMotion(force = true)
+                    FocusPresentation(forceCenter = true)
+                }
+            }
+            AnnouncementStage.PRE_CENTER,
+            AnnouncementStage.TIME -> {
+                announcementStage = AnnouncementStage.POST_CENTER
+                announcementStageUntil = nowMillis + CENTER_RECOVERY_MS
+                FocusPresentation(forceCenter = true)
+            }
+        }
+    }
+
+    private fun announcementCheckpoint(phase: FocusPhase): Long? {
+        val total = phase.totalSeconds.coerceAtLeast(1L)
+        val remaining = phase.remainingSeconds.coerceIn(0L, total)
+
+        val checkpoints = buildList {
+            // Option B: always announce the phase start.
+            add(total)
+
+            // Then every five-minute remaining checkpoint below the start.
+            var nextFive = (total / FIVE_MINUTES_SECONDS) * FIVE_MINUTES_SECONDS
+            if (nextFive == total) nextFive -= FIVE_MINUTES_SECONDS
+            while (nextFive >= FIVE_MINUTES_SECONDS) {
+                add(nextFive)
+                nextFive -= FIVE_MINUTES_SECONDS
+            }
+
+            // And always 1:00 remaining when the phase is longer than a minute.
+            if (total > ONE_MINUTE_SECONDS) add(ONE_MINUTE_SECONDS)
+        }.distinct()
+
+        return checkpoints.firstOrNull { checkpoint ->
+            remaining <= checkpoint &&
+                remaining > (checkpoint - CHECKPOINT_DETECTION_WINDOW_SECONDS).coerceAtLeast(0L)
+        }
+    }
+
+    private fun prepareCenterForAnnouncement() {
+        blinkUntil = 0L
+        motionUntil = 0L
+        motionOverride = null
+        centerRecoveryUntil = 0L
+    }
+
+    private fun resetAnnouncementState() {
+        announcementStage = AnnouncementStage.EYES
+        announcementStageUntil = 0L
+        activeAnnouncementKey = null
+        activeAnnouncementPhaseKey = null
+        lastAnnouncedKey = null
+    }
+
+    /** Resolve the currently active event's 25/5, 50/10 or custom phase. */
+    private fun focusPhase(nowMillis: Long): FocusPhase? {
         val now = LocalDateTime.now()
         val today = now.toLocalDate()
         val time = now.toLocalTime()
@@ -211,6 +375,11 @@ class DaylineGlyphToyService : Service() {
             runtimeState.occurrenceDate == today &&
             !runtimeState.finished
         ) {
+            val totalSeconds = (
+                (runtimeState.phaseEndEpochMillis - runtimeState.phaseStartedEpochMillis)
+                    .coerceAtLeast(1_000L) + 999L
+            ) / 1_000L
+
             val remainingSeconds = if (runtimeState.paused) {
                 runtimeState.pausedRemainingSeconds.coerceAtLeast(0L)
             } else {
@@ -219,7 +388,17 @@ class DaylineGlyphToyService : Service() {
                 (remainingMillis + 999L) / 1_000L
             }
 
-            return FocusOverlay(remainingSeconds = remainingSeconds)
+            return FocusPhase(
+                remainingSeconds = remainingSeconds.coerceAtMost(totalSeconds),
+                totalSeconds = totalSeconds,
+                phaseKey = buildString {
+                    append(active.id)
+                    append(':')
+                    append(runtimeState.phaseStartedEpochMillis)
+                    append(':')
+                    append(if (runtimeState.focus) 'F' else 'R')
+                }
+            )
         }
 
         // Fallback keeps the Glyph useful before the notification runtime has
@@ -233,16 +412,25 @@ class DaylineGlyphToyService : Service() {
         val focusSeconds = active.focusMinutes.coerceAtLeast(1) * 60L
         val breakSeconds = active.breakMinutes.coerceAtLeast(1) * 60L
         val cycleSeconds = focusSeconds + breakSeconds
+        val cycleIndex = elapsedSeconds / cycleSeconds
         val cyclePosition = elapsedSeconds % cycleSeconds
+        val cycleStartMillis = startMillis + cycleIndex * cycleSeconds * 1_000L
 
-        val remainingSeconds = if (cyclePosition < focusSeconds) {
-            focusSeconds - cyclePosition
+        return if (cyclePosition < focusSeconds) {
+            FocusPhase(
+                remainingSeconds = (focusSeconds - cyclePosition).coerceAtLeast(0L),
+                totalSeconds = focusSeconds,
+                phaseKey = "${active.id}:$cycleStartMillis:F"
+            )
         } else {
             val breakElapsed = cyclePosition - focusSeconds
-            breakSeconds - breakElapsed
+            val breakStartMillis = cycleStartMillis + focusSeconds * 1_000L
+            FocusPhase(
+                remainingSeconds = (breakSeconds - breakElapsed).coerceAtLeast(0L),
+                totalSeconds = breakSeconds,
+                phaseKey = "${active.id}:$breakStartMillis:R"
+            )
         }
-
-        return FocusOverlay(remainingSeconds = remainingSeconds.coerceAtLeast(0L))
     }
 
     private fun currentBrightness(prefs: GlyphPreferences): Int {
@@ -293,6 +481,7 @@ class DaylineGlyphToyService : Service() {
         centerRecoveryUntil = 0L
         motionOverride = null
         lastFrame = null
+        resetAnnouncementState()
         handler.removeCallbacksAndMessages(null)
         bridge.close()
     }
@@ -300,5 +489,9 @@ class DaylineGlyphToyService : Service() {
     private companion object {
         const val CENTER_RECOVERY_MS = 700L
         const val BLINK_HOLD_MS = 350L
+        const val ANNOUNCEMENT_DURATION_MS = 30_000L
+        const val CHECKPOINT_DETECTION_WINDOW_SECONDS = 30L
+        const val FIVE_MINUTES_SECONDS = 5L * 60L
+        const val ONE_MINUTE_SECONDS = 60L
     }
 }

@@ -17,13 +17,17 @@
 - Past events fade gently and Today opens near the useful part of the current day rather than always at the top.
 - Month selection, weekends and busy-day overflow are more legible; Day Preview is split into ALL DAY / AGENDA / FREE TIME with an OPEN DAY action.
 - Task fitting respects earliest/deadline bounds.
-- Updater network parsing now preserves Added / Changed / Fixed headings instead of flattening the release body, and release metadata tracks APK size.
+- Android Calendar reads, reconciles and writes timed events in their provider timezone; Quick Add preserves timezone and v0.17 task scheduling metadata when editing an existing item.
+- Widgets refresh after reboot, app replacement, manual clock changes, timezone changes and date changes instead of waiting for the next app mutation.
+- Updater network parsing now preserves Added / Changed / Fixed headings, shows concise publish-date/APK-size metadata and verifies the reported APK byte size before install when GitHub provides it.
 - Glyph transport recovery behavior is unchanged; v0.17 only adds local instrumentation around successful frames and failures.
 
 ### Fixed
 - Fixed the real updater parser stripping the section headings before the separate changelog cards could render them.
 - Fixed all-day events consuming timed free-space calculations or creating false overlap conflicts.
 - Hardened monthly recurrence semantics so 29th/30th/31st series do not silently shift into shorter months.
+- Fixed timed Android Calendar events losing their provider timezone after a Dayline edit.
+- Fixed widgets remaining visually stale after system time/date/timezone changes.
 - Bumped beta versionCode to **1700** and beta versionName to `0.17.0.beta`.
 
 ## 0.16.1.beta — Navigation + updater polish

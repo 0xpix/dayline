@@ -17,9 +17,9 @@ import kotlin.random.Random
 /**
  * Phone (4a) Pro Always-on Glyph Toy.
  *
- * Dayline keeps expressive eyes as the permanent visual language. The only
- * automatic app overlay is Focus Mode: phase progress lights a circular path
- * around the eyes while the face keeps its natural motion.
+ * Dayline keeps expressive eyes as the permanent visual language. During Focus
+ * the same animation state machine drives a smaller eye set at the top while the
+ * bottom of the 13×13 matrix shows the current phase countdown as MM:SS.
  */
 class DaylineGlyphToyService : Service() {
     private val handler = Handler(Looper.getMainLooper())
@@ -110,8 +110,7 @@ class DaylineGlyphToyService : Service() {
         val frame = GlyphMatrixPatterns.frame(
             signal = expression,
             brightness = brightness,
-            focusProgress = focus?.progress,
-            focusBreak = focus?.isBreak == true
+            focusRemainingSeconds = focus?.remainingSeconds
         )
         showIfChanged(frame)
     }
@@ -187,10 +186,10 @@ class DaylineGlyphToyService : Service() {
     }
 
     private data class FocusOverlay(
-        val progress: Float,
-        val isBreak: Boolean
+        val remainingSeconds: Long
     )
 
+    /** Resolve the currently active event's 25/5, 50/10 or custom phase timer. */
     private fun focusOverlay(nowMillis: Long): FocusOverlay? {
         val now = LocalDateTime.now()
         val today = now.toLocalDate()
@@ -212,21 +211,19 @@ class DaylineGlyphToyService : Service() {
             runtimeState.occurrenceDate == today &&
             !runtimeState.finished
         ) {
-            val durationMillis = (
-                runtimeState.phaseEndEpochMillis - runtimeState.phaseStartedEpochMillis
-            ).coerceAtLeast(1_000L)
-            val elapsedMillis = if (runtimeState.paused) {
-                durationMillis - runtimeState.pausedRemainingSeconds.coerceAtLeast(0L) * 1_000L
+            val remainingSeconds = if (runtimeState.paused) {
+                runtimeState.pausedRemainingSeconds.coerceAtLeast(0L)
             } else {
-                nowMillis - runtimeState.phaseStartedEpochMillis
-            }.coerceIn(0L, durationMillis)
+                val remainingMillis = (runtimeState.phaseEndEpochMillis - nowMillis)
+                    .coerceAtLeast(0L)
+                (remainingMillis + 999L) / 1_000L
+            }
 
-            return FocusOverlay(
-                progress = elapsedMillis.toFloat() / durationMillis.toFloat(),
-                isBreak = !runtimeState.focus
-            )
+            return FocusOverlay(remainingSeconds = remainingSeconds)
         }
 
+        // Fallback keeps the Glyph useful before the notification runtime has
+        // created a persisted phase. The event supplies 25/5, 50/10 or custom.
         val start = active.startTime ?: return null
         val startMillis = LocalDateTime.of(today, start)
             .atZone(ZoneId.systemDefault())
@@ -238,18 +235,14 @@ class DaylineGlyphToyService : Service() {
         val cycleSeconds = focusSeconds + breakSeconds
         val cyclePosition = elapsedSeconds % cycleSeconds
 
-        return if (cyclePosition < focusSeconds) {
-            FocusOverlay(
-                progress = cyclePosition.toFloat() / focusSeconds.toFloat(),
-                isBreak = false
-            )
+        val remainingSeconds = if (cyclePosition < focusSeconds) {
+            focusSeconds - cyclePosition
         } else {
             val breakElapsed = cyclePosition - focusSeconds
-            FocusOverlay(
-                progress = breakElapsed.toFloat() / breakSeconds.toFloat(),
-                isBreak = true
-            )
+            breakSeconds - breakElapsed
         }
+
+        return FocusOverlay(remainingSeconds = remainingSeconds.coerceAtLeast(0L))
     }
 
     private fun currentBrightness(prefs: GlyphPreferences): Int {

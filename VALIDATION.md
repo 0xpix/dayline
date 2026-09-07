@@ -1,6 +1,6 @@
-# Dayline v0.14.8.beta — Validation Report
+# Dayline v0.14.9.beta — Validation Report
 
-This report tracks the current v0.14.8.beta source state. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current v0.14.9.beta source state. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
@@ -20,7 +20,7 @@ This report tracks the current v0.14.8.beta source state. GitHub Actions remains
 
 ## Settings validation
 
-The app Settings screen is intentionally reduced in v0.14.8.beta.
+The app Settings screen remains intentionally reduced from v0.14.8.beta.
 
 - The app-level **Widgets** section is removed.
 - Widget appearance/content controls remain owned by each widget configuration screen.
@@ -32,7 +32,7 @@ The app Settings screen is intentionally reduced in v0.14.8.beta.
 
 ## Glyph settings validation
 
-The Glyph configuration sheet is split into five compact groups:
+The Glyph configuration sheet remains split into five compact groups:
 
 - Glyph
 - Look
@@ -41,6 +41,21 @@ The Glyph configuration sheet is split into five compact groups:
 - Test expressions
 
 The preview is smaller, long explanatory paragraphs are removed, and control labels are shortened. The sheet still exposes enable state, hardware access, brightness, Blink, Expressions, Motion frequency, Reduce motion, Focus checkpoint behavior, quiet hours, dimming and expression tests.
+
+## Glyph reliability validation
+
+v0.14.9.beta specifically hardens the live Glyph against freezes.
+
+- A Nothing Matrix service disconnect invalidates the stale manager/callback state instead of leaving Dayline permanently disconnected with a non-null manager.
+- Disconnects, registration failures and `setMatrixFrame` failures schedule an automatic reconnect.
+- Only the newest pending frame is retained while reconnecting.
+- Connection generations reject late callbacks from stale SDK connections.
+- A failed/queued frame is not cached as successfully delivered by the service.
+- The render Handler catches unexpected per-tick failures and schedules another tick instead of allowing the animation loop to terminate.
+- Stable frames are resent every **4 seconds** as a lightweight hardware heartbeat.
+- Reconnection retries use a short backoff rather than busy-looping.
+
+These protections apply equally to eye frames and Focus `MM:SS` announcements, so a transient SDK/service interruption should recover instead of freezing on an arbitrary frame such as a timer value or expression.
 
 ## Glyph core validation
 
@@ -70,7 +85,7 @@ The Center recovery remains about **700 ms** for Look left/right, Happy, Wink, H
 
 The Settings preview mirrors the same `CENTER → expression → CENTER` contract. It uses a single circular black surface and draws only illuminated cells.
 
-The Glyph runtime suppresses identical consecutive frames to reduce visible twitching.
+Duplicate-frame suppression remains active between heartbeat intervals.
 
 ## Focus behavior
 
@@ -83,7 +98,7 @@ Focus behavior is unchanged from v0.14.7.beta.
 - The timer remains live during the 30-second announcement window.
 - 25/5, 50/10 and custom focus cycles derive checkpoint times automatically.
 - Paused sessions use the persisted paused remaining time while the announcement is visible.
-- Timer and eye frames share the same duplicate-frame guard.
+- Timer and eye frames share the same reliability/reconnect path.
 
 ## Brightness behavior
 
@@ -108,11 +123,11 @@ Nothing's documentation names `Glyph.DEVICE_25111p`; Dayline first attempts that
 
 ## Android compile gate
 
-Before tagging `v0.14.8.beta`, GitHub Actions must pass:
+Before tagging `v0.14.9.beta`, GitHub Actions must pass:
 
 ```text
 :app:assembleBetaDebug
 :app:assemblePlayDebug
 ```
 
-For tag `v0.14.8.beta`, the tagged job additionally builds `:app:assembleBetaRelease`, verifies tag/APK version identity, verifies the signature, generates the SHA-256 checksum and publishes the GitHub prerelease.
+For tag `v0.14.9.beta`, the tagged job additionally builds `:app:assembleBetaRelease`, verifies tag/APK version identity, verifies the signature, generates the SHA-256 checksum and publishes the GitHub prerelease.

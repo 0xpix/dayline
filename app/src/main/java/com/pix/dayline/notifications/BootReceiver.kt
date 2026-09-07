@@ -5,6 +5,10 @@ import android.content.Context
 import android.content.Intent
 import com.pix.dayline.data.BetaUpdateScheduler
 import com.pix.dayline.data.DaylineStore
+import com.pix.dayline.widgets.DaylineWidgetUpdater
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -23,13 +27,23 @@ class BootReceiver : BroadcastReceiver() {
 
         // Rebuild every time-based surface after reboot, app replacement,
         // timezone/date changes or a manual clock adjustment. This prevents
-        // reminders and Now Activity alarms from staying anchored to stale time.
+        // reminders, Now Activity and Glance widgets from staying anchored to stale time.
         NotificationScheduler.syncAll(appContext, items)
 
         if (store.loadNowActivityEnabled()) {
             NowActivityScheduler.syncAll(appContext, items)
         } else {
             NowActivityScheduler.cancelAll(appContext, items)
+        }
+
+        val pendingResult = goAsync()
+        CoroutineScope(Dispatchers.Default).launch {
+            try {
+                DaylineWidgetUpdater.updateAll(appContext)
+                store.saveWidgetRefreshAt()
+            } finally {
+                pendingResult.finish()
+            }
         }
 
         BetaUpdateScheduler.sync(appContext)

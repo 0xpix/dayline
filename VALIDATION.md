@@ -1,133 +1,113 @@
-# Dayline v0.14.9.beta — Validation Report
+# Dayline v0.15.0.beta — Validation Report
 
-This report tracks the current v0.14.9.beta source state. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current v0.15.0.beta source state. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
-- Static project validator: **PASS**
-- Beta/Play flavor and permission separation: **PASS**
-- GitHub beta signing / explicit Build Tools `apksigner` contract: **PASS**
+- Beta version target: **0.15.0.beta / versionCode 1500**.
+- Static project validator must pass.
+- Beta/Play flavor and permission separation must remain intact.
 - Tagged beta workflow verifies the signed APK's embedded `versionName` and `versionCode` against the Git tag before publication.
+- Tagged beta workflow requires `docs/releases/<tag>.md` with **Added / Changed / Fixed** sections and publishes that file as the GitHub release body used by the in-app updater.
 - GitHub beta updater requires a release to be newer by both semantic version and Android `versionCode`.
-- Proprietary Nothing `glyph-matrix-sdk-2.0.aar` absent from source tree: **PASS**
-- GitHub beta workflow checks AAR absence before fetching the official SDK: **PASS**
-- Play workflow does not fetch/package the Glyph Matrix SDK: **PASS**
-- Main/Play manifest has no beta updater Internet/install permission and no Nothing Glyph permission: **PASS**
-- Beta manifest contains Nothing Glyph permission, Glyph Toy service and AOD metadata: **PASS**
-- Automatic Android app-data backup disabled: **PASS**
-- Notification seconds-chronometer / `HH:mm:ss` regression scan: **PASS**
-- Merge-marker / duplicate-import scan: **PASS**
+- Proprietary Nothing `glyph-matrix-sdk-2.0.aar` remains absent from source and is fetched only by beta CI.
+- Play workflow does not fetch/package the Glyph Matrix SDK.
+- Automatic Android app-data backup remains disabled.
+- Notification seconds-chronometer / `HH:mm:ss` regression scan remains required.
+- Merge-marker / duplicate-import scan remains required.
 
-## Settings validation
+## Today interaction validation
 
-The app Settings screen remains intentionally reduced from v0.14.8.beta.
+The v0.15 Today timeline uses separate gesture ownership.
 
-- The app-level **Widgets** section is removed.
-- Widget appearance/content controls remain owned by each widget configuration screen.
-- The main Settings title uses a larger display hierarchy.
-- Section headings use a title hierarchy that is visually stronger than the body-sized option rows.
-- Main Glyph Settings is a single clean entry instead of an inline hardware/status/explanation block.
-- Beta Updates removes redundant channel/help copy.
-- About combines Android build code and commit into one compact row.
+- Long-press + drag on the **event body** moves start and end together in 15-minute steps.
+- Dragging the **bottom handle** changes only `endTime`; it cannot bubble into the move gesture.
+- The changing end time is shown live as `END HH:mm` while resizing.
+- The left-side end label and event rail height preview the resized duration before release.
+- Minimum resized duration is 15 minutes.
+- Gap/empty-timeline taps still create an event at the tapped 15-minute time.
+- Current-time marker uses a quieter monochrome line and Today spacing is less crowded.
+- Direct Today move/resize of a recurring item applies to the visible occurrence, not the entire master series.
 
-## Glyph settings validation
+## Android Calendar two-way validation
 
-The Glyph configuration sheet remains split into five compact groups:
+For Dayline events with `calendarEventId`, Calendar Provider reconciliation now handles both directions.
 
-- Glyph
-- Look
-- Focus
-- Night
-- Test expressions
+- Dayline edits continue to write through `AndroidCalendarSync.upsert()`.
+- Provider deletion removes the mapped local Dayline row.
+- Provider changes to title, start date/time, end time/all-day state, RRULE, EXDATE and calendar placement are pulled back into the mapped Dayline row.
+- `DaylineApp` compares the full reconciled list, not only list size, so same-count edits are persisted.
+- Reconciled changes rebuild reminders/Now Activity and refresh widgets.
+- Provider query failures remain conservative and keep local data instead of deleting it.
+- External recurring generated instances remain read-only until provider-native per-occurrence exception editing is implemented.
 
-The preview is smaller, long explanatory paragraphs are removed, and control labels are shortened. The sheet still exposes enable state, hardware access, brightness, Blink, Expressions, Motion frequency, Reduce motion, Focus checkpoint behavior, quiet hours, dimming and expression tests.
+## Recurrence validation
 
-## Glyph reliability validation
+- **This occurrence** is the safe default when opening a recurring occurrence.
+- **This occurrence** excludes the selected date from the master and creates a detached one-off carrying the edited date/time.
+- **This + following** closes the old segment the day before the selected occurrence and starts a linked new segment.
+- Past exclusions stay with the old segment; current/future exclusions move to the new segment.
+- **Entire series** preserves the master identity/provider mapping and does not accidentally adopt the opened occurrence date unless the user explicitly changes the date.
+- Recurring Today drag/resize uses **This occurrence** semantics and supports Undo.
+- The delete affordance explicitly says **Delete series** for recurring masters so it does not imply a per-occurrence delete that is not implemented there.
 
-v0.14.9.beta specifically hardens the live Glyph against freezes.
+## Upcoming validation
 
-- A Nothing Matrix service disconnect invalidates the stale manager/callback state instead of leaving Dayline permanently disconnected with a non-null manager.
-- Disconnects, registration failures and `setMatrixFrame` failures schedule an automatic reconnect.
+Upcoming now supports two independent dimensions:
+
+- **When:** Today / Tomorrow / 7 days / All.
+- **Show:** All / Events / Tasks / Focus / Meetings / Holidays / calendar / Space.
+
+Rows open the exact occurrence date. Task completion is a separate control so tapping the task itself no longer unexpectedly marks it done.
+
+## Notification / Now Activity reliability
+
+- Reminder alarms are rebuilt on boot and app replacement.
+- Reminder and Now Activity schedules are also rebuilt after manual clock changes, timezone changes and date changes.
+- Exact reminder scheduling falls back to `setAndAllowWhileIdle` if exact-alarm permission is unavailable or changes between the permission check and schedule call.
+- Deleting/canceling an item clears both its alarm and any shown reminder notification.
+- Now Activity retains minute-level clean text rather than Android's seconds chronometer.
+
+## Navigation validation
+
+Navigation selection keeps a fixed 16dp indicator slot and a fixed-size dot. Selection changes color/opacity only, so rows do not shift horizontally when selected.
+
+## Glyph reliability + Focus readability
+
+v0.15.0 adds no new Glyph expression/state features. The v0.14.9 reliability layer remains the baseline:
+
+- Matrix service disconnects invalidate stale manager/callback state.
+- Disconnects, registration failures and frame-send failures reconnect automatically.
 - Only the newest pending frame is retained while reconnecting.
-- Connection generations reject late callbacks from stale SDK connections.
-- A failed/queued frame is not cached as successfully delivered by the service.
-- The render Handler catches unexpected per-tick failures and schedules another tick instead of allowing the animation loop to terminate.
-- Stable frames are resent every **4 seconds** as a lightweight hardware heartbeat.
-- Reconnection retries use a short backoff rather than busy-looping.
+- Connection generations reject stale SDK callbacks.
+- Render ticks recover after unexpected exceptions.
+- Stable frames receive a lightweight ~4-second heartbeat.
 
-These protections apply equally to eye frames and Focus `MM:SS` announcements, so a transient SDK/service interruption should recover instead of freezing on an arbitrary frame such as a timer value or expression.
+The Focus checkpoint schedule is unchanged:
 
-## Glyph core validation
+- phase start;
+- every five-minute remaining checkpoint;
+- 1:00 remaining;
+- each announcement lasts 30 seconds;
+- transition remains `eyes → CENTER → time → CENTER → eyes`.
 
-The Phone (4a) Pro renderer uses a **13×13 / 169-cell** matrix.
+The timer presentation is changed for readability: instead of a single compact `MM:SS` row, **minutes occupy the upper 5×5 digit row and seconds occupy the lower 5×5 digit row**. Both lines use two large centered digits with stable leading zeros.
 
-Current live expression set:
+## Settings / widget ownership
 
-- Center
-- Look left
-- Look right
-- Blink
-- Wink
-- Happy
-- Hearts
-- Squint
-- Sleepy
+The v0.14.8 Settings cleanup remains intact. App Settings has no widget configuration section; widget appearance/content controls belong only to each widget's configuration screen.
 
-Curious, Playful, Surprised, Side-eye, Excited and Rolling remain harmless legacy enum values and render back to Center if encountered.
+## Update notes behavior
 
-Every non-center live animation follows:
-
-```text
-CENTER → animation → CENTER → next animation
-```
-
-The Center recovery remains about **700 ms** for Look left/right, Happy, Wink, Hearts, Squint, Sleepy and Blink. Due blink/motion timers are pushed beyond that window so another animation cannot begin on the same renderer tick.
-
-The Settings preview mirrors the same `CENTER → expression → CENTER` contract. It uses a single circular black surface and draws only illuminated cells.
-
-Duplicate-frame suppression remains active between heartbeat intervals.
-
-## Focus behavior
-
-Focus behavior is unchanged from v0.14.7.beta.
-
-- Focus and Rest keep the normal large expressive eyes outside announcement windows.
-- A phase announces its start, every five-minute remaining checkpoint, and 1:00 remaining.
-- Each announcement replaces the eyes with a centred `MM:SS` timer for **30 seconds**.
-- The transition contract is `eyes → CENTER → time → CENTER → eyes`.
-- The timer remains live during the 30-second announcement window.
-- 25/5, 50/10 and custom focus cycles derive checkpoint times automatically.
-- Paused sessions use the persisted paused remaining time while the announcement is visible.
-- Timer and eye frames share the same reliability/reconnect path.
-
-## Brightness behavior
-
-Dayline Settings keeps a simple 0–100% brightness UI. The live Glyph Toy maps that percentage to the raw `IntArray` Matrix range used by Nothing's official example project, allowing raw output up to **2047** internally. Quiet-hours dimming is applied after this mapping.
-
-## Update behavior
-
-The updater does not trust the release tag alone. A candidate must satisfy both:
-
-```text
-candidate semantic version > installed semantic version
-candidate derived beta versionCode > BuildConfig.VERSION_CODE
-```
-
-The downloaded APK is still independently inspected before Android installation, including package name and embedded `versionCode` checks.
-
-## Nothing Phone (4a) Pro integration
-
-The beta flavor registers `DaylineGlyphToyService` as an AOD-capable Glyph Toy and targets the documented Phone (4a) Pro 13×13 matrix. The hardware bridge uses reflection so the open-source tree and Play flavor remain buildable without committing Nothing's proprietary AAR.
-
-Nothing's documentation names `Glyph.DEVICE_25111p`; Dayline first attempts that field and falls back to the documented `25111p` registration target string if needed.
+The updater sheet reads the GitHub release body. From v0.15.0 onward, the release workflow uses the curated `docs/releases/<tag>.md` file instead of autogenerated GitHub notes. The v0.15.0 file is `docs/releases/v0.15.0.beta.md` and is intentionally concise so its Added / Changed / Fixed content fits cleanly in the app.
 
 ## Android compile gate
 
-Before tagging `v0.14.9.beta`, GitHub Actions must pass:
+Before tagging `v0.15.0.beta`, GitHub Actions must pass:
 
 ```text
 :app:assembleBetaDebug
 :app:assemblePlayDebug
 ```
 
-For tag `v0.14.9.beta`, the tagged job additionally builds `:app:assembleBetaRelease`, verifies tag/APK version identity, verifies the signature, generates the SHA-256 checksum and publishes the GitHub prerelease.
+For tag `v0.15.0.beta`, the tagged job additionally builds `:app:assembleBetaRelease`, verifies tag/APK version identity and signature, validates the release-note file, generates the SHA-256 checksum and publishes the prerelease.

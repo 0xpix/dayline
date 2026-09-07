@@ -22,6 +22,9 @@ import java.net.URL
 import java.net.UnknownHostException
 import java.security.MessageDigest
 import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /** GitHub beta updater. The Play flavor supplies an offline stub. */
 object GithubBetaUpdater {
@@ -78,14 +81,17 @@ object GithubBetaUpdater {
                         }
                     }
 
+                    val published = json.optString("published_at").takeIf { it.isNotBlank() }
+                        ?.let { runCatching { Instant.parse(it) }.getOrNull() }
+                    val rawTitle = json.optString("name").ifBlank { "Dayline $tag" }
+
                     add(
                         BetaRelease(
                             tagName = tag,
                             versionName = version,
-                            title = json.optString("name").ifBlank { "Dayline $tag" },
+                            title = releaseSubtitle(rawTitle, version, published, selected?.size),
                             notes = cleanNotes(json.optString("body")),
-                            publishedAt = json.optString("published_at").takeIf { it.isNotBlank() }
-                                ?.let { runCatching { Instant.parse(it) }.getOrNull() },
+                            publishedAt = published,
                             htmlUrl = json.optString("html_url"),
                             apkName = selected?.name,
                             apkUrl = selected?.url,
@@ -211,6 +217,30 @@ object GithubBetaUpdater {
         val compact = output.joinToString("\n").trim().take(3_000)
         return if (compact.contains("## Added") || compact.contains("## Changed") || compact.contains("## Fixed")) compact
         else "## Changed\n• Bug fixes and Dayline polish."
+    }
+
+    private fun releaseSubtitle(
+        rawTitle: String,
+        version: String,
+        published: Instant?,
+        apkSizeBytes: Long?
+    ): String {
+        val parts = mutableListOf<String>()
+        if (rawTitle.isNotBlank() && !rawTitle.contains(version, ignoreCase = true)) parts += rawTitle
+        published?.let {
+            val date = DateTimeFormatter.ofPattern("MMM d", Locale.getDefault())
+                .withZone(ZoneId.systemDefault())
+                .format(it)
+            parts += "Published $date"
+        }
+        apkSizeBytes?.takeIf { it > 0L }?.let { parts += formatBytes(it) }
+        return parts.joinToString(" · ")
+    }
+
+    private fun formatBytes(bytes: Long): String {
+        val mib = bytes / (1024.0 * 1024.0)
+        return if (mib >= 1.0) String.format(Locale.getDefault(), "%.1f MB", mib)
+        else String.format(Locale.getDefault(), "%.0f KB", bytes / 1024.0)
     }
 
     private fun friendlyError(error: Throwable): String = when (error) {

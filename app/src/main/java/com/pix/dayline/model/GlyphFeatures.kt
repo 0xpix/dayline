@@ -8,17 +8,19 @@ enum class GlyphGlanceFrequency { RARE, NORMAL, FREQUENT }
 enum class GlyphFocusStyle { SUBTLE, ACTIVE }
 
 data class GlyphPreferences(
-    val mode: GlyphMode = GlyphMode.EYES_AND_STATES,
+    // EYES_AND_STATES is kept only for backwards-compatible preference loading.
+    // The Glyph runtime now renders expressive eyes plus the Focus progress ring.
+    val mode: GlyphMode = GlyphMode.EYES_ONLY,
     val idleExpression: GlyphIdleExpression = GlyphIdleExpression.CENTER,
     val blinkEnabled: Boolean = true,
     val randomGlancesEnabled: Boolean = true,
-    val glanceFrequency: GlyphGlanceFrequency = GlyphGlanceFrequency.RARE,
-    val showAppStates: Boolean = true,
+    val glanceFrequency: GlyphGlanceFrequency = GlyphGlanceFrequency.NORMAL,
+    val showAppStates: Boolean = false,
     val stateDurationSeconds: Int = 3,
     val returnToEyes: Boolean = true,
     val reminderFlashSeconds: Int = 5,
     val focusStyle: GlyphFocusStyle = GlyphFocusStyle.SUBTLE,
-    val restAnimation: Boolean = true,
+    val restAnimation: Boolean = false,
     val quietHoursEnabled: Boolean = true,
     val quietStart: LocalTime = LocalTime.of(23, 0),
     val quietEnd: LocalTime = LocalTime.of(7, 0),

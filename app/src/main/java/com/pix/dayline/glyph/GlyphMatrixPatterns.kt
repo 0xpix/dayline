@@ -7,7 +7,8 @@ import com.pix.dayline.model.DaylineGlyphSignal
  *
  * Dayline keeps the large expressive eyes as its permanent face. Focus mode no
  * longer mixes a timer or progress UI with the eyes. At selected checkpoints
- * the face is temporarily replaced by a centred MM:SS countdown frame.
+ * the face is temporarily replaced by a large two-line countdown: minutes on
+ * top, seconds underneath.
  */
 object GlyphMatrixPatterns {
     const val SIZE = 13
@@ -340,41 +341,41 @@ object GlyphMatrixPatterns {
             }
         }
 
-        fun digitRows(digit: Int): Array<String> = when (digit) {
-            0 -> arrayOf("###", "#.#", "#.#", "#.#", "###")
-            1 -> arrayOf(".#.", "##.", ".#.", ".#.", "###")
-            2 -> arrayOf("###", "..#", "###", "#..", "###")
-            3 -> arrayOf("###", "..#", "###", "..#", "###")
-            4 -> arrayOf("#.#", "#.#", "###", "..#", "..#")
-            5 -> arrayOf("###", "#..", "###", "..#", "###")
-            6 -> arrayOf("###", "#..", "###", "#.#", "###")
-            7 -> arrayOf("###", "..#", "..#", "..#", "..#")
-            8 -> arrayOf("###", "#.#", "###", "#.#", "###")
-            9 -> arrayOf("###", "#.#", "###", "..#", "###")
-            else -> arrayOf("...", "...", "...", "...", "...")
+        fun largeDigitRows(digit: Int): Array<String> = when (digit) {
+            0 -> arrayOf("#####", "#...#", "#...#", "#...#", "#####")
+            1 -> arrayOf("..#..", ".##..", "..#..", "..#..", ".###.")
+            2 -> arrayOf("#####", "....#", "#####", "#....", "#####")
+            3 -> arrayOf("#####", "....#", ".####", "....#", "#####")
+            4 -> arrayOf("#...#", "#...#", "#####", "....#", "....#")
+            5 -> arrayOf("#####", "#....", "#####", "....#", "#####")
+            6 -> arrayOf("#####", "#....", "#####", "#...#", "#####")
+            7 -> arrayOf("#####", "....#", "...#.", "..#..", "..#..")
+            8 -> arrayOf("#####", "#...#", "#####", "#...#", "#####")
+            9 -> arrayOf("#####", "#...#", "#####", "....#", "#####")
+            else -> arrayOf(".....", ".....", ".....", ".....", ".....")
         }
 
-        fun drawDigit(digit: Int, x: Int) {
-            digitRows(digit).forEachIndexed { row, glyph ->
+        fun drawLargeDigit(digit: Int, x: Int, y: Int) {
+            largeDigitRows(digit).forEachIndexed { row, glyph ->
                 glyph.forEachIndexed { column, pixel ->
-                    if (pixel == '#') set(x + column, TIMER_Y + row)
+                    if (pixel == '#') set(x + column, y + row)
                 }
             }
         }
 
         fun drawTimer(remainingSeconds: Long) {
-            // MM:SS fills all 13 columns exactly: 3 + 3 + 1 + 3 + 3.
-            // The timer replaces the eyes completely while an announcement is active.
+            // The 13×13 matrix is much easier to read when time is stacked:
+            // MM occupies rows 1..5 and SS occupies rows 7..11. Each line is
+            // 11 pixels wide (5 + 1 gap + 5) and centered with one empty column
+            // on either side. Leading zeros keep the visual width stable.
             val clamped = remainingSeconds.coerceIn(0L, 99L * 60L + 59L)
             val minutes = (clamped / 60L).toInt()
             val seconds = (clamped % 60L).toInt()
 
-            drawDigit(minutes / 10, 0)
-            drawDigit(minutes % 10, 3)
-            set(6, TIMER_Y + 1)
-            set(6, TIMER_Y + 3)
-            drawDigit(seconds / 10, 7)
-            drawDigit(seconds % 10, 10)
+            drawLargeDigit(minutes / 10, 1, 1)
+            drawLargeDigit(minutes % 10, 7, 1)
+            drawLargeDigit(seconds / 10, 1, 7)
+            drawLargeDigit(seconds % 10, 7, 7)
         }
 
         if (focusRemainingSeconds != null) {
@@ -385,6 +386,4 @@ object GlyphMatrixPatterns {
 
         return pixels
     }
-
-    private const val TIMER_Y = 4
 }

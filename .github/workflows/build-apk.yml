@@ -53,6 +53,9 @@ jobs:
         with:
           gradle-version: "9.4.1"
 
+      - name: Run recurrence and planning unit tests
+        run: gradle :app:testBetaDebugUnitTest :app:testPlayDebugUnitTest --no-daemon --stacktrace
+
       - name: Compile beta and Play debug variants
         run: gradle :app:assembleBetaDebug :app:assemblePlayDebug --no-daemon --stacktrace
 
@@ -159,9 +162,7 @@ jobs:
           version_code = int(match.group(1))
           version_name = match.group(2)
           if version_name != tag:
-              raise SystemExit(
-                  f"Tag/APK versionName mismatch: tag={tag}, apk={version_name}"
-              )
+              raise SystemExit(f"Tag/APK versionName mismatch: tag={tag}, apk={version_name}")
 
           numbers = re.match(r"^(\d+)\.(\d+)\.(\d+)", tag)
           if not numbers:
@@ -169,9 +170,7 @@ jobs:
           major, minor, patch = map(int, numbers.groups())
           expected_code = major * 1_000_000 + minor * 100 + patch
           if version_code != expected_code:
-              raise SystemExit(
-                  f"Tag/APK versionCode mismatch: expected={expected_code}, apk={version_code}"
-              )
+              raise SystemExit(f"Tag/APK versionCode mismatch: expected={expected_code}, apk={version_code}")
 
           print(f"Verified {version_name} / versionCode {version_code}")
           PY

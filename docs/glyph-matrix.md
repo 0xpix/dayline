@@ -1,6 +1,6 @@
 # Dayline Glyph Matrix integration
 
-Dayline v0.14.9.beta provides an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
+Dayline v0.15.0.beta provides an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
 
 ## Dayline behavior
 
@@ -12,9 +12,9 @@ Automatic calendar/app-state symbols do not interrupt the face. Focus Mode is th
 
 ## Focus time announcements
 
-The persistent Focus timer and the old circular progress ring are both removed. Focus and Rest keep the **same normal large eyes** as idle mode for nearly the entire phase.
+The persistent Focus timer and old circular progress ring remain removed. Focus and Rest keep the **same normal large eyes** as idle mode for nearly the entire phase.
 
-At selected checkpoints, Dayline temporarily replaces the eyes with a centred `MM:SS` countdown:
+At selected checkpoints, Dayline temporarily replaces the eyes with a countdown:
 
 - The current phase time is announced for **30 seconds**.
 - The transition is always `eyes → CENTER → time → CENTER → eyes`.
@@ -31,13 +31,26 @@ Examples:
 - 50-minute Focus: `50:00`, `45:00`, `40:00`, `35:00`, `30:00`, `25:00`, `20:00`, `15:00`, `10:00`, `05:00`, `01:00`.
 - Custom 12-minute Focus: `12:00`, `10:00`, `05:00`, `01:00`.
 
-Outside those 30-second windows, Focus does not alter the face at all. The normal Center / left / right / blink / wink / happy / hearts / squint / sleepy animation state machine continues unchanged.
+Outside those 30-second windows, Focus does not alter the face. The normal Center / left / right / blink / wink / happy / hearts / squint / sleepy animation state machine continues unchanged.
 
-The announcement timer uses a compact 3×5 numeric font that fits `MM:SS` across all 13 columns and is vertically centred in the Matrix because no eye pixels are drawn at the same time.
+### v0.15.0 timer layout
+
+The timing logic is unchanged; only readability is improved. A Focus time such as `14:54` is rendered as two large centered lines:
+
+```text
+14
+54
+```
+
+- **Minutes** use two 5×5 digits in rows 1–5.
+- **Seconds** use two 5×5 digits in rows 7–11.
+- Each line is 11 pixels wide and centered with one empty column at each side.
+- Leading zeros remain visible, so `05:07` displays `05` above `07`.
+- No eyes, colon, progress ring or other pixels compete with the timer during the announcement.
 
 ## Reliability / freeze recovery
 
-v0.14.9.beta adds recovery around the Nothing Matrix service itself.
+The v0.14.9 reliability layer remains unchanged in v0.15.0.beta.
 
 Previously, a temporary SDK service disconnect could leave Dayline with `connected = false` while an old manager object was still present. New frames would then be queued, but the bridge would not initialize a fresh connection, so the hardware could remain frozen on the last visible frame indefinitely.
 
@@ -53,17 +66,13 @@ The AOD service also protects its Handler render loop so an unexpected exception
 
 ## Glyph settings
 
-v0.14.8.beta simplified the in-app Glyph configuration without changing the live hardware behavior.
-
-The main Settings page contains only one **Dayline Glyph** row. Opening it shows five compact groups:
+The compact Glyph configuration introduced in v0.14.8 remains unchanged. The main Settings page contains one **Dayline Glyph** row. Opening it shows five groups:
 
 - **Glyph** — enable state, hardware status and shortcut to Nothing Settings.
 - **Look** — brightness, Blink, Expressions, Motion and Reduce motion.
 - **Focus** — the 30-second checkpoint rule summarized as `Start · every 5 min · 1 min left`.
 - **Night** — quiet hours, start/end time and optional dimming.
 - **Test expressions** — Center, Left, Right, Blink, Happy, Wink, Hearts, Squint and Sleepy.
-
-The preview uses the same single circular surface as before but is smaller so controls have more breathing room. Long hardware/brightness/focus explanation paragraphs were removed from the sheet.
 
 Dayline keeps a simple 0–100% brightness control and maps it to the higher raw `IntArray` Matrix intensity range used by Nothing's official example project. Duplicate raw frames are suppressed between recovery heartbeat frames to reduce visible flicker/twitching.
 
@@ -81,7 +90,7 @@ Dayline's own Glyph patterns, settings and reflection bridge are part of the MIT
 
 For GitHub beta CI, `.github/workflows/build-apk.yml` first validates that the AAR is absent and then downloads the official binary from `Nothing-Developer-Programme/GlyphMatrix-Developer-Kit` before compiling the beta flavor. `app/build.gradle.kts` only attaches the AAR to `betaImplementation` when the file exists.
 
-The Play flavor does not include the SDK in v0.14.9.beta. Nothing's Glyph SDK license restricts commercial use without written permission, so Play distribution should stay disabled for Glyph hardware until the appropriate permission/license is obtained.
+The Play flavor does not include the SDK in v0.15.0.beta. Nothing's Glyph SDK license restricts commercial use without written permission, so Play distribution should stay disabled for Glyph hardware until the appropriate permission/license is obtained.
 
 ## Release safety
 

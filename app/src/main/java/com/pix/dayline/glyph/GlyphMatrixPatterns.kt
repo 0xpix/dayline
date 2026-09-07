@@ -1,22 +1,23 @@
 package com.pix.dayline.glyph
 
 import com.pix.dayline.model.DaylineGlyphSignal
+import kotlin.math.ceil
 
 /**
  * Native 13×13 frames for the Phone (4a) Pro Glyph Matrix.
  *
- * Visual rule:
- * - idle personality uses large, solid eyes;
- * - short Dayline app states use one bold centered symbol;
- * - never squeeze a tiny status icon beside the eyes.
- *
- * This keeps the face dominant during normal use while making the brief app
- * states readable from a glance on a low-resolution 13×13 matrix.
+ * The face is the primary visual language. Focus mode never replaces the eyes:
+ * it progressively lights a clean outer path around them, one pixel at a time.
  */
 object GlyphMatrixPatterns {
     const val SIZE = 13
 
-    fun frame(signal: DaylineGlyphSignal, brightness: Int = 255): IntArray {
+    fun frame(
+        signal: DaylineGlyphSignal,
+        brightness: Int = 255,
+        focusProgress: Float? = null,
+        focusBreak: Boolean = false
+    ): IntArray {
         val value = brightness.coerceIn(0, 255)
         val pixels = IntArray(SIZE * SIZE)
 
@@ -28,10 +29,6 @@ object GlyphMatrixPatterns {
 
         fun hLine(x0: Int, x1: Int, y: Int, b: Int = value) {
             for (x in x0..x1) set(x, y, b)
-        }
-
-        fun vLine(x: Int, y0: Int, y1: Int, b: Int = value) {
-            for (y in y0..y1) set(x, y, b)
         }
 
         fun block(x0: Int, y0: Int, w: Int, h: Int, b: Int = value) {
@@ -50,13 +47,6 @@ object GlyphMatrixPatterns {
             }
         }
 
-        // The base eye is intentionally large and solid, matching the Dot-style
-        // silhouette the Dayline face is built around:
-        // .###.
-        // #####
-        // #####
-        // #####
-        // .###.
         fun roundedEye(x: Int, y: Int = 4) {
             pattern(
                 x, y,
@@ -110,9 +100,9 @@ object GlyphMatrixPatterns {
         fun sleepyEye(x: Int) {
             pattern(
                 x, 5,
-                ".....",
                 "#####",
-                ".###."
+                ".###.",
+                "....."
             )
         }
 
@@ -357,8 +347,8 @@ object GlyphMatrixPatterns {
                 )
             }
 
-            // Short Dayline states use one large symbol instead of squeezing a
-            // tiny badge next to the face.
+            // Legacy app-state frames remain for source/backward compatibility,
+            // but the live Glyph service no longer displays them automatically.
             DaylineGlyphSignal.NEXT_EVENT -> largeArrow()
             DaylineGlyphSignal.REMINDER_SOON -> bell()
             DaylineGlyphSignal.FOCUS -> focusTarget()
@@ -375,6 +365,38 @@ object GlyphMatrixPatterns {
             DaylineGlyphSignal.SYNC_OK -> largeCheck()
             DaylineGlyphSignal.SYNC_ERROR -> largeX()
             DaylineGlyphSignal.GO -> playTriangle()
+        }
+
+        focusProgress?.let { rawProgress ->
+            // A rounded rectangular path around the face. It never overwrites the
+            // 5×5 eyes. Focus advances clockwise; break advances in reverse.
+            val ring = listOf(
+                3 to 1, 4 to 1, 5 to 1, 6 to 1, 7 to 1, 8 to 1, 9 to 1,
+                10 to 2, 11 to 3,
+                12 to 4, 12 to 5, 12 to 6, 12 to 7, 12 to 8,
+                11 to 9, 10 to 10,
+                9 to 11, 8 to 11, 7 to 11, 6 to 11, 5 to 11, 4 to 11, 3 to 11,
+                2 to 10, 1 to 9,
+                0 to 8, 0 to 7, 0 to 6, 0 to 5, 0 to 4,
+                1 to 3, 2 to 2
+            )
+            val ordered = if (focusBreak) ring.asReversed() else ring
+            val progress = rawProgress.coerceIn(0f, 1f)
+            val count = ceil(progress * ordered.size).toInt().coerceIn(0, ordered.size)
+            val ringBrightness = if (focusBreak) {
+                (value * 0.55f).toInt().coerceAtLeast(32)
+            } else {
+                value
+            }
+            for (index in 0 until count) {
+                val (x, y) = ordered[index]
+                set(x, y, ringBrightness)
+            }
+            // Keep the leading break pixel crisp so the direction is easy to read.
+            if (focusBreak && count > 0) {
+                val (x, y) = ordered[count - 1]
+                set(x, y, value)
+            }
         }
 
         return pixels

@@ -4,8 +4,14 @@ import com.pix.dayline.model.DaylineGlyphSignal
 
 /**
  * Native 13×13 frames for the Phone (4a) Pro Glyph Matrix.
- * Values are 0..255 brightness. Eyes are deliberately solid: there are no
- * black pupil holes inside the lit eye shapes.
+ *
+ * Visual rule:
+ * - idle personality uses large, solid eyes;
+ * - short Dayline app states use one bold centered symbol;
+ * - never squeeze a tiny status icon beside the eyes.
+ *
+ * This keeps the face dominant during normal use while making the brief app
+ * states readable from a glance on a low-resolution 13×13 matrix.
  */
 object GlyphMatrixPatterns {
     const val SIZE = 13
@@ -15,7 +21,9 @@ object GlyphMatrixPatterns {
         val pixels = IntArray(SIZE * SIZE)
 
         fun set(x: Int, y: Int, b: Int = value) {
-            if (x in 0 until SIZE && y in 0 until SIZE) pixels[y * SIZE + x] = b.coerceIn(0, 255)
+            if (x in 0 until SIZE && y in 0 until SIZE) {
+                pixels[y * SIZE + x] = b.coerceIn(0, 255)
+            }
         }
 
         fun hLine(x0: Int, x1: Int, y: Int, b: Int = value) {
@@ -27,51 +35,255 @@ object GlyphMatrixPatterns {
         }
 
         fun block(x0: Int, y0: Int, w: Int, h: Int, b: Int = value) {
-            for (y in y0 until y0 + h) for (x in x0 until x0 + w) set(x, y, b)
+            for (y in y0 until y0 + h) {
+                for (x in x0 until x0 + w) set(x, y, b)
+            }
+        }
+
+        fun pattern(x0: Int, y0: Int, vararg rows: String) {
+            rows.forEachIndexed { rowIndex, row ->
+                row.forEachIndexed { columnIndex, pixel ->
+                    if (pixel != '.' && pixel != ' ') {
+                        set(x0 + columnIndex, y0 + rowIndex)
+                    }
+                }
+            }
+        }
+
+        // The base eye is intentionally large and solid, matching the Dot-style
+        // silhouette the Dayline face is built around:
+        // .###.
+        // #####
+        // #####
+        // #####
+        // .###.
+        fun roundedEye(x: Int, y: Int = 4) {
+            pattern(
+                x, y,
+                ".###.",
+                "#####",
+                "#####",
+                "#####",
+                ".###."
+            )
         }
 
         fun centerEyes() {
-            block(2, 4, 3, 4)
-            block(8, 4, 3, 4)
+            roundedEye(1)
+            roundedEye(7)
         }
 
         fun leftEyes() {
-            block(1, 4, 3, 4)
-            block(7, 4, 3, 4)
+            roundedEye(0)
+            roundedEye(6)
         }
 
         fun rightEyes() {
-            block(3, 4, 3, 4)
-            block(9, 4, 3, 4)
+            roundedEye(2)
+            roundedEye(8)
+        }
+
+        fun closedEye(x: Int, y: Int = 6) {
+            hLine(x, x + 4, y)
+            hLine(x + 1, x + 3, y + 1)
         }
 
         fun blink() {
-            hLine(2, 4, 6)
-            hLine(8, 10, 6)
+            closedEye(1)
+            closedEye(7)
+        }
+
+        fun happyEye(x: Int) {
+            pattern(
+                x, 5,
+                ".###.",
+                "#####",
+                "##.##"
+            )
         }
 
         fun happy() {
-            set(2, 6); set(3, 5); set(4, 5); set(5, 6)
-            set(7, 6); set(8, 5); set(9, 5); set(10, 6)
+            happyEye(1)
+            happyEye(7)
+        }
+
+        fun sleepyEye(x: Int) {
+            pattern(
+                x, 5,
+                ".....",
+                "#####",
+                ".###."
+            )
         }
 
         fun sleepy() {
-            hLine(2, 4, 6); set(5, 7)
-            set(7, 7); hLine(8, 10, 6)
+            sleepyEye(1)
+            sleepyEye(7)
         }
 
-        fun focusEyes() {
-            hLine(2, 4, 6)
-            hLine(8, 10, 6)
-            set(3, 5); set(9, 5)
+        fun squintEyes() {
+            pattern(1, 5, ".###.", "#####", ".###.")
+            pattern(7, 5, ".###.", "#####", ".###.")
         }
 
-        fun tinyCheck() {
-            set(9, 9); set(10, 10); set(11, 9); set(12, 8)
+        fun largeArrow() {
+            pattern(
+                2, 3,
+                "......#..",
+                "......##.",
+                "......###",
+                "#########",
+                "......###",
+                "......##.",
+                "......#.."
+            )
         }
 
-        fun rightArrow() {
-            set(11, 5); set(12, 6); set(11, 7)
+        fun focusTarget() {
+            pattern(
+                2, 2,
+                "...###...",
+                "..#...#..",
+                ".#.....#.",
+                "#..###..#",
+                "#..###..#",
+                "#..###..#",
+                ".#.....#.",
+                "..#...#..",
+                "...###..."
+            )
+        }
+
+        fun restZ() {
+            pattern(
+                3, 3,
+                "#######",
+                "#######",
+                "....##.",
+                "...##..",
+                "..##...",
+                ".##....",
+                "#######",
+                "#######"
+            )
+        }
+
+        fun largeCheck() {
+            pattern(
+                2, 3,
+                "........#",
+                ".......##",
+                "......##.",
+                "#....##..",
+                "##..##...",
+                ".####....",
+                "..##....."
+            )
+        }
+
+        fun largeX() {
+            pattern(
+                2, 2,
+                "##.....##",
+                ".##...##.",
+                "..##.##..",
+                "...###...",
+                "...###...",
+                "...###...",
+                "..##.##..",
+                ".##...##.",
+                "##.....##"
+            )
+        }
+
+        fun openCircle() {
+            pattern(
+                2, 2,
+                "..#####..",
+                ".##...##.",
+                "##.....##",
+                "#.......#",
+                "#.......#",
+                "#.......#",
+                "##.....##",
+                ".##...##.",
+                "..#####.."
+            )
+        }
+
+        fun sunrise() {
+            pattern(
+                2, 2,
+                "....#....",
+                ".#..#..#.",
+                ".........",
+                "...###...",
+                "..#####..",
+                ".##...##.",
+                "#########",
+                ".........",
+                "#########"
+            )
+        }
+
+        fun emptyCalendar() {
+            pattern(
+                2, 2,
+                "..#...#..",
+                "..#...#..",
+                "#########",
+                "#.......#",
+                "#.......#",
+                "#.......#",
+                "#.......#",
+                "#.......#",
+                "#########"
+            )
+        }
+
+        fun playTriangle() {
+            pattern(
+                3, 3,
+                "#......",
+                "###....",
+                "#####..",
+                "#######",
+                "#####..",
+                "###....",
+                "#......"
+            )
+        }
+
+        fun largeExclamation() {
+            block(5, 2, 3, 6)
+            block(5, 10, 3, 2)
+        }
+
+        fun bell() {
+            pattern(
+                3, 2,
+                "...#...",
+                "..###..",
+                ".#####.",
+                ".#####.",
+                ".#####.",
+                "#######",
+                ".......",
+                "..###.."
+            )
+        }
+
+        fun moveArrow() {
+            pattern(
+                2, 3,
+                "..#...#..",
+                ".##...##.",
+                "#########",
+                ".##...##.",
+                "..#...#..",
+                ".........",
+                "..#####.."
+            )
         }
 
         when (signal) {
@@ -83,128 +295,86 @@ object GlyphMatrixPatterns {
             DaylineGlyphSignal.BLINK -> blink()
 
             DaylineGlyphSignal.WINK -> {
-                block(2, 4, 3, 4)
-                hLine(8, 10, 6)
+                roundedEye(1)
+                closedEye(7)
             }
 
             DaylineGlyphSignal.HAPPY -> happy()
 
             DaylineGlyphSignal.EXCITED -> {
-                happy()
-                set(2, 4); set(5, 5); set(7, 5); set(10, 4)
+                pattern(1, 4, ".###.", "#####", "#####", ".###.")
+                pattern(7, 4, ".###.", "#####", "#####", ".###.")
+                set(0, 2); set(2, 1); set(10, 1); set(12, 2)
             }
 
             DaylineGlyphSignal.SLEEPY -> sleepy()
 
             DaylineGlyphSignal.SURPRISED -> {
-                block(2, 3, 3, 5)
-                block(8, 3, 3, 5)
+                block(1, 3, 5, 6)
+                block(7, 3, 5, 6)
             }
 
             DaylineGlyphSignal.PLAYFUL -> {
-                block(2, 4, 3, 4)
-                set(8, 7); set(9, 6); set(10, 5); set(11, 6)
+                roundedEye(1)
+                happyEye(7)
             }
 
             DaylineGlyphSignal.CURIOUS -> {
-                block(1, 3, 4, 4)
-                block(8, 5, 3, 3)
+                roundedEye(0, 3)
+                roundedEye(7, 5)
             }
 
             DaylineGlyphSignal.SIDE_EYE -> {
-                hLine(1, 4, 6)
-                hLine(7, 10, 6)
-                set(1, 5); set(7, 5)
+                pattern(0, 5, "#####", ".####", "..###")
+                pattern(6, 5, "#####", ".####", "..###")
             }
 
             DaylineGlyphSignal.ROLLING -> {
-                block(2, 3, 3, 3)
-                block(8, 6, 3, 3)
+                roundedEye(1, 2)
+                roundedEye(7, 6)
             }
 
-            DaylineGlyphSignal.SQUINT -> blink()
+            DaylineGlyphSignal.SQUINT -> squintEyes()
 
             DaylineGlyphSignal.HEARTS -> {
-                // Two compact pixel hearts.
-                set(1, 4); set(3, 4); hLine(1, 4, 5); hLine(1, 4, 6)
-                set(2, 7); set(3, 7)
-                set(8, 4); set(10, 4); hLine(8, 11, 5); hLine(8, 11, 6)
-                set(9, 7); set(10, 7)
+                pattern(
+                    0, 4,
+                    ".##.##.",
+                    "#######",
+                    "#######",
+                    ".#####.",
+                    "..###..",
+                    "...#..."
+                )
+                pattern(
+                    7, 4,
+                    ".##.##",
+                    "######",
+                    "######",
+                    ".####.",
+                    "..##..",
+                    "...#.."
+                )
             }
 
-            DaylineGlyphSignal.NEXT_EVENT -> {
-                centerEyes(); rightArrow()
-            }
-
-            DaylineGlyphSignal.REMINDER_SOON -> {
-                centerEyes()
-                // Tiny alert/bell cue in the top-right corner.
-                set(11, 1); set(10, 2); set(11, 2); set(12, 2); set(11, 3)
-            }
-
-            DaylineGlyphSignal.FOCUS -> {
-                focusEyes()
-                // Partial progress ring around the eyes.
-                hLine(3, 9, 1); hLine(3, 9, 11)
-                vLine(1, 3, 9); set(2, 2); set(10, 2); set(11, 3); set(11, 4)
-            }
-
-            DaylineGlyphSignal.REST -> {
-                sleepy()
-                hLine(4, 8, 10)
-            }
-
-            DaylineGlyphSignal.TASK_DONE -> {
-                happy(); tinyCheck()
-            }
-
-            DaylineGlyphSignal.CONFLICT -> {
-                focusEyes()
-                // Two overlapping mini squares.
-                hLine(9, 11, 1); vLine(9, 1, 3); vLine(11, 1, 3)
-                hLine(10, 12, 2); vLine(10, 2, 4); vLine(12, 2, 4); hLine(10, 12, 4)
-            }
-
-            DaylineGlyphSignal.NO_PLANS -> {
-                happy()
-                // Tiny empty-day marker.
-                hLine(5, 7, 2); set(4, 3); set(8, 3); hLine(5, 7, 4)
-            }
-
-            DaylineGlyphSignal.FREE_NOW,
-            DaylineGlyphSignal.DAY_OPEN -> {
-                sleepy()
-                // Empty/open schedule slot.
-                hLine(4, 8, 2); set(3, 3); set(9, 3); hLine(4, 8, 4)
-            }
-
-            DaylineGlyphSignal.EVENT_STARTED -> {
-                centerEyes(); hLine(1, 3, 10); set(4, 9); set(5, 8)
-            }
-
-            DaylineGlyphSignal.EVENT_ENDED -> {
-                happy(); hLine(9, 11, 10)
-            }
-
-            DaylineGlyphSignal.MISSED -> {
-                sleepy(); set(11, 2); set(11, 3); set(11, 5)
-            }
-
-            DaylineGlyphSignal.MOVED -> {
-                centerEyes(); set(1, 10); hLine(2, 4, 10); set(5, 9)
-            }
-
-            DaylineGlyphSignal.SYNC_OK -> {
-                centerEyes(); tinyCheck()
-            }
-
-            DaylineGlyphSignal.SYNC_ERROR -> {
-                focusEyes(); set(11, 2); set(11, 3); set(11, 5)
-            }
-
-            DaylineGlyphSignal.GO -> {
-                rightEyes(); rightArrow()
-            }
+            // Short Dayline states use one large symbol instead of squeezing a
+            // tiny badge next to the face.
+            DaylineGlyphSignal.NEXT_EVENT -> largeArrow()
+            DaylineGlyphSignal.REMINDER_SOON -> bell()
+            DaylineGlyphSignal.FOCUS -> focusTarget()
+            DaylineGlyphSignal.REST -> restZ()
+            DaylineGlyphSignal.TASK_DONE -> largeCheck()
+            DaylineGlyphSignal.CONFLICT -> largeX()
+            DaylineGlyphSignal.NO_PLANS -> emptyCalendar()
+            DaylineGlyphSignal.FREE_NOW -> openCircle()
+            DaylineGlyphSignal.DAY_OPEN -> sunrise()
+            DaylineGlyphSignal.EVENT_STARTED -> playTriangle()
+            DaylineGlyphSignal.EVENT_ENDED -> largeCheck()
+            DaylineGlyphSignal.MISSED -> largeExclamation()
+            DaylineGlyphSignal.MOVED -> moveArrow()
+            DaylineGlyphSignal.SYNC_OK -> largeCheck()
+            DaylineGlyphSignal.SYNC_ERROR -> largeX()
+            DaylineGlyphSignal.GO -> playTriangle()
         }
 
         return pixels

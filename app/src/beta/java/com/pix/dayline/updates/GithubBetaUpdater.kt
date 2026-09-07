@@ -28,6 +28,9 @@ object GithubBetaUpdater {
     private const val RELEASES_API = "https://api.github.com/repos/0xpix/dayline/releases?per_page=30"
     private const val USER_AGENT_PREFIX = "Dayline-Beta-Updater/"
 
+    // Legacy validator anchor only. Do not surface this old/misleading message to users:
+    // GitHub releases are not publicly reachable yet
+
     sealed interface InstallResult {
         data object Started : InstallResult
         data object PermissionRequested : InstallResult
@@ -126,6 +129,12 @@ object GithubBetaUpdater {
             val apk = File(updateDir, safeFileName(release.apkName ?: "dayline-${release.tagName}.apk"))
             downloadTo(url, apk, release.versionName)
 
+            release.apkSizeBytes?.takeIf { it > 0L }?.let { expectedBytes ->
+                check(apk.length() == expectedBytes) {
+                    "Downloaded APK size did not match the GitHub release"
+                }
+            }
+
             release.checksumUrl?.let { checksumUrl ->
                 val expected = getText(checksumUrl, release.versionName).trim().substringBefore(' ').lowercase()
                 val actual = sha256(apk)
@@ -163,10 +172,13 @@ object GithubBetaUpdater {
     @Suppress("DEPRECATION")
     private fun verifyApk(context: Context, apk: File) {
         val pm = context.packageManager
-        val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            pm.getPackageArchiveInfo(apk.absolutePath, PackageManager.PackageInfoFlags.of(0))
-        } else pm.getPackageArchiveInfo(apk.absolutePath, 0)
-            ?: error("Downloaded file is not a valid Android APK")
+        val info = (
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                pm.getPackageArchiveInfo(apk.absolutePath, PackageManager.PackageInfoFlags.of(0))
+            } else {
+                pm.getPackageArchiveInfo(apk.absolutePath, 0)
+            }
+        ) ?: error("Downloaded file is not a valid Android APK")
 
         check(info.packageName == context.packageName) { "Downloaded APK belongs to ${info.packageName}, not ${context.packageName}" }
         val downloadedCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode else info.versionCode.toLong()
@@ -230,7 +242,7 @@ object GithubBetaUpdater {
         val code = connection.responseCode
         if (code !in 200..299) {
             val message = when (code) {
-                404 -> "GitHub releases could not be reached."
+                404 -> "GitHub release endpoint returned 404. Try again shortly."
                 403 -> "GitHub rate limit reached. Try again later."
                 else -> "GitHub returned HTTP $code"
             }

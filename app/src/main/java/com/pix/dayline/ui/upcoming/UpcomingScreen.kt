@@ -1,24 +1,25 @@
 package com.pix.dayline.ui.upcoming
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.pix.dayline.model.*
 import com.pix.dayline.ui.components.FloatingControls
-import com.pix.dayline.ui.theme.composeColor
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -35,13 +36,11 @@ private sealed interface UpcomingFilter {
     data class Space(val id: String, val name: String) : UpcomingFilter
 }
 
-private enum class UpcomingWindow {
-    TODAY,
-    TOMORROW,
-    WEEK,
-    ALL
+private enum class UpcomingWindow(val label: String) {
+    TODAY("Today"), TOMORROW("Tomorrow"), WEEK("7 days"), ALL("All")
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UpcomingScreen(
     items: List<DaylineItem>,
@@ -50,27 +49,22 @@ fun UpcomingScreen(
     onToday: () -> Unit,
     onAdd: (LocalDate) -> Unit,
     onEdit: (DaylineItem, LocalDate) -> Unit,
-    onToggleTask: (DaylineItem, LocalDate) -> Unit
+    onToggleTask: (DaylineItem, LocalDate) -> Unit,
+    onSwipeToday: () -> Unit = onToday
 ) {
     val today = remember { LocalDate.now() }
     var filter by remember { mutableStateOf<UpcomingFilter>(UpcomingFilter.All) }
     var window by remember { mutableStateOf(UpcomingWindow.WEEK) }
+    var filterOpen by remember { mutableStateOf(false) }
+    var dragTotal by remember { mutableFloatStateOf(0f) }
 
     val calendarNames = remember(items) {
-        items.mapNotNull { it.calendarName }
-            .filter { it.isNotBlank() }
-            .distinct()
-            .sorted()
+        items.mapNotNull { it.calendarName }.filter(String::isNotBlank).distinct().sorted()
     }
-
     val activeSpaces = remember(items, spaces) {
         spaces.filter { space -> items.any { it.spaceId == space.id } }
     }
-
-    val filteredItems = remember(items, filter) {
-        items.filter { item -> matchesUpcomingFilter(item, filter) }
-    }
-
+    val filteredItems = remember(items, filter) { items.filter { matchesUpcomingFilter(it, filter) } }
     val candidateDates = remember(today, window) {
         when (window) {
             UpcomingWindow.TODAY -> listOf(today)
@@ -79,7 +73,6 @@ fun UpcomingScreen(
             UpcomingWindow.ALL -> (0L..120L).map(today::plusDays)
         }
     }
-
     val dates = remember(filteredItems, candidateDates) {
         candidateDates.filter { date -> filteredItems.any { it.occursOn(date) } }
     }
@@ -88,94 +81,54 @@ fun UpcomingScreen(
         Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .pointerInput(onSwipeToday) {
+                detectHorizontalDragGestures(
+                    onDragStart = { dragTotal = 0f },
+                    onHorizontalDrag = { _, amount -> dragTotal += amount },
+                    onDragCancel = { dragTotal = 0f },
+                    onDragEnd = {
+                        if (dragTotal > 120f) onSwipeToday()
+                        dragTotal = 0f
+                    }
+                )
+            }
             .padding(
                 top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding(),
                 bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
             )
     ) {
         Column(
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                 .padding(start = 30.dp, end = 30.dp, top = 52.dp, bottom = 138.dp)
         ) {
             Text("Upcoming", style = MaterialTheme.typography.displayMedium)
-            Spacer(Modifier.height(22.dp))
-
+            Spacer(Modifier.height(10.dp))
             Text(
-                "WHEN",
-                style = MaterialTheme.typography.labelMedium,
+                "Swipe right for Today",
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(Modifier.height(8.dp))
-            Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Spacer(Modifier.height(24.dp))
+
+            Surface(
+                modifier = Modifier.fillMaxWidth().clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { filterOpen = true },
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surface
             ) {
-                UpcomingFilterChip("Today", window == UpcomingWindow.TODAY) {
-                    window = UpcomingWindow.TODAY
-                }
-                UpcomingFilterChip("Tomorrow", window == UpcomingWindow.TOMORROW) {
-                    window = UpcomingWindow.TOMORROW
-                }
-                UpcomingFilterChip("7 days", window == UpcomingWindow.WEEK) {
-                    window = UpcomingWindow.WEEK
-                }
-                UpcomingFilterChip("All", window == UpcomingWindow.ALL) {
-                    window = UpcomingWindow.ALL
+                Row(
+                    Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("${window.label} · ${filterLabel(filter)}", style = MaterialTheme.typography.bodyLarge)
+                    Text("FILTER  ›", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
-            Text(
-                "SHOW",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                UpcomingFilterChip("All", filter == UpcomingFilter.All) {
-                    filter = UpcomingFilter.All
-                }
-                UpcomingFilterChip("Events", filter == UpcomingFilter.Events) {
-                    filter = UpcomingFilter.Events
-                }
-                UpcomingFilterChip("Tasks", filter == UpcomingFilter.Tasks) {
-                    filter = UpcomingFilter.Tasks
-                }
-                UpcomingFilterChip("Focus", filter == UpcomingFilter.Focus) {
-                    filter = UpcomingFilter.Focus
-                }
-                UpcomingFilterChip("Meetings", filter == UpcomingFilter.Meetings) {
-                    filter = UpcomingFilter.Meetings
-                }
-                UpcomingFilterChip("Holidays", filter == UpcomingFilter.Holidays) {
-                    filter = UpcomingFilter.Holidays
-                }
-
-                calendarNames.forEach { name ->
-                    val candidate = UpcomingFilter.Calendar(name)
-                    UpcomingFilterChip(shortFilterLabel(name), filter == candidate) {
-                        filter = candidate
-                    }
-                }
-
-                activeSpaces.forEach { space ->
-                    val candidate = UpcomingFilter.Space(space.id, space.name)
-                    UpcomingFilterChip(space.name, filter == candidate) {
-                        filter = candidate
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(32.dp))
-
+            Spacer(Modifier.height(34.dp))
             if (dates.isEmpty()) {
                 Text(
                     emptyMessage(filter, window),
@@ -185,14 +138,8 @@ fun UpcomingScreen(
             }
 
             dates.forEach { date ->
-                val dayItems = filteredItems
-                    .filter { it.occursOn(date) }
-                    .sortedWith(
-                        compareBy<DaylineItem> { it.startTime == null }
-                            .thenBy { it.startTime }
-                            .thenBy { it.title }
-                    )
-
+                val dayItems = filteredItems.filter { it.occursOn(date) }
+                    .sortedWith(compareBy<DaylineItem> { it.startTime == null }.thenBy { it.startTime }.thenBy { it.title })
                 UpcomingDay(
                     date = date,
                     today = today,
@@ -205,45 +152,80 @@ fun UpcomingScreen(
         }
 
         FloatingControls(
-            Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = 28.dp),
+            Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 28.dp),
             onMenu = onMenu,
             onToday = onToday,
             onAdd = { onAdd(today) }
         )
     }
-}
 
-@Composable
-private fun UpcomingFilterChip(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null,
-            onClick = onClick
-        ),
-        shape = RoundedCornerShape(16.dp),
-        color = if (selected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.surface,
-        contentColor = if (selected) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onSurface
-    ) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1
-        )
+    if (filterOpen) {
+        ModalBottomSheet(
+            onDismissRequest = { filterOpen = false },
+            containerColor = MaterialTheme.colorScheme.background
+        ) {
+            Column(
+                Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                    .padding(horizontal = 28.dp).padding(bottom = 36.dp)
+            ) {
+                Text("Upcoming filter", style = MaterialTheme.typography.displaySmall)
+                Spacer(Modifier.height(24.dp))
+                FilterSection("WHEN") {
+                    UpcomingWindow.entries.forEach { option ->
+                        FilterRow(option.label, option == window) { window = option }
+                    }
+                }
+                Spacer(Modifier.height(24.dp))
+                FilterSection("SHOW") {
+                    listOf(
+                        UpcomingFilter.All,
+                        UpcomingFilter.Events,
+                        UpcomingFilter.Tasks,
+                        UpcomingFilter.Focus,
+                        UpcomingFilter.Meetings,
+                        UpcomingFilter.Holidays
+                    ).forEach { option ->
+                        FilterRow(filterLabel(option), option == filter) { filter = option }
+                    }
+                    calendarNames.forEach { name ->
+                        val option = UpcomingFilter.Calendar(name)
+                        FilterRow(name, option == filter) { filter = option }
+                    }
+                    activeSpaces.forEach { space ->
+                        val option = UpcomingFilter.Space(space.id, space.name)
+                        FilterRow(space.name, option == filter) { filter = option }
+                    }
+                }
+                Spacer(Modifier.height(18.dp))
+                Text(
+                    "DONE",
+                    modifier = Modifier.clickable { filterOpen = false }.padding(vertical = 12.dp),
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+        }
     }
 }
 
-private fun matchesUpcomingFilter(
-    item: DaylineItem,
-    filter: UpcomingFilter
-): Boolean = when (filter) {
+@Composable
+private fun FilterSection(label: String, content: @Composable ColumnScope.() -> Unit) {
+    Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Spacer(Modifier.height(8.dp))
+    Column(content = content)
+}
+
+@Composable
+private fun FilterRow(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 11.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+        Text(if (selected) "●" else "○", color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+private fun matchesUpcomingFilter(item: DaylineItem, filter: UpcomingFilter): Boolean = when (filter) {
     UpcomingFilter.All -> true
     UpcomingFilter.Events -> item.kind == AgendaKind.EVENT
     UpcomingFilter.Tasks -> item.kind == AgendaKind.TASK
@@ -254,39 +236,27 @@ private fun matchesUpcomingFilter(
     is UpcomingFilter.Space -> item.spaceId == filter.id
 }
 
+private fun filterLabel(filter: UpcomingFilter): String = when (filter) {
+    UpcomingFilter.All -> "All"
+    UpcomingFilter.Events -> "Events"
+    UpcomingFilter.Tasks -> "Tasks"
+    UpcomingFilter.Focus -> "Focus"
+    UpcomingFilter.Meetings -> "Meetings"
+    UpcomingFilter.Holidays -> "Holidays"
+    is UpcomingFilter.Calendar -> filter.name
+    is UpcomingFilter.Space -> filter.name
+}
+
 private fun DaylineItem.isHolidayLike(): Boolean {
-    val haystack = "${calendarName.orEmpty()} $title".lowercase()
-    return listOf(
-        "holiday",
-        "holidays",
-        "public holiday",
-        "feiertag",
-        "feiertage",
-        "bank holiday"
-    ).any { it in haystack }
+    val text = "${calendarName.orEmpty()} $title".lowercase()
+    return listOf("holiday", "public holiday", "feiertag", "bank holiday").any { it in text }
 }
 
 private fun DaylineItem.isMeetingLike(): Boolean {
     if (kind != AgendaKind.EVENT) return false
-    val haystack = title.lowercase()
-    return listOf(
-        "meeting",
-        "meet",
-        "call",
-        "sync",
-        "standup",
-        "stand-up",
-        "1:1",
-        "1-on-1",
-        "appointment",
-        "interview",
-        "zoom",
-        "teams"
-    ).any { it in haystack }
+    val text = title.lowercase()
+    return listOf("meeting", "meet", "call", "sync", "standup", "1:1", "appointment", "interview", "zoom", "teams").any { it in text }
 }
-
-private fun shortFilterLabel(raw: String): String =
-    if (raw.length <= 18) raw else raw.take(17) + "…"
 
 private fun emptyMessage(filter: UpcomingFilter, window: UpcomingWindow): String {
     val whenText = when (window) {
@@ -295,16 +265,7 @@ private fun emptyMessage(filter: UpcomingFilter, window: UpcomingWindow): String
         UpcomingWindow.WEEK -> "in the next 7 days"
         UpcomingWindow.ALL -> "coming up"
     }
-    return when (filter) {
-        UpcomingFilter.All -> "Nothing $whenText."
-        UpcomingFilter.Meetings -> "No meetings $whenText."
-        UpcomingFilter.Holidays -> "No holidays $whenText."
-        UpcomingFilter.Events -> "No events $whenText."
-        UpcomingFilter.Tasks -> "No tasks $whenText."
-        UpcomingFilter.Focus -> "No focus blocks $whenText."
-        is UpcomingFilter.Calendar -> "Nothing $whenText in ${filter.name}."
-        is UpcomingFilter.Space -> "Nothing $whenText in ${filter.name}."
-    }
+    return "No ${filterLabel(filter).lowercase()} $whenText."
 }
 
 @Composable
@@ -316,127 +277,63 @@ private fun UpcomingDay(
     onEdit: (DaylineItem, LocalDate) -> Unit,
     onToggleTask: (DaylineItem, LocalDate) -> Unit
 ) {
-    val accent = items.firstOrNull()?.color?.composeColor()
-        ?: MaterialTheme.colorScheme.onBackground
-
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(bottom = 36.dp),
-        verticalAlignment = Alignment.Top
-    ) {
+    Column(Modifier.fillMaxWidth().padding(bottom = 34.dp)) {
         Text(
-            date.dayOfMonth.toString(),
-            style = MaterialTheme.typography.displayMedium.copy(
-                fontSize = 46.sp,
-                lineHeight = 48.sp
-            ),
-            color = if (date == today) {
-                accent
-            } else {
-                MaterialTheme.colorScheme.onBackground.copy(
-                    alpha = if (date.isBefore(today.plusDays(2))) 1f else .30f
-                )
+            when (date) {
+                today -> "TODAY"
+                today.plusDays(1) -> "TOMORROW"
+                else -> "${date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()).uppercase()} ${date.dayOfMonth}"
             },
-            modifier = Modifier.width(72.dp)
+            style = MaterialTheme.typography.titleMedium
         )
+        Text(
+            date.month.getDisplayName(TextStyle.FULL, Locale.getDefault()),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(12.dp))
 
-        Column(Modifier.weight(1f)) {
+        items.forEach { item ->
+            val done = item.kind == AgendaKind.TASK && item.isCompletedOn(date)
             Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                Modifier.fillMaxWidth().clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { onEdit(item, date) }.padding(vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    item.startTime?.format(TIME) ?: if (item.kind == AgendaKind.TASK) "TODO" else "ALL",
+                    modifier = Modifier.width(62.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Column(Modifier.weight(1f)) {
                     Text(
-                        when {
-                            date == today -> "Today"
-                            date == today.plusDays(1) -> "Tomorrow"
-                            else -> date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
-                        },
-                        style = MaterialTheme.typography.labelMedium
+                        item.title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = if (done) .45f else 1f)
                     )
-
-                    Text(
-                        date.month.getDisplayName(TextStyle.FULL, Locale.getDefault()),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    val meta = buildList {
+                        spaces.firstOrNull { it.id == item.spaceId }?.name?.let(::add)
+                            ?: item.calendarName?.let(::add)
+                        if (item.kind == AgendaKind.TASK) add("${item.estimatedDurationMinutes} min")
+                        if (item.focusCycle != FocusCycle.OFF) add("${item.focusMinutes}/${item.breakMinutes} focus")
+                    }.joinToString(" · ")
+                    if (meta.isNotBlank()) {
+                        Text(meta, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            items.forEach { item ->
-                val done = item.kind == AgendaKind.TASK && item.isCompletedOn(date)
-
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = { onEdit(item, date) }
-                        )
-                        .padding(vertical = 7.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                if (item.kind == AgendaKind.TASK && !item.calendarReadOnly) {
                     Text(
-                        if (done) {
-                            "DONE"
-                        } else {
-                            item.startTime?.format(DateTimeFormatter.ofPattern("HH:mm"))
-                                ?: if (item.kind == AgendaKind.TASK) "TODO" else "ALL"
-                        },
-                        modifier = Modifier.width(64.dp),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = item.color.composeColor().copy(alpha = if (done) .45f else 1f)
+                        if (done) "✓" else "○",
+                        modifier = Modifier.clickable { onToggleTask(item, date) }.padding(8.dp),
+                        style = MaterialTheme.typography.titleMedium
                     )
-
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            item.title,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onBackground.copy(
-                                alpha = if (done) .45f else 1f
-                            )
-                        )
-
-                        val meta = buildList {
-                            spaces.firstOrNull { it.id == item.spaceId }?.name
-                                ?.let(::add)
-                                ?: item.calendarName?.let(::add)
-                            if (item.focusCycle != FocusCycle.OFF) {
-                                add("${item.focusMinutes}/${item.breakMinutes} focus")
-                            }
-                        }.joinToString(" · ")
-
-                        if (meta.isNotBlank()) {
-                            Text(
-                                meta,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    if (item.kind == AgendaKind.TASK && !item.calendarReadOnly) {
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            if (done) "✓" else "○",
-                            modifier = Modifier
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) { onToggleTask(item, date) }
-                                .padding(6.dp),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onBackground.copy(
-                                alpha = if (done) .55f else 1f
-                            )
-                        )
-                    }
                 }
             }
         }
     }
 }
+
+private val TIME = DateTimeFormatter.ofPattern("HH:mm")

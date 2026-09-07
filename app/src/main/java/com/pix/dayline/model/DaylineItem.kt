@@ -38,6 +38,7 @@ data class DaylineItem(
     val bufferBeforeMinutes: Int = 0,
     val bufferAfterMinutes: Int = 0,
     val priority: TaskPriority = TaskPriority.NORMAL,
+    val estimatedDurationMinutes: Int = 30,
     val color: ItemColor = ItemColor.MONO,
     val spaceId: String? = null,
     val details: List<TaskDetail> = emptyList(),
@@ -58,6 +59,14 @@ data class DaylineItem(
             Duration.between(startTime, endTime).toMinutes()
         } else {
             null
+        }
+
+    /** Duration Dayline should reserve when fitting this item into a free slot. */
+    val planningDurationMinutes: Int
+        get() = if (kind == AgendaKind.TASK) {
+            estimatedDurationMinutes.coerceIn(15, 8 * 60)
+        } else {
+            (durationMinutes ?: 60L).toInt().coerceIn(15, 24 * 60)
         }
 
     val focusMinutes: Int
@@ -98,7 +107,9 @@ fun DaylineItem.isCompletedOn(date: LocalDate): Boolean = date in completedDates
 fun DaylineItem.overlaps(other: DaylineItem): Boolean {
     val aStart = startTime ?: return false
     val bStart = other.startTime ?: return false
-    val aEnd = endTime?.takeIf { it.isAfter(aStart) } ?: aStart.plusHours(1)
-    val bEnd = other.endTime?.takeIf { it.isAfter(bStart) } ?: bStart.plusHours(1)
+    val aEnd = endTime?.takeIf { it.isAfter(aStart) }
+        ?: aStart.plusMinutes(if (kind == AgendaKind.TASK) estimatedDurationMinutes.toLong() else 60L)
+    val bEnd = other.endTime?.takeIf { it.isAfter(bStart) }
+        ?: bStart.plusMinutes(if (other.kind == AgendaKind.TASK) other.estimatedDurationMinutes.toLong() else 60L)
     return aStart < bEnd && bStart < aEnd
 }

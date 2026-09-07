@@ -1,126 +1,94 @@
-# Dayline v0.15.4.beta — Validation Report
+# Dayline v0.16.0.beta — Validation Report
 
-This report tracks the current v0.15.4.beta source state. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current **v0.16.0.beta / versionCode 1600** source. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
-- Beta version target: **0.15.4.beta / versionCode 1504**.
-- Static project validator must pass.
-- Beta/Play flavor and permission separation must remain intact.
-- Tagged beta workflow verifies the signed APK's embedded `versionName` and `versionCode` against the Git tag before publication.
-- Tagged beta workflow requires `docs/releases/<tag>.md` with **Added / Changed / Fixed** sections and publishes that file as the GitHub release body used by the in-app updater.
-- `docs/releases/v0.15.4.beta.md` exists for this tag.
-- GitHub beta updater requires a release to be newer by both semantic version and Android `versionCode`.
-- Proprietary Nothing `glyph-matrix-sdk-2.0.aar` remains absent from source and is fetched only by beta CI.
-- Play workflow does not fetch/package the Glyph Matrix SDK.
-- Automatic Android app-data backup remains disabled.
-- Notification seconds-chronometer / `HH:mm:ss` regression scan remains required.
-- Merge-marker / duplicate-import scan remains required.
+- Beta target: **0.16.0.beta / 1600**.
+- `docs/releases/v0.16.0.beta.md` contains concise **Added / Changed / Fixed** updater notes.
+- Beta/Play flavor separation remains intact; Play stays on the stable base version and does not package the Nothing SDK.
+- Tagged builds must verify signed APK versionName/versionCode against tag `v0.16.0.beta`.
+- Static validation, Beta debug compile and Play debug compile must all pass before tagging.
 
-## Today interaction validation
+## Planning engine
 
-The v0.15 Today timeline uses separate gesture ownership.
+`PlanningEngine` is deterministic and local-only.
 
-- Long-press + drag on the **event body** moves start and end together in 15-minute steps.
-- Dragging the **bottom handle** changes only `endTime`; it cannot bubble into the move gesture.
-- The changing end time is shown live as `END HH:mm` while resizing.
-- The left-side end label and event rail height preview the resized duration before release.
-- Minimum resized duration is 15 minutes.
-- Gap/empty-timeline taps still create an event at the tapped 15-minute time.
-- Current-time marker uses a quieter monochrome line and Today spacing is less crowded.
-- Direct Today move/resize of a recurring item applies to the visible occurrence, not the entire master series.
+- Free-time calculation considers only occurrences on the requested date.
+- Busy ranges are merged before gaps are emitted.
+- Event/task buffers extend busy intervals.
+- Un-timed tasks do not consume a time interval.
+- Scheduled tasks without an explicit end reserve `estimatedDurationMinutes`.
+- Fit suggestions align starts to 15-minute boundaries and search at most seven days by default.
+- No calendar/event/task payload is sent to a remote planning service.
 
-## Android Calendar two-way validation
+## Month + day preview
 
-For Dayline events with `calendarEventId`, Calendar Provider reconciliation handles both directions.
+- Calendar opens as a clean month grid.
+- Each populated day shows up to three compact item indicators instead of large event blocks.
+- Today has a distinct monochrome treatment.
+- Tapping a date opens a Day preview sheet.
+- Day preview shows event/task counts, ordered agenda rows and up to four free-time windows.
+- Tasks can still be completed from the preview and items open the exact date occurrence.
 
-- Dayline edits continue to write through `AndroidCalendarSync.upsert()`.
-- Provider deletion removes the mapped local Dayline row.
-- Provider changes to title, start date/time, end time/all-day state, RRULE, EXDATE and calendar placement are pulled back into the mapped Dayline row.
-- `DaylineApp` compares the full reconciled list, not only list size, so same-count edits are persisted.
-- Reconciled changes rebuild reminders/Now Activity and refresh widgets.
-- Provider query failures remain conservative and keep local data instead of deleting it.
-- External recurring generated instances remain read-only until provider-native per-occurrence exception editing is implemented.
+## Task duration + Fit into my day
 
-## Recurrence validation
+- `DaylineItem.estimatedDurationMinutes` defaults to 30 minutes and is persisted in Dayline JSON.
+- Existing backups/items without the field safely load with the default.
+- Task Detail exposes an Estimate row cycling 15 / 30 / 45 / 60 / 90 / 120 minutes.
+- Changing a scheduled task estimate updates its end time.
+- Fit into my day shows the next matching free blocks and schedules the task without converting it into an event.
 
-- **This occurrence** is the safe default when opening a recurring occurrence.
-- **This occurrence** excludes the selected date from the master and creates a detached one-off carrying the edited date/time.
-- **This + following** closes the old segment the day before the selected occurrence and starts a linked new segment.
-- Past exclusions stay with the old segment; current/future exclusions move to the new segment.
-- **Entire series** preserves the master identity/provider mapping and does not accidentally adopt the opened occurrence date unless the user explicitly changes the date.
-- Recurring Today drag/resize uses **This occurrence** semantics and supports Undo.
-- The delete affordance explicitly says **Delete series** for recurring masters so it does not imply a per-occurrence delete that is not implemented there.
+## Event detail + Quick Move
 
-## Upcoming validation
+- Event taps open a compact read-first detail sheet rather than the full editor immediately.
+- The sheet shows occurrence date, start/end, duration, Space/calendar and recurrence metadata.
+- Edit remains a separate action.
+- Quick Move uses real free slots for Later today, Tomorrow and Next free slot.
+- One-off events move in place with Undo.
+- Recurring Quick Move detaches only the selected occurrence through `SeriesEditor.THIS_OCCURRENCE` and supports Undo.
+- Read-only provider events may be viewed but cannot be edited or moved.
 
-Upcoming supports two independent dimensions:
+## Upcoming cleanup
 
-- **When:** Today / Tomorrow / 7 days / All.
-- **Show:** All / Events / Tasks / Focus / Meetings / Holidays / calendar / Space.
+- Upcoming defaults to the next seven days.
+- The permanent WHEN/SHOW chip rows are removed.
+- One compact summary opens the Filter sheet.
+- Filter sheet preserves Today / Tomorrow / 7 days / All and All / Events / Tasks / Focus / Meetings / Holidays / calendar / Space choices.
+- Results remain grouped by Today, Tomorrow or date.
+- Task duration is shown as lightweight row metadata.
 
-Rows open the exact occurrence date. Task completion is a separate control so tapping the task itself no longer unexpectedly marks it done.
+## Today ↔ Upcoming swipe
 
-## Notification / Now Activity reliability
+- Swipe left on Today transitions to Upcoming.
+- Swipe right on Upcoming transitions to Today.
+- Swipe transitions use ~300 ms directional horizontal slide plus a light fade.
+- Vertical timeline scrolling remains separate from horizontal gesture detection.
+- Menu navigation remains available and unchanged.
 
-- Reminder alarms are rebuilt on boot and app replacement.
-- Reminder and Now Activity schedules are also rebuilt after manual clock changes, timezone changes and date changes.
-- Exact reminder scheduling falls back to `setAndAllowWhileIdle` if exact-alarm permission is unavailable or changes between the permission check and schedule call.
-- Deleting/canceling an item clears both its alarm and any shown reminder notification.
-- Now Activity retains minute-level clean text rather than Android's seconds chronometer.
+## Beta diagnostics
 
-## Navigation validation
+- Available only in the GitHub beta channel.
+- Tap **Settings → About → Build** five times to open it.
+- Reports version/code/commit, update channel/status, Calendar sync status/time and Glyph hardware availability.
+- Diagnostics deliberately do not claim a Glyph transport connection state when the SDK does not expose a reliable one.
 
-Navigation selection keeps a fixed 16dp indicator slot and a fixed-size dot. Selection changes color/opacity only, so rows do not shift horizontally when selected.
+## Existing v0.15 reliability baseline
 
-## Glyph reliability + Focus readability
-
-The conservative Glyph transport introduced in v0.15.3 remains unchanged:
-
-- SDK callbacks are posted to the **main looper** before they mutate connection state.
-- `onServiceDisconnected` keeps the existing manager/callback binding alive first, allowing Nothing/Android to reconnect the proxy service naturally.
-- Dayline waits about **5 seconds** before rebuilding a binding that remains disconnected.
-- A forced recovery performs a clean `unInit()` before obtaining/initializing the manager again.
-- Repeated recovery attempts back off up to **30 seconds** rather than looping every 750 ms.
-- Only the newest pending frame is retained while disconnected.
-- Connection generations reject callbacks belonging to an old binding.
-- Duplicate unchanged frames are suppressed inside `NothingGlyphBridge`.
-- A real send failure clears the delivered-frame cache and enters the same delayed recovery path.
-- Render ticks remain protected so one unexpected renderer exception cannot permanently terminate later animation ticks.
-
-The Focus checkpoint schedule remains unchanged:
-
-- phase start;
-- every five-minute remaining checkpoint;
-- 1:00 remaining;
-- each announcement lasts 30 seconds;
-- transition remains `eyes → CENTER → time → CENTER → eyes`.
-
-v0.15.4 keeps the stacked presentation but narrows each digit from **5 columns to 4 columns**. Each two-digit line is now **9 pixels wide** and centered at x=2..10, leaving two empty columns at both sides. Minutes stay on rows 1–5 and seconds on rows 7–11, preserving leading zeros while keeping the visible timer clear of the circular Matrix edge.
-
-## Update sheet validation
-
-The updater sheet reads the curated GitHub release body and now parses it into structured UI instead of rendering raw Markdown.
-
-- `## Added`, `## Changed` and `## Fixed` headings become separate in-app groups.
-- Markdown heading markers, bullet markers, bold markers and inline backticks are stripped from visible updater text.
-- A release without recognized sections still falls back to a simple **Changed** list.
-- The primary action is a full-width **Download & update** button.
-- After download/checksum/package/version verification succeeds, Dayline immediately calls the Android installer.
-- If Android requires install permission, the verified APK is kept and the action becomes **Continue update**.
-- GitHub release navigation remains a secondary **View on GitHub** action.
-
-## Settings / widget ownership
-
-The v0.14.8 Settings cleanup remains intact. App Settings has no widget configuration section; widget appearance/content controls belong only to each widget's configuration screen.
+- Today body move and bottom-handle resize remain separate.
+- Android Calendar mapped events continue two-way reconciliation.
+- Recurrence edit scopes remain This occurrence / This + following / Entire series.
+- Reminder and Now Activity rescheduling remains enabled across reboot/time/timezone changes.
+- Updater uses curated Added / Changed / Fixed release notes with a distinct Download & update button.
+- Glyph keeps the conservative lifecycle/recovery strategy and the compact stacked Focus time display; v0.16 adds no new Glyph behavior.
 
 ## Android compile gate
 
-Before tagging `v0.15.4.beta`, GitHub Actions must pass:
+Before tagging `v0.16.0.beta`, GitHub Actions must pass:
 
 ```text
 :app:assembleBetaDebug
 :app:assemblePlayDebug
 ```
 
-For tag `v0.15.4.beta`, the tagged job additionally builds `:app:assembleBetaRelease`, verifies tag/APK version identity and signature, validates the release-note file, generates the SHA-256 checksum and publishes the prerelease.
+The tag job additionally builds `:app:assembleBetaRelease`, verifies tag/APK identity and signature, validates the release-note file, generates SHA-256 and publishes the prerelease.

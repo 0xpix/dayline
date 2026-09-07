@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.16.0.beta — Planning
+
+### Added
+- Added a planning-first Month view with compact multi-item day indicators and a tap-to-open Day preview.
+- Added local free-time detection that merges busy blocks, respects buffers and exposes useful gaps without network/AI processing.
+- Added persistent task duration estimates plus **Fit into my day** suggestions for matching free blocks over the next seven days.
+- Added a compact event detail sheet with **Quick Move** actions for Later today, Tomorrow and Next free slot.
+- Added hidden beta diagnostics behind five taps on **Settings → About → Build**.
+- Added swipe navigation: swipe left on Today to open Upcoming; swipe right on Upcoming to return to Today.
+
+### Changed
+- Added a directional horizontal slide/fade animation between Today and Upcoming.
+- Moved Upcoming's crowded permanent filter chip rows into one compact Filter sheet while preserving Today/Tomorrow/7 days/All and event/task/focus/meeting/holiday/calendar/Space filtering.
+- Month selection now opens a day preview with its agenda and free-time windows instead of permanently expanding an agenda under the grid.
+- Scheduled tasks now reserve their estimated duration in free-time and overlap calculations.
+
+### Fixed
+- Quick Move on a recurring event now detaches only the selected occurrence rather than moving the master series.
+- Kept the v0.15 Daily Flow, updater, notification, Calendar sync and Glyph reliability work intact.
+- Bumped beta versionCode to **1600** and beta versionName to `0.16.0.beta`.
+
 ## 0.15.4.beta — Update sheet + Focus timer polish
 
 ### Added

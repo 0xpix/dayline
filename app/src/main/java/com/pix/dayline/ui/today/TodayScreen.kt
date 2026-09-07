@@ -1,6 +1,7 @@
 package com.pix.dayline.ui.today
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -18,12 +19,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.pix.dayline.model.DaylineItem
 import com.pix.dayline.model.occursOn
@@ -50,10 +53,12 @@ fun TodayScreen(
     onToggleTask: (DaylineItem, LocalDate) -> Unit,
     onReschedule: (DaylineItem) -> Unit,
     onResize: (DaylineItem) -> Unit = onReschedule,
-    onScheduleTask: (DaylineItem) -> Unit = onReschedule
+    onScheduleTask: (DaylineItem) -> Unit = onReschedule,
+    onSwipeUpcoming: () -> Unit = {}
 ) {
     var now by remember { mutableStateOf(LocalTime.now()) }
     var today by remember { mutableStateOf(LocalDate.now()) }
+    var dragTotal by remember { mutableFloatStateOf(0f) }
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
 
@@ -72,23 +77,29 @@ fun TodayScreen(
         }
     }
 
-    val todaysItems = items
-        .filter { it.occursOn(today) }
+    val todaysItems = items.filter { it.occursOn(today) }
         .sortedWith(compareBy<DaylineItem> { it.startTime == null }.thenBy { it.startTime })
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+            .pointerInput(onSwipeUpcoming) {
+                detectHorizontalDragGestures(
+                    onDragStart = { dragTotal = 0f },
+                    onHorizontalDrag = { _, amount -> dragTotal += amount },
+                    onDragCancel = { dragTotal = 0f },
+                    onDragEnd = {
+                        if (dragTotal < -120f) onSwipeUpcoming()
+                        dragTotal = 0f
+                    }
+                )
+            }
             .padding(
                 top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding(),
                 bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
             )
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
+            modifier = Modifier.fillMaxSize().verticalScroll(scrollState)
                 .padding(start = 32.dp, end = 32.dp, top = 48.dp, bottom = 138.dp)
         ) {
             if (showOrb) {
@@ -97,26 +108,30 @@ fun TodayScreen(
             }
 
             Text(
-                text = today.format(DateTimeFormatter.ofPattern("EEE · dd MMM", Locale.getDefault())).uppercase(Locale.getDefault()),
+                today.format(DateTimeFormatter.ofPattern("EEE · dd MMM", Locale.getDefault())).uppercase(Locale.getDefault()),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(9.dp))
-
             Text(
-                text = greetingText(now, today),
+                greetingText(now, today),
                 style = MaterialTheme.typography.displayMedium,
                 color = MaterialTheme.colorScheme.onBackground
             )
-
             Spacer(Modifier.height(14.dp))
             Text(
-                text = todaySummary(todaysItems),
+                todaySummary(todaysItems),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Swipe left for Upcoming",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .65f)
+            )
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(30.dp))
             DayTimeline(
                 items = todaysItems,
                 date = today,
@@ -132,9 +147,7 @@ fun TodayScreen(
         }
 
         FloatingControls(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = 28.dp),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 28.dp),
             onMenu = onMenu,
             onToday = ::scrollToNow,
             onAdd = { onAdd(today) }
@@ -145,7 +158,8 @@ fun TodayScreen(
 private fun todaySummary(items: List<DaylineItem>): String {
     val intervals = items.mapNotNull { item ->
         val start = item.startTime ?: return@mapNotNull null
-        val end = item.endTime?.takeIf { it.isAfter(start) } ?: start.plusHours(1)
+        val end = item.endTime?.takeIf { it.isAfter(start) }
+            ?: start.plusMinutes(if (item.kind.name == "TASK") item.estimatedDurationMinutes.toLong() else 60L)
         val startMinute = (start.hour * 60 + start.minute - item.bufferBeforeMinutes).coerceAtLeast(0)
         val endMinute = (end.hour * 60 + end.minute + item.bufferAfterMinutes).coerceAtMost(1440)
         startMinute to endMinute
@@ -190,7 +204,6 @@ private fun greetingText(now: LocalTime, date: LocalDate): String {
         in 17..21 -> "Good evening"
         else -> "Good night"
     }
-
     val dayName = date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
     val monthName = date.month.getDisplayName(TextStyle.FULL, Locale.getDefault())
     return "$greeting.\n$dayName, $monthName ${ordinal(date.dayOfMonth)}."

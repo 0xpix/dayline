@@ -15,9 +15,11 @@ import java.lang.reflect.Proxy
  * Glyph Matrix AAR is absent. GitHub Actions downloads the official AAR before
  * building distributable APKs, so these classes are present in those APKs.
  *
- * The Nothing service can be restarted by the OS while an AOD toy is alive.
- * Dayline therefore treats every disconnect/send failure as recoverable and
- * reconnects while retaining only the newest pending frame.
+ * The Matrix SDK owns a bound proxy service. Keep that lifecycle deliberately
+ * conservative: initialize once while the Toy is bound, retain only the newest
+ * pending frame while disconnected, and give the system service time to recover
+ * naturally. Only if it stays disconnected does Dayline perform a clean
+ * unInit -> init recovery with backoff.
  */
 class NothingGlyphBridge(
     private val context: Context,
@@ -27,15 +29,22 @@ class NothingGlyphBridge(
     private var callback: Any? = null
     private var connected = false
     private var connecting = false
+    private var closed = false
     private var pendingFrame: IntArray? = null
     private var connectionGeneration = 0L
+    private var recoveryScheduled = false
+    private var recoveryDelayMs = INITIAL_RECOVERY_DELAY_MS
+    private var onReadyCallback: (() -> Unit)? = null
 
-    private val reconnectHandler = Handler(Looper.getMainLooper())
-    private val reconnectRunnable = Runnable {
-        if (!connected) {
-            invalidateConnection()
-            connect()
-        }
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val recoveryRunnable = Runnable {
+        recoveryScheduled = false
+        if (closed || connected) return@Runnable
+
+        Log.w(TAG, "Glyph Matrix still disconnected; rebuilding SDK binding")
+        teardownBinding()
+        recoveryDelayMs = (recoveryDelayMs * 2L).coerceAtMost(MAX_RECOVERY_DELAY_MS)
+        initializeBinding()
     }
 
     fun status(): GlyphHardwareStatus {
@@ -62,24 +71,97 @@ class NothingGlyphBridge(
                 available = false,
                 matrixSize = matrix,
                 deviceLabel = if (nothing) Build.MODEL else "Unsupported device",
-                detail = if (nothing) "Dayline v0.14 targets the 13×13 Phone (4a) Pro matrix." else null
+                detail = if (nothing) "Dayline targets the 13×13 Phone (4a) Pro matrix." else null
             )
         }
     }
 
     fun connect(onReady: (() -> Unit)? = null) {
+        if (onReady != null) onReadyCallback = onReady
+        closed = false
+
         if (connected) {
             onReady?.invoke()
             return
         }
         if (connecting) return
 
-        // A non-null manager while disconnected is stale. This was the old
-        // freeze path: show() queued frames forever while connect() returned.
-        if (manager != null) invalidateConnection()
+        // If init() already established the SDK binding, do not churn it just
+        // because the proxy service is temporarily disconnected. Android/Nothing
+        // may reconnect the existing binding on its own.
+        if (manager != null) {
+            scheduleRecovery()
+            return
+        }
+
+        initializeBinding()
+    }
+
+    /**
+     * @return true only when the frame reached the SDK call immediately.
+     * A false result means the newest frame is retained for delivery after the
+     * existing binding reconnects or the conservative recovery watchdog fires.
+     */
+    fun show(frame: IntArray): Boolean {
+        if (frame.size != GlyphMatrixPatterns.SIZE * GlyphMatrixPatterns.SIZE) return false
+
+        if (!connected) {
+            pendingFrame = frame.copyOf()
+            if (manager == null && !connecting) {
+                connect()
+            } else {
+                scheduleRecovery()
+            }
+            return false
+        }
+
+        if (sendFrame(frame)) return true
+
+        // A frame-send exception is a real transport failure, but repeatedly
+        // tearing down/rebinding every render tick made the Matrix less stable.
+        // Queue the newest frame and allow one delayed recovery attempt.
+        pendingFrame = frame.copyOf()
+        connected = false
+        connecting = false
+        recoveryDelayMs = INITIAL_RECOVERY_DELAY_MS
+        scheduleRecovery()
+        return false
+    }
+
+    fun close() {
+        closed = true
+        mainHandler.removeCallbacks(recoveryRunnable)
+        recoveryScheduled = false
+        connectionGeneration++
+
+        val instance = manager
+        if (instance != null) {
+            runCatching {
+                val cls = instance.javaClass
+                if (appMatrix) {
+                    cls.methods.firstOrNull { it.name == "closeAppMatrix" && it.parameterCount == 0 }
+                        ?.invoke(instance)
+                } else {
+                    cls.methods.firstOrNull { it.name == "turnOff" && it.parameterCount == 0 }
+                        ?.invoke(instance)
+                }
+            }.onFailure { Log.w(TAG, "Unable to close Glyph Matrix display", it) }
+            safeUnInit(instance)
+        }
+
+        connected = false
+        connecting = false
+        pendingFrame = null
+        manager = null
+        callback = null
+        onReadyCallback = null
+        recoveryDelayMs = INITIAL_RECOVERY_DELAY_MS
+    }
+
+    private fun initializeBinding() {
+        if (closed || connected || connecting) return
 
         connecting = true
-        reconnectHandler.removeCallbacks(reconnectRunnable)
         val generation = ++connectionGeneration
 
         runCatching {
@@ -94,102 +176,79 @@ class NothingGlyphBridge(
                 callbackClass.classLoader,
                 arrayOf(callbackClass)
             ) { _, method, _ ->
-                if (generation != connectionGeneration) return@newProxyInstance null
-
-                when (method.name) {
-                    "onServiceConnected" -> {
-                        val registered = runCatching { register(instance, managerClass) }
-                            .onFailure { Log.w(TAG, "Glyph registration failed", it) }
-                            .isSuccess
-
-                        connecting = false
-                        if (!registered) {
-                            connected = false
-                            scheduleReconnect()
-                            return@newProxyInstance null
-                        }
-
-                        connected = true
-                        reconnectHandler.removeCallbacks(reconnectRunnable)
-
-                        val pending = pendingFrame
-                        if (pending != null) {
-                            if (sendFrame(pending)) {
-                                pendingFrame = null
-                            } else {
-                                pendingFrame = pending.copyOf()
-                                recoverConnection()
-                                return@newProxyInstance null
-                            }
-                        }
-                        onReady?.invoke()
+                // SDK callbacks may arrive on a binder thread. All bridge state
+                // is owned by the main looper to avoid callback/render races.
+                mainHandler.post {
+                    if (closed || generation != connectionGeneration || manager !== instance) {
+                        return@post
                     }
-
-                    "onServiceDisconnected" -> {
-                        Log.w(TAG, "Glyph Matrix service disconnected; reconnecting")
-                        recoverConnection()
+                    when (method.name) {
+                        "onServiceConnected" -> handleServiceConnected(instance, managerClass)
+                        "onServiceDisconnected" -> handleServiceDisconnected()
                     }
                 }
                 null
             }
             callback = proxy
             managerClass.getMethod("init", callbackClass).invoke(instance, proxy)
+
+            // If the SDK never delivers onServiceConnected, recover later. Do
+            // not repeatedly re-init on every requested animation frame.
+            scheduleRecovery()
         }.onFailure {
             Log.w(TAG, "Glyph Matrix bridge unavailable", it)
+            val instance = manager
+            if (instance != null) safeUnInit(instance)
             connecting = false
             connected = false
             manager = null
             callback = null
-            scheduleReconnect()
+            scheduleRecovery()
         }
     }
 
-    /**
-     * @return true only when the frame reached the SDK call immediately.
-     * A false result means the newest frame was retained and reconnection is in
-     * progress; callers should retry rather than treating it as delivered.
-     */
-    fun show(frame: IntArray): Boolean {
-        if (frame.size != GlyphMatrixPatterns.SIZE * GlyphMatrixPatterns.SIZE) return false
+    private fun handleServiceConnected(instance: Any, managerClass: Class<*>) {
+        val registered = runCatching { register(instance, managerClass) }
+            .onFailure { Log.w(TAG, "Glyph registration failed", it) }
+            .isSuccess
 
-        if (!connected) {
-            pendingFrame = frame.copyOf()
-            connect()
-            return false
+        connecting = false
+        if (!registered) {
+            connected = false
+            recoveryDelayMs = INITIAL_RECOVERY_DELAY_MS
+            scheduleRecovery()
+            return
         }
 
-        if (sendFrame(frame)) return true
+        connected = true
+        recoveryDelayMs = INITIAL_RECOVERY_DELAY_MS
+        mainHandler.removeCallbacks(recoveryRunnable)
+        recoveryScheduled = false
 
-        pendingFrame = frame.copyOf()
-        recoverConnection()
-        return false
-    }
-
-    fun close() {
-        reconnectHandler.removeCallbacks(reconnectRunnable)
-        connectionGeneration++
-
-        val instance = manager
-        if (instance != null) {
-            runCatching {
-                val cls = instance.javaClass
-                if (appMatrix) {
-                    cls.methods.firstOrNull { it.name == "closeAppMatrix" && it.parameterCount == 0 }
-                        ?.invoke(instance)
-                } else {
-                    cls.methods.firstOrNull { it.name == "turnOff" && it.parameterCount == 0 }
-                        ?.invoke(instance)
-                }
-                cls.methods.firstOrNull { it.name == "unInit" && it.parameterCount == 0 }
-                    ?.invoke(instance)
+        val pending = pendingFrame
+        if (pending != null) {
+            if (sendFrame(pending)) {
+                pendingFrame = null
+            } else {
+                connected = false
+                scheduleRecovery()
+                return
             }
         }
 
+        onReadyCallback?.invoke()
+    }
+
+    private fun handleServiceDisconnected() {
+        Log.w(TAG, "Glyph Matrix service disconnected; waiting for proxy recovery")
         connected = false
         connecting = false
-        pendingFrame = null
-        manager = null
-        callback = null
+        recoveryDelayMs = INITIAL_RECOVERY_DELAY_MS
+
+        // Keep manager/callback alive here. The SDK binding can reconnect
+        // without Dayline calling init() again. The watchdog only rebuilds the
+        // binding if that natural recovery does not happen in time.
+        scheduleRecovery()
     }
 
     private fun sendFrame(frame: IntArray): Boolean {
@@ -202,26 +261,34 @@ class NothingGlyphBridge(
             method.invoke(instance, frame)
             true
         }.onFailure {
-            Log.w(TAG, "Unable to send Glyph Matrix frame; reconnecting", it)
+            Log.w(TAG, "Unable to send Glyph Matrix frame", it)
         }.getOrDefault(false)
     }
 
-    private fun recoverConnection() {
-        invalidateConnection()
-        scheduleReconnect()
-    }
-
-    private fun invalidateConnection() {
+    private fun teardownBinding() {
+        mainHandler.removeCallbacks(recoveryRunnable)
+        recoveryScheduled = false
         connectionGeneration++
+
+        manager?.let(::safeUnInit)
         connected = false
         connecting = false
         manager = null
         callback = null
     }
 
-    private fun scheduleReconnect() {
-        reconnectHandler.removeCallbacks(reconnectRunnable)
-        reconnectHandler.postDelayed(reconnectRunnable, RECONNECT_DELAY_MS)
+    private fun safeUnInit(instance: Any) {
+        runCatching {
+            instance.javaClass.methods
+                .firstOrNull { it.name == "unInit" && it.parameterCount == 0 }
+                ?.invoke(instance)
+        }.onFailure { Log.w(TAG, "Unable to unInit Glyph Matrix bridge", it) }
+    }
+
+    private fun scheduleRecovery() {
+        if (closed || connected || recoveryScheduled) return
+        recoveryScheduled = true
+        mainHandler.postDelayed(recoveryRunnable, recoveryDelayMs)
     }
 
     private fun register(instance: Any, managerClass: Class<*>) {
@@ -245,7 +312,8 @@ class NothingGlyphBridge(
 
     companion object {
         private const val TAG = "DaylineGlyph"
-        private const val RECONNECT_DELAY_MS = 750L
+        private const val INITIAL_RECOVERY_DELAY_MS = 5_000L
+        private const val MAX_RECOVERY_DELAY_MS = 30_000L
         private const val MANAGER_CLASS = "com.nothing.ketchum.GlyphMatrixManager"
         private const val GLYPH_CLASS = "com.nothing.ketchum.Glyph"
         private const val COMMON_CLASS = "com.nothing.ketchum.Common"

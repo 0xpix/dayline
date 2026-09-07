@@ -53,14 +53,11 @@ object GithubBetaUpdater {
                         val version = tag.removePrefix("v").removePrefix("V")
                         if (version.isBlank() || !DaylineVersion.hasNumericVersion(version)) continue
 
-                        // Beta users can move to a newer beta or a newer stable build.
-                        // Drafts are ignored. GitHub prereleases are intentionally included.
                         val assets = json.optJSONArray("assets") ?: JSONArray()
                         var apkName: String? = null
                         var apkUrl: String? = null
                         var checksumUrl: String? = null
 
-                        // Prefer a beta/tag-matching APK when a release carries several APKs.
                         val apkCandidates = buildList {
                             for (assetIndex in 0 until assets.length()) {
                                 val asset = assets.optJSONObject(assetIndex) ?: continue
@@ -108,8 +105,17 @@ object GithubBetaUpdater {
                     }
                 }
 
+                // A release must be newer in BOTH human version and Android
+                // versionCode terms. This prevents the UI from offering a tag whose
+                // APK Android would reject as the same/older installed build.
                 val newest = parsed
-                    .filter { DaylineVersion.compare(it.versionName, currentVersion) > 0 }
+                    .filter {
+                        DaylineVersion.isInstallableUpdate(
+                            candidateVersion = it.versionName,
+                            currentVersion = currentVersion,
+                            currentVersionCode = BuildConfig.VERSION_CODE.toLong()
+                        )
+                    }
                     .maxWithOrNull(
                         Comparator { left, right ->
                             DaylineVersion.compare(left.versionName, right.versionName)
@@ -140,6 +146,16 @@ object GithubBetaUpdater {
     suspend fun download(context: Context, release: BetaRelease): Result<File> =
         withContext(Dispatchers.IO) {
             runCatching {
+                check(
+                    DaylineVersion.isInstallableUpdate(
+                        candidateVersion = release.versionName,
+                        currentVersion = BuildConfig.VERSION_NAME,
+                        currentVersionCode = BuildConfig.VERSION_CODE.toLong()
+                    )
+                ) {
+                    "This Dayline beta is already installed or is not newer than your current build."
+                }
+
                 val url = release.apkUrl ?: error("This release does not contain an APK")
                 val updateDir = File(context.cacheDir, "updates").apply { mkdirs() }
                 updateDir.listFiles()?.forEach { old -> if (old.isFile) old.delete() }
@@ -227,7 +243,7 @@ object GithubBetaUpdater {
             info.versionCode.toLong()
         }
         check(downloadedCode > BuildConfig.VERSION_CODE.toLong()) {
-            "Downloaded APK is not newer than this Dayline beta"
+            "This Dayline beta is already installed or the downloaded APK has an older versionCode."
         }
     }
 
@@ -236,14 +252,20 @@ object GithubBetaUpdater {
         return value
             .lineSequence()
             .map { line ->
-                line.trim()
+                val trimmed = line.trim()
                     .removePrefix("### ")
                     .removePrefix("## ")
                     .removePrefix("# ")
                     .removePrefix("- ")
                     .removePrefix("* ")
+                if (trimmed.startsWith("Full Changelog", ignoreCase = true)) {
+                    "Full changelog available on GitHub."
+                } else {
+                    trimmed
+                }
             }
-            .filter { it.isNotBlank() }
+            .filter { it.isNotBlank() && !it.startsWith("http://") && !it.startsWith("https://") }
+            .distinct()
             .take(12)
             .joinToString("\n")
             .take(1_500)

@@ -26,6 +26,10 @@ android {
             dimension = "distribution"
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
+            // Nothing's Glyph Matrix SDK 2.0 declares minSdk 33. Keep this
+            // requirement isolated to the beta/Glyph build so the normal Play
+            // build continues to support Dayline's global minSdk 26.
+            minSdk = 33
             buildConfigField("boolean", "GITHUB_BETA_UPDATES", "true")
             buildConfigField("String", "UPDATE_CHANNEL", "\"GitHub beta\"")
         }

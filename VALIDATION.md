@@ -1,6 +1,6 @@
-# Dayline v0.14.6.beta — Validation Report
+# Dayline v0.14.7.beta — Validation Report
 
-This report tracks the current v0.14.6.beta source state. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current v0.14.7.beta source state. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
@@ -50,19 +50,18 @@ The Glyph runtime suppresses identical consecutive frames to reduce visible twit
 
 ## Focus behavior
 
-Focus remains the only automatic Dayline layout change on the live Glyph face.
+Focus remains the only automatic Dayline timing behavior on the live Glyph face.
 
-- The old circular progress perimeter has been removed.
-- Normal idle mode retains the existing large 5×5 rounded eyes.
-- During Focus/Rest, compact expressive eyes render only in the top area of the matrix.
-- Focus Look Left and Look Right shift the complete compact eye pair left/right, matching normal idle direction behavior.
-- Rows 5–7 stay empty as visual separation.
-- Rows 8–12 are reserved for an `MM:SS` countdown.
-- The compact numeric renderer uses a 3×5 digit font and a one-column colon, fitting exactly across all 13 columns.
-- 25/5, 50/10 and custom focus cycles are supported.
-- The displayed value is the actual remaining time in the current Focus or Rest phase.
-- Paused sessions use the persisted paused remaining time.
-- Timer changes and eye changes share the same duplicate-frame guard, so hardware frames are only sent when something visible changes.
+- The old circular progress perimeter and persistent top-eyes/bottom-timer layout are both removed.
+- Focus and Rest keep the normal large expressive eyes outside announcement windows.
+- A phase announces its start, every five-minute remaining checkpoint, and 1:00 remaining.
+- Each announcement replaces the eyes with a centred `MM:SS` timer for **30 seconds**.
+- The transition contract is `eyes → CENTER → time → CENTER → eyes`.
+- The timer remains live during the 30-second announcement window.
+- 25/5, 50/10 and custom focus cycles derive checkpoint times automatically.
+- Paused sessions use the persisted paused remaining time while the announcement is visible.
+- The `MM:SS` renderer uses a 3×5 digit font and one-column colon across all 13 columns.
+- Timer and eye frames share the same duplicate-frame guard, so hardware frames are only sent when something visible changes.
 
 ## Brightness behavior
 
@@ -87,11 +86,11 @@ Nothing's documentation names `Glyph.DEVICE_25111p`; Dayline first attempts that
 
 ## Android compile gate
 
-Before tagging `v0.14.6.beta`, GitHub Actions must pass:
+Before tagging `v0.14.7.beta`, GitHub Actions must pass:
 
 ```text
 :app:assembleBetaDebug
 :app:assemblePlayDebug
 ```
 
-For tag `v0.14.6.beta`, the tagged job additionally builds `:app:assembleBetaRelease`, verifies tag/APK version identity, verifies the signature, generates the SHA-256 checksum and publishes the GitHub prerelease.
+For tag `v0.14.7.beta`, the tagged job additionally builds `:app:assembleBetaRelease`, verifies tag/APK version identity, verifies the signature, generates the SHA-256 checksum and publishes the GitHub prerelease.

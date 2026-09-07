@@ -1,6 +1,6 @@
 # Dayline Glyph Matrix integration
 
-Dayline v0.15.2.beta provides an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
+Dayline v0.15.3.beta provides an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
 
 ## Dayline behavior
 
@@ -35,7 +35,7 @@ Outside those 30-second windows, Focus does not alter the face. The normal Cente
 
 ### v0.15 timer layout
 
-The timing logic is unchanged; only readability is improved. A Focus time such as `14:54` is rendered as two large centered lines:
+The timing logic is unchanged. A Focus time such as `14:54` is rendered as two large centered lines:
 
 ```text
 14
@@ -50,19 +50,22 @@ The timing logic is unchanged; only readability is improved. A Focus time such a
 
 ## Reliability / freeze recovery
 
-The v0.14.9 reliability layer remains unchanged in v0.15.2.beta.
+v0.15.3 replaces the aggressive v0.14.9 recovery strategy after real-device testing showed that repeated reinitialization and heartbeat traffic could make freezes more frequent.
 
-Previously, a temporary SDK service disconnect could leave Dayline with `connected = false` while an old manager object was still present. New frames would then be queued, but the bridge would not initialize a fresh connection, so the hardware could remain frozen on the last visible frame indefinitely.
+Nothing's Matrix SDK owns a bound proxy service, so Dayline now follows a more conservative lifecycle:
 
-The bridge now:
+- SDK callback state is serialized onto the **main looper** so binder callbacks cannot race the animation renderer.
+- When `onServiceDisconnected` fires, Dayline keeps the existing manager/callback binding alive first and waits for the system proxy to reconnect naturally.
+- If it remains disconnected for about **5 seconds**, Dayline performs a clean `unInit()` before initializing a fresh binding.
+- Repeated recovery attempts back off up to **30 seconds** instead of reinitializing every 750 ms.
+- Only the newest pending frame is retained while disconnected.
+- Connection generations reject callbacks from a superseded binding.
+- A real frame-send exception enters the same delayed recovery path instead of immediately starting a reconnect loop.
+- Duplicate unchanged frames are suppressed inside `NothingGlyphBridge`, so the old service-level 4-second heartbeat request does **not** produce redundant `setMatrixFrame()` traffic on the hardware.
 
-- invalidates stale manager/callback state when the Nothing service disconnects;
-- reconnects after disconnects, registration failures and frame-send failures;
-- retains only the newest pending frame while reconnecting;
-- ignores callbacks from older connection generations;
-- does not tell the renderer that a queued/failed frame was successfully delivered.
+The AOD render loop is still exception-protected so one unexpected render failure cannot permanently stop later animation ticks.
 
-The AOD service also protects its Handler render loop so an unexpected exception in one tick cannot terminate all later ticks. Stable frames are resent every **4 seconds** as a lightweight recovery heartbeat; normal changed animation/timer frames are still sent immediately.
+This design deliberately favors a stable long-lived SDK binding over frequent proactive reconnects.
 
 ## Glyph settings
 
@@ -74,7 +77,7 @@ The compact Glyph configuration introduced in v0.14.8 remains unchanged. The mai
 - **Night** — quiet hours, start/end time and optional dimming.
 - **Test expressions** — Center, Left, Right, Blink, Happy, Wink, Hearts, Squint and Sleepy.
 
-Dayline keeps a simple 0–100% brightness control and maps it to the higher raw `IntArray` Matrix intensity range used by Nothing's official example project. Duplicate raw frames are suppressed between recovery heartbeat frames to reduce visible flicker/twitching.
+Dayline keeps a simple 0–100% brightness control and suppresses duplicate raw frames before they reach Nothing's SDK to reduce unnecessary Matrix traffic.
 
 ## Activating the AOD toy
 
@@ -90,7 +93,7 @@ Dayline's own Glyph patterns, settings and reflection bridge are part of the MIT
 
 For GitHub beta CI, `.github/workflows/build-apk.yml` first validates that the AAR is absent and then downloads the official binary from `Nothing-Developer-Programme/GlyphMatrix-Developer-Kit` before compiling the beta flavor. `app/build.gradle.kts` only attaches the AAR to `betaImplementation` when the file exists.
 
-The Play flavor does not include the SDK in v0.15.2.beta. Nothing's Glyph SDK license restricts commercial use without written permission, so Play distribution should stay disabled for Glyph hardware until the appropriate permission/license is obtained.
+The Play flavor does not include the SDK in v0.15.3.beta. Nothing's Glyph SDK license restricts commercial use without written permission, so Play distribution should stay disabled for Glyph hardware until the appropriate permission/license is obtained.
 
 ## Release safety
 

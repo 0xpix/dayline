@@ -28,10 +28,7 @@ class FocusRuntimeStore(context: Context) {
                 itemId = itemId,
                 occurrenceDate = LocalDate.parse(json.getString("occurrenceDate")),
                 focus = json.optBoolean("focus", true),
-                phaseStartedEpochMillis = json.optLong(
-                    "phaseStartedEpochMillis",
-                    System.currentTimeMillis()
-                ),
+                phaseStartedEpochMillis = json.optLong("phaseStartedEpochMillis", System.currentTimeMillis()),
                 phaseEndEpochMillis = json.optLong("phaseEndEpochMillis", 0L),
                 paused = json.optBoolean("paused", false),
                 pausedRemainingSeconds = json.optLong("pausedRemainingSeconds", 0L),
@@ -41,6 +38,12 @@ class FocusRuntimeStore(context: Context) {
             )
         }.getOrNull()
     }
+
+    fun loadAll(): List<FocusRuntimeState> = prefs.all.keys.mapNotNull(::load)
+
+    fun active(): FocusRuntimeState? = loadAll()
+        .filterNot { it.finished }
+        .maxByOrNull { it.phaseStartedEpochMillis }
 
     fun save(state: FocusRuntimeState) {
         prefs.edit().putString(
@@ -59,7 +62,5 @@ class FocusRuntimeStore(context: Context) {
         ).apply()
     }
 
-    fun clear(itemId: String) {
-        prefs.edit().remove(itemId).apply()
-    }
+    fun clear(itemId: String) { prefs.edit().remove(itemId).apply() }
 }

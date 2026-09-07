@@ -35,7 +35,6 @@ object AndroidCalendarSync {
     fun hasPermissions(context: Context): Boolean =
         hasReadPermission(context) && hasWritePermission(context)
 
-
     fun probe(context: Context): Result<Unit> {
         if (!hasReadPermission(context)) {
             return Result.failure(SecurityException("Calendar permission is not granted."))
@@ -191,13 +190,36 @@ object AndroidCalendarSync {
         }.getOrDefault(emptyList())
     }
 
+    private data class ProviderSnapshot(
+        val title: String,
+        val startDate: LocalDate,
+        val startTime: java.time.LocalTime?,
+        val endTime: java.time.LocalTime?,
+        val recurrence: Recurrence,
+        val repeatDays: Set<Int>,
+        val recurrenceEndDate: LocalDate?,
+        val excludedDates: Set<LocalDate>,
+        val calendarId: Long,
+        val calendarName: String?
+    )
+
+    private sealed interface ProviderState {
+        data class Present(val snapshot: ProviderSnapshot) : ProviderState
+        data object Missing : ProviderState
+        data object Unknown : ProviderState
+    }
+
     /**
-     * Reconcile local Dayline events that were previously published to an
-     * Android calendar. If that provider event was deleted externally, remove
-     * the mapped local event too.
+     * Reconcile every Dayline event that has a provider mapping.
      *
-     * Provider failures are treated conservatively: a local event is kept
-     * unless the provider explicitly confirms that the row is missing/deleted.
+     * This is intentionally two-way. Dayline writes local edits through upsert(),
+     * while provider edits flow back here through the Calendar ContentObserver:
+     * title, date/time, all-day state, recurrence, exclusions and calendar moves
+     * are pulled into the mapped Dayline row. Provider-side deletion removes the
+     * mapped local row. Query failures remain conservative and keep local data.
+     *
+     * The historical method name is retained so older call sites stay source
+     * compatible even though it now reconciles changes as well as deletions.
      */
     fun reconcileDeletedMappedItems(
         context: Context,
@@ -205,49 +227,168 @@ object AndroidCalendarSync {
     ): List<DaylineItem> {
         if (!hasReadPermission(context)) return local
 
-        val statusCache = mutableMapOf<Long, Boolean?>()
-
-        return local.filter { item ->
-            val eventId = item.calendarEventId ?: return@filter true
-
-            val exists = statusCache.getOrPut(eventId) {
-                providerEventExists(context, eventId)
+        val cache = mutableMapOf<Long, ProviderState>()
+        return local.mapNotNull { item ->
+            val eventId = item.calendarEventId ?: return@mapNotNull item
+            when (val state = cache.getOrPut(eventId) { providerState(context, eventId) }) {
+                ProviderState.Missing -> null
+                ProviderState.Unknown -> item
+                is ProviderState.Present -> {
+                    val snapshot = state.snapshot
+                    item.copy(
+                        title = snapshot.title,
+                        startDate = snapshot.startDate,
+                        startTime = snapshot.startTime,
+                        endTime = snapshot.endTime,
+                        recurrence = snapshot.recurrence,
+                        repeatDays = snapshot.repeatDays,
+                        recurrenceEndDate = snapshot.recurrenceEndDate,
+                        excludedDates = snapshot.excludedDates,
+                        calendarId = snapshot.calendarId,
+                        calendarName = snapshot.calendarName
+                    )
+                }
             }
-
-            exists != false
         }
     }
 
-    private fun providerEventExists(
-        context: Context,
-        eventId: Long
-    ): Boolean? = runCatching {
-        context.contentResolver.query(
-            ContentUris.withAppendedId(
-                CalendarContract.Events.CONTENT_URI,
-                eventId
-            ),
-            arrayOf(
-                CalendarContract.Events._ID,
-                CalendarContract.Events.DELETED
-            ),
-            null,
-            null,
-            null
-        )?.use { cursor ->
-            if (!cursor.moveToFirst()) {
-                false
-            } else {
-                val deletedIndex =
-                    cursor.getColumnIndex(
-                        CalendarContract.Events.DELETED
-                    )
+    private fun providerState(context: Context, eventId: Long): ProviderState = runCatching {
+        val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId)
+        val projection = arrayOf(
+            CalendarContract.Events._ID,
+            CalendarContract.Events.TITLE,
+            CalendarContract.Events.DTSTART,
+            CalendarContract.Events.DTEND,
+            CalendarContract.Events.DURATION,
+            CalendarContract.Events.ALL_DAY,
+            CalendarContract.Events.CALENDAR_ID,
+            CalendarContract.Events.RRULE,
+            CalendarContract.Events.EXDATE,
+            CalendarContract.Events.DELETED
+        )
 
-                deletedIndex < 0 ||
-                    cursor.getInt(deletedIndex) == 0
+        context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+            if (!cursor.moveToFirst()) return@use ProviderState.Missing
+
+            val deletedIx = cursor.getColumnIndex(CalendarContract.Events.DELETED)
+            if (deletedIx >= 0 && cursor.getInt(deletedIx) != 0) {
+                return@use ProviderState.Missing
             }
-        } ?: false
-    }.getOrNull()
+
+            val title = cursor.getString(cursor.getColumnIndexOrThrow(CalendarContract.Events.TITLE))
+                ?.ifBlank { "Untitled" }
+                ?: "Untitled"
+            val startMillis = cursor.getLong(cursor.getColumnIndexOrThrow(CalendarContract.Events.DTSTART))
+            val dtEndIx = cursor.getColumnIndex(CalendarContract.Events.DTEND)
+            val durationIx = cursor.getColumnIndex(CalendarContract.Events.DURATION)
+            val allDay = cursor.getInt(cursor.getColumnIndexOrThrow(CalendarContract.Events.ALL_DAY)) == 1
+            val calendarId = cursor.getLong(cursor.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_ID))
+            val rrule = cursor.getString(cursor.getColumnIndexOrThrow(CalendarContract.Events.RRULE))
+            val exdate = cursor.getString(cursor.getColumnIndexOrThrow(CalendarContract.Events.EXDATE))
+
+            val startZoned = Instant.ofEpochMilli(startMillis).atZone(if (allDay) ZoneOffset.UTC else zone)
+            val endMillis = when {
+                dtEndIx >= 0 && !cursor.isNull(dtEndIx) -> cursor.getLong(dtEndIx)
+                durationIx >= 0 && !cursor.isNull(durationIx) -> {
+                    val duration = runCatching { Duration.parse(cursor.getString(durationIx)) }.getOrNull()
+                    startMillis + (duration?.toMillis() ?: if (allDay) 86_400_000L else 3_600_000L)
+                }
+                else -> startMillis + if (allDay) 86_400_000L else 3_600_000L
+            }
+            val endZoned = Instant.ofEpochMilli(endMillis).atZone(if (allDay) ZoneOffset.UTC else zone)
+            val recurrenceInfo = parseRecurrence(rrule, startZoned.toLocalDate())
+
+            ProviderState.Present(
+                ProviderSnapshot(
+                    title = title,
+                    startDate = startZoned.toLocalDate(),
+                    startTime = if (allDay) null else startZoned.toLocalTime(),
+                    endTime = if (allDay) null else endZoned.toLocalTime(),
+                    recurrence = recurrenceInfo.first,
+                    repeatDays = recurrenceInfo.second,
+                    recurrenceEndDate = parseUntil(rrule),
+                    excludedDates = parseExdates(exdate, allDay),
+                    calendarId = calendarId,
+                    calendarName = calendarName(context, calendarId)
+                )
+            )
+        } ?: ProviderState.Unknown
+    }.getOrElse { ProviderState.Unknown }
+
+    private fun parseRecurrence(rrule: String?, startDate: LocalDate): Pair<Recurrence, Set<Int>> {
+        if (rrule.isNullOrBlank()) return Recurrence.ONCE to emptySet()
+        val upper = rrule.uppercase()
+        val byDay = Regex("(?:^|;)BYDAY=([^;]+)")
+            .find(upper)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.split(',')
+            ?.mapNotNull(::rruleDayNumber)
+            ?.toSet()
+            .orEmpty()
+
+        return when {
+            "FREQ=DAILY" in upper -> Recurrence.DAILY to emptySet()
+            "FREQ=MONTHLY" in upper -> Recurrence.MONTHLY to emptySet()
+            "FREQ=WEEKLY" in upper && byDay == setOf(1, 2, 3, 4, 5) ->
+                Recurrence.WEEKDAYS to emptySet()
+            "FREQ=WEEKLY" in upper && byDay == setOf(6, 7) ->
+                Recurrence.WEEKENDS to emptySet()
+            "FREQ=WEEKLY" in upper && byDay.size == 1 && byDay.first() == startDate.dayOfWeek.value ->
+                Recurrence.WEEKLY to emptySet()
+            "FREQ=WEEKLY" in upper ->
+                Recurrence.CUSTOM to byDay.ifEmpty { setOf(startDate.dayOfWeek.value) }
+            else -> Recurrence.ONCE to emptySet()
+        }
+    }
+
+    private fun rruleDayNumber(raw: String): Int? = when (raw.takeLast(2)) {
+        "MO" -> 1
+        "TU" -> 2
+        "WE" -> 3
+        "TH" -> 4
+        "FR" -> 5
+        "SA" -> 6
+        "SU" -> 7
+        else -> null
+    }
+
+    private fun parseUntil(rrule: String?): LocalDate? {
+        if (rrule.isNullOrBlank()) return null
+        val raw = Regex("(?:^|;)UNTIL=([^;]+)")
+            .find(rrule.uppercase())
+            ?.groupValues
+            ?.getOrNull(1)
+            ?: return null
+
+        return runCatching {
+            when {
+                raw.length >= 16 && raw.endsWith("Z") ->
+                    Instant.from(DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmssX").parse(raw))
+                        .atZone(zone)
+                        .toLocalDate()
+                raw.length >= 8 -> LocalDate.parse(raw.take(8), DateTimeFormatter.BASIC_ISO_DATE)
+                else -> null
+            }
+        }.getOrNull()
+    }
+
+    private fun parseExdates(raw: String?, allDay: Boolean): Set<LocalDate> {
+        if (raw.isNullOrBlank()) return emptySet()
+        return raw.split(',').mapNotNullTo(mutableSetOf()) { token ->
+            val clean = token.substringAfter(':').trim()
+            runCatching {
+                when {
+                    clean.length >= 16 && clean.endsWith("Z") ->
+                        Instant.from(DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmssX").parse(clean))
+                            .atZone(if (allDay) ZoneOffset.UTC else zone)
+                            .toLocalDate()
+                    clean.length >= 8 -> LocalDate.parse(clean.take(8), DateTimeFormatter.BASIC_ISO_DATE)
+                    else -> null
+                }
+            }.getOrNull()
+        }
+    }
 
     fun mergedItems(
         context: Context,

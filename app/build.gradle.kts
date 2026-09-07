@@ -26,10 +26,10 @@ android {
             dimension = "distribution"
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
-            // v0.14.3.beta: brighter raw Matrix output, cleaner expression set,
-            // centre recovery after glances, improved hearts and circular focus progress.
-            versionCode = 1403
-            versionName = "0.14.3"
+            // v0.14.4.beta: every non-center Glyph animation is isolated by
+            // CENTER on both sides: CENTER -> animation -> CENTER -> next.
+            versionCode = 1404
+            versionName = "0.14.4"
             // Nothing's Glyph Matrix SDK 2.0 declares minSdk 33. Keep this
             // requirement isolated to the beta/Glyph build so the normal Play
             // build continues to support Dayline's global minSdk 26.

@@ -26,7 +26,7 @@ object DaylineVersion {
 
     /**
      * Dayline's current beta versionCode convention is minor*100 + patch:
-     * 0.14.7 -> 1407, 0.13.1 -> 1301.
+     * 0.14.8 -> 1408, 0.13.1 -> 1301.
      *
      * Older pre-0.13 betas used a different scheme, so callers should only use
      * this as an installability guard for current/newer releases.

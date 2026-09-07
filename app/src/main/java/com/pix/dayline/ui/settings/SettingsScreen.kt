@@ -162,7 +162,7 @@ fun SettingsScreen(
                     }
                 )
                 Text(
-                    "Expressive eyes stay active. Focus cycles add a pixel progress ring around the face.",
+                    "Expressive eyes stay active. Focus cycles use smaller top eyes with a live MM:SS countdown at the bottom.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -552,7 +552,7 @@ private fun GlyphSettingsSheet(
             Text("Dayline Glyph", style = MaterialTheme.typography.headlineLarge)
             Spacer(Modifier.height(6.dp))
             Text(
-                "Expressive eyes + Focus progress. Nothing else interrupts the face.",
+                "Expressive eyes + Focus timer. Nothing else interrupts the face.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -627,9 +627,9 @@ private fun GlyphSettingsSheet(
             SectionGap()
             Text("FOCUS MODE", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
-            InfoRow("Progress ring", "Automatic")
+            InfoRow("Focus timer", "Automatic")
             Text(
-                "A faint circular outline stays visible around the eyes. For 25 / 5, 50 / 10 and custom cycles, completed pixels brighten one by one; focus runs clockwise and break runs in reverse.",
+                "For 25 / 5, 50 / 10 and custom cycles, smaller eyes keep animating at the top while the current Focus or Rest phase counts down as MM:SS at the bottom. Left and right shift the full eye pair just like normal mode.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -697,7 +697,7 @@ private fun GlyphSettingsSheet(
 
             Spacer(Modifier.height(16.dp))
             Text(
-                "LEFT and RIGHT always return through CENTER before another expression. Blink is frequent; happy is common; sleepy stays rare.",
+                "Every non-center expression returns through CENTER before another animation begins. Blink is frequent; happy is common; sleepy stays rare.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

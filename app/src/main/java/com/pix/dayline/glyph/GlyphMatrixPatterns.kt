@@ -7,8 +7,8 @@ import com.pix.dayline.model.DaylineGlyphSignal
  *
  * Dayline keeps the large expressive eyes as its permanent face. Focus mode no
  * longer mixes a timer or progress UI with the eyes. At selected checkpoints
- * the face is temporarily replaced by a large two-line countdown: minutes on
- * top, seconds underneath.
+ * the face is temporarily replaced by a centered two-line countdown: minutes
+ * on top, seconds underneath.
  */
 object GlyphMatrixPatterns {
     const val SIZE = 13
@@ -312,7 +312,6 @@ object GlyphMatrixPatterns {
                 DaylineGlyphSignal.SQUINT -> squintEyes()
                 DaylineGlyphSignal.HEARTS -> hearts()
 
-                // Retained only so older queued/preference values remain harmless.
                 DaylineGlyphSignal.CURIOUS,
                 DaylineGlyphSignal.PLAYFUL,
                 DaylineGlyphSignal.SURPRISED,
@@ -320,8 +319,6 @@ object GlyphMatrixPatterns {
                 DaylineGlyphSignal.EXCITED,
                 DaylineGlyphSignal.ROLLING -> centerEyes()
 
-                // Legacy app-state frames remain for source/backward compatibility,
-                // but the live Glyph service no longer displays them automatically.
                 DaylineGlyphSignal.NEXT_EVENT -> largeArrow()
                 DaylineGlyphSignal.REMINDER_SOON -> bell()
                 DaylineGlyphSignal.FOCUS -> focusTarget()
@@ -341,22 +338,22 @@ object GlyphMatrixPatterns {
             }
         }
 
-        fun largeDigitRows(digit: Int): Array<String> = when (digit) {
-            0 -> arrayOf("#####", "#...#", "#...#", "#...#", "#####")
-            1 -> arrayOf("..#..", ".##..", "..#..", "..#..", ".###.")
-            2 -> arrayOf("#####", "....#", "#####", "#....", "#####")
-            3 -> arrayOf("#####", "....#", ".####", "....#", "#####")
-            4 -> arrayOf("#...#", "#...#", "#####", "....#", "....#")
-            5 -> arrayOf("#####", "#....", "#####", "....#", "#####")
-            6 -> arrayOf("#####", "#....", "#####", "#...#", "#####")
-            7 -> arrayOf("#####", "....#", "...#.", "..#..", "..#..")
-            8 -> arrayOf("#####", "#...#", "#####", "#...#", "#####")
-            9 -> arrayOf("#####", "#...#", "#####", "....#", "#####")
-            else -> arrayOf(".....", ".....", ".....", ".....", ".....")
+        fun timerDigitRows(digit: Int): Array<String> = when (digit) {
+            0 -> arrayOf("####", "#..#", "#..#", "#..#", "####")
+            1 -> arrayOf(".##.", "..#.", "..#.", "..#.", ".###")
+            2 -> arrayOf("####", "...#", "####", "#...", "####")
+            3 -> arrayOf("####", "...#", ".###", "...#", "####")
+            4 -> arrayOf("#..#", "#..#", "####", "...#", "...#")
+            5 -> arrayOf("####", "#...", "####", "...#", "####")
+            6 -> arrayOf("####", "#...", "####", "#..#", "####")
+            7 -> arrayOf("####", "...#", "..#.", ".#..", ".#..")
+            8 -> arrayOf("####", "#..#", "####", "#..#", "####")
+            9 -> arrayOf("####", "#..#", "####", "...#", "####")
+            else -> arrayOf("....", "....", "....", "....", "....")
         }
 
-        fun drawLargeDigit(digit: Int, x: Int, y: Int) {
-            largeDigitRows(digit).forEachIndexed { row, glyph ->
+        fun drawTimerDigit(digit: Int, x: Int, y: Int) {
+            timerDigitRows(digit).forEachIndexed { row, glyph ->
                 glyph.forEachIndexed { column, pixel ->
                     if (pixel == '#') set(x + column, y + row)
                 }
@@ -364,18 +361,18 @@ object GlyphMatrixPatterns {
         }
 
         fun drawTimer(remainingSeconds: Long) {
-            // The 13×13 matrix is much easier to read when time is stacked:
-            // MM occupies rows 1..5 and SS occupies rows 7..11. Each line is
-            // 11 pixels wide (5 + 1 gap + 5) and centered with one empty column
-            // on either side. Leading zeros keep the visual width stable.
+            // Keep the stacked timer comfortably inside the circular Matrix
+            // boundary. Each line is 9 pixels wide (4 + 1 gap + 4), leaving two
+            // empty columns on both sides while preserving the readable 5-row
+            // height and one-row separation between minutes and seconds.
             val clamped = remainingSeconds.coerceIn(0L, 99L * 60L + 59L)
             val minutes = (clamped / 60L).toInt()
             val seconds = (clamped % 60L).toInt()
 
-            drawLargeDigit(minutes / 10, 1, 1)
-            drawLargeDigit(minutes % 10, 7, 1)
-            drawLargeDigit(seconds / 10, 1, 7)
-            drawLargeDigit(seconds % 10, 7, 7)
+            drawTimerDigit(minutes / 10, 2, 1)
+            drawTimerDigit(minutes % 10, 7, 1)
+            drawTimerDigit(seconds / 10, 2, 7)
+            drawTimerDigit(seconds % 10, 7, 7)
         }
 
         if (focusRemainingSeconds != null) {

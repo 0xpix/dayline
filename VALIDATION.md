@@ -1,6 +1,6 @@
-# Dayline v0.14.3.beta — Validation Report
+# Dayline v0.14.4.beta — Validation Report
 
-This report tracks the current v0.14.3.beta source state. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current v0.14.4.beta source state. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
@@ -37,7 +37,7 @@ Curious, Playful, Surprised, Side-eye, Excited and Rolling are retained only as 
 
 Directional behavior remains Left < Center < Right.
 
-Every non-center live animation now follows the same transition contract:
+Every non-center live animation follows the same transition contract:
 
 ```text
 CENTER → animation → CENTER → next animation
@@ -73,11 +73,11 @@ The GitHub beta CI fetches `glyph-matrix-sdk-2.0.aar` directly from Nothing's of
 
 ## Android compile gate
 
-The functional Glyph polish immediately preceding the version bump passed both Android variants in GitHub Actions run #117:
+Before tagging `v0.14.4.beta`, GitHub Actions must pass:
 
 ```text
-:app:assembleBetaDebug  PASS
-:app:assemblePlayDebug  PASS
+:app:assembleBetaDebug
+:app:assemblePlayDebug
 ```
 
-For tag `v0.14.3.beta`, the tagged job must additionally build `:app:assembleBetaRelease`, verify the APK with Android Build Tools 36.0.0 `apksigner`, generate the SHA-256 checksum and publish the GitHub prerelease.
+For tag `v0.14.4.beta`, the tagged job must additionally build `:app:assembleBetaRelease`, verify the APK with Android Build Tools 36.0.0 `apksigner`, generate the SHA-256 checksum and publish the GitHub prerelease.

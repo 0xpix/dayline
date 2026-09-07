@@ -212,7 +212,7 @@ class DaylineStore(context: Context) {
         val json = JSONObject().put("tagName", release.tagName).put("versionName", release.versionName)
             .put("title", release.title).put("notes", release.notes).put("publishedAt", release.publishedAt?.toString().orEmpty())
             .put("htmlUrl", release.htmlUrl).put("apkName", release.apkName.orEmpty()).put("apkUrl", release.apkUrl.orEmpty())
-            .put("checksumUrl", release.checksumUrl.orEmpty())
+            .put("checksumUrl", release.checksumUrl.orEmpty()).put("apkSizeBytes", release.apkSizeBytes ?: -1L)
         prefs.edit().putString(KEY_AVAILABLE_BETA_RELEASE, json.toString()).apply()
     }
 
@@ -225,7 +225,8 @@ class DaylineStore(context: Context) {
                 title = json.optString("title"), notes = json.optString("notes"),
                 publishedAt = json.optString("publishedAt").takeIf { it.isNotBlank() }?.let(Instant::parse),
                 htmlUrl = json.optString("htmlUrl"), apkName = json.optString("apkName").takeIf { it.isNotBlank() },
-                apkUrl = json.optString("apkUrl").takeIf { it.isNotBlank() }, checksumUrl = json.optString("checksumUrl").takeIf { it.isNotBlank() }
+                apkUrl = json.optString("apkUrl").takeIf { it.isNotBlank() }, checksumUrl = json.optString("checksumUrl").takeIf { it.isNotBlank() },
+                apkSizeBytes = json.optLong("apkSizeBytes", -1L).takeIf { it >= 0L }
             )
         }.getOrNull()
     }
@@ -236,6 +237,11 @@ class DaylineStore(context: Context) {
         val editor = prefs.edit()
         if (syncedAtMillis == null) editor.remove(KEY_LAST_CALENDAR_SYNC_AT) else editor.putLong(KEY_LAST_CALENDAR_SYNC_AT, syncedAtMillis)
         editor.putString(KEY_LAST_CALENDAR_SYNC_ERROR, error.orEmpty()).apply()
+    }
+
+    fun loadLastWidgetRefreshAt(): Long? = prefs.getLong(KEY_LAST_WIDGET_REFRESH_AT, -1L).takeIf { it >= 0L }
+    fun saveWidgetRefreshAt(epochMillis: Long = System.currentTimeMillis()) {
+        prefs.edit().putLong(KEY_LAST_WIDGET_REFRESH_AT, epochMillis).apply()
     }
 
     fun loadGlyphPreferences(): GlyphPreferences {
@@ -317,13 +323,14 @@ class DaylineStore(context: Context) {
         }
         val startTimeRaw = json.optString("startTime").ifBlank { json.optString("time") }
         val startDate = LocalDate.parse(json.getString("startDate"))
+        val kind = enumValue(json.optString("kind"), AgendaKind.EVENT)
         val rawRecurrence = json.optString("recurrence", Recurrence.ONCE.name)
         val storedRepeatDays = parseInts(json.optJSONArray("repeatDays"))
         val recurrence = when (rawRecurrence) { "SUNDAYS", "EXCEPT_SUNDAY" -> Recurrence.CUSTOM; else -> enumValue(rawRecurrence, Recurrence.ONCE) }
         val repeatDays = when (rawRecurrence) { "SUNDAYS" -> setOf(7); "EXCEPT_SUNDAY" -> setOf(1,2,3,4,5,6); else -> storedRepeatDays }
 
         return DaylineItem(
-            id = json.getString("id"), title = json.getString("title"), kind = enumValue(json.optString("kind"), AgendaKind.EVENT),
+            id = json.getString("id"), title = json.getString("title"), kind = kind,
             startDate = startDate, startTime = startTimeRaw.takeIf { it.isNotBlank() }?.let(LocalTime::parse),
             endTime = json.optString("endTime").takeIf { it.isNotBlank() }?.let(LocalTime::parse), recurrence = recurrence,
             repeatDays = repeatDays, recurrenceEndDate = json.optString("recurrenceEndDate").takeIf { it.isNotBlank() }?.let(LocalDate::parse),
@@ -334,6 +341,10 @@ class DaylineStore(context: Context) {
             bufferBeforeMinutes = json.optInt("bufferBeforeMinutes",0).coerceIn(0,180), bufferAfterMinutes = json.optInt("bufferAfterMinutes",0).coerceIn(0,180),
             priority = enumValue(json.optString("priority"), TaskPriority.NORMAL),
             estimatedDurationMinutes = json.optInt("estimatedDurationMinutes", 30).coerceIn(15, 8 * 60),
+            earliestDate = json.optString("earliestDate").takeIf { it.isNotBlank() }?.let(LocalDate::parse),
+            deadlineDate = json.optString("deadlineDate").takeIf { it.isNotBlank() }?.let(LocalDate::parse),
+            allDay = json.optBoolean("allDay", kind == AgendaKind.EVENT && startTimeRaw.isBlank()),
+            timeZoneId = json.optString("timeZoneId").takeIf { it.isNotBlank() },
             color = enumValue(json.optString("color"), ItemColor.MONO), spaceId = json.optString("spaceId").takeIf { it.isNotBlank() },
             details = details, completedDates = completed, calendarEventId = json.optLong("calendarEventId", -1L).takeIf { it >= 0L },
             calendarId = json.optLong("calendarId", -1L).takeIf { it >= 0L }, calendarName = json.optString("calendarName").takeIf { it.isNotBlank() },
@@ -352,6 +363,8 @@ class DaylineStore(context: Context) {
             .put("focusSessionsCompleted", item.focusSessionsCompleted).put("focusedMinutesCompleted", item.focusedMinutesCompleted)
             .put("bufferBeforeMinutes", item.bufferBeforeMinutes).put("bufferAfterMinutes", item.bufferAfterMinutes).put("priority", item.priority.name)
             .put("estimatedDurationMinutes", item.estimatedDurationMinutes)
+            .put("earliestDate", item.earliestDate?.toString().orEmpty()).put("deadlineDate", item.deadlineDate?.toString().orEmpty())
+            .put("allDay", item.allDay).put("timeZoneId", item.timeZoneId.orEmpty())
             .put("color", item.color.name).put("spaceId", item.spaceId.orEmpty()).put("details", details).put("completedDates", datesArray(item.completedDates))
             .put("calendarEventId", item.calendarEventId ?: -1L).put("calendarId", item.calendarId ?: -1L).put("calendarName", item.calendarName.orEmpty())
             .put("calendarReadOnly", item.calendarReadOnly)
@@ -385,6 +398,7 @@ class DaylineStore(context: Context) {
         private const val KEY_LAST_UPDATE_CHECK_AT = "last_update_check_at"; private const val KEY_LAST_UPDATE_CHECK_ERROR = "last_update_check_error"
         private const val KEY_AVAILABLE_BETA_RELEASE = "available_beta_release"; private const val KEY_LAST_CALENDAR_SYNC_AT = "last_calendar_sync_at"
         private const val KEY_LAST_CALENDAR_SYNC_ERROR = "last_calendar_sync_error"; private const val KEY_GLYPH_PREFERENCES = "glyph_preferences"
+        private const val KEY_LAST_WIDGET_REFRESH_AT = "last_widget_refresh_at"
         private const val KEY_SHOW_ORB = "show_orb"; private const val KEY_WEEK_STARTS_MONDAY = "week_starts_monday"; private const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
     }
 }

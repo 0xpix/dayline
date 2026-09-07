@@ -32,7 +32,6 @@ import com.pix.dayline.ui.components.DayTimeline
 import com.pix.dayline.ui.components.FloatingControls
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -90,11 +89,11 @@ fun TodayScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(start = 32.dp, end = 32.dp, top = 60.dp, bottom = 138.dp)
+                .padding(start = 32.dp, end = 32.dp, top = 48.dp, bottom = 138.dp)
         ) {
             if (showOrb) {
                 DayGlyph(items = todaysItems, date = today)
-                Spacer(Modifier.height(22.dp))
+                Spacer(Modifier.height(20.dp))
             }
 
             Text(
@@ -102,7 +101,7 @@ fun TodayScreen(
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(9.dp))
 
             Text(
                 text = greetingText(now, today),
@@ -110,14 +109,14 @@ fun TodayScreen(
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
             Text(
                 text = todaySummary(todaysItems),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(32.dp))
             DayTimeline(
                 items = todaysItems,
                 date = today,
@@ -186,15 +185,15 @@ private fun durationShort(minutes: Int): String {
 
 private fun greetingText(now: LocalTime, date: LocalDate): String {
     val greeting = when (now.hour) {
-        in 5..11 -> "Good morning!"
-        in 12..16 -> "Good afternoon!"
-        in 17..21 -> "Good evening!"
-        else -> "Good night!"
+        in 5..11 -> "Good morning"
+        in 12..16 -> "Good afternoon"
+        in 17..21 -> "Good evening"
+        else -> "Good night"
     }
 
     val dayName = date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
     val monthName = date.month.getDisplayName(TextStyle.FULL, Locale.getDefault())
-    return "$greeting\nIt's $dayName\n$monthName ${ordinal(date.dayOfMonth)}."
+    return "$greeting.\n$dayName, $monthName ${ordinal(date.dayOfMonth)}."
 }
 
 private fun ordinal(day: Int): String {

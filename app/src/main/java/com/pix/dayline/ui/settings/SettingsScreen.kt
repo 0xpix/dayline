@@ -7,14 +7,11 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import androidx.annotation.DrawableRes
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -24,12 +21,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.pix.dayline.BuildConfig
-import com.pix.dayline.R
 import com.pix.dayline.data.*
 import com.pix.dayline.glyph.GlyphVisualPreferencesStore
 import com.pix.dayline.model.*
@@ -45,8 +39,6 @@ import java.time.format.DateTimeFormatter
 private enum class SettingsSheet {
     APPEARANCE,
     APP_FONT,
-    WIDGET_FONT,
-    WIDGET_EMOJI,
     CALENDARS,
     GLYPH,
     UPDATE,
@@ -99,6 +91,19 @@ fun SettingsScreen(
     val context = LocalContext.current
     var openSheet by remember { mutableStateOf<SettingsSheet?>(null) }
 
+    // Widget appearance/content controls deliberately live only in each widget's
+    // own configuration screen. Keep these parameters in the public screen
+    // signature for source compatibility with the existing app state wiring.
+    @Suppress("UNUSED_VARIABLE")
+    val widgetSettingsOwnedByWidget = listOf(
+        widgetFontChoice,
+        widgetEmojiChoice,
+        widgetAutoSlide,
+        onWidgetFontChoice,
+        onWidgetEmojiChoice,
+        onWidgetAutoSlide
+    )
+
     LaunchedEffect(updateState.status, updateState.release?.tagName) {
         if (updateState.status == UpdateStatus.AVAILABLE && updateState.release != null) {
             openSheet = SettingsSheet.UPDATE
@@ -118,10 +123,10 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 30.dp, end = 30.dp, top = 56.dp, bottom = 138.dp)
+                .padding(start = 30.dp, end = 30.dp, top = 52.dp, bottom = 138.dp)
         ) {
-            Text("Settings", style = MaterialTheme.typography.displayMedium)
-            Spacer(Modifier.height(34.dp))
+            Text("Settings", style = MaterialTheme.typography.displayLarge)
+            Spacer(Modifier.height(40.dp))
 
             SettingsGroup("General") {
                 SelectorRow("Appearance", appearanceLabel(appearance)) {
@@ -133,39 +138,10 @@ fun SettingsScreen(
             }
 
             SectionGap()
-            SettingsGroup("Widgets") {
-                SelectorRow("Widget font", widgetFontLabel(widgetFontChoice)) {
-                    openSheet = SettingsSheet.WIDGET_FONT
-                }
-                SelectorRow("Widget emoji", widgetEmojiChoice.label) {
-                    openSheet = SettingsSheet.WIDGET_EMOJI
-                }
-                ToggleSettingRow("Slide long titles", widgetAutoSlide, onWidgetAutoSlide)
-                Text(
-                    "Each placed widget can also have its own Space, calendar, content and background configuration.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            SectionGap()
             SettingsGroup("Glyph") {
                 SelectorRow("Dayline Glyph", glyphModeLabel(glyphPreferences.mode)) {
                     openSheet = SettingsSheet.GLYPH
                 }
-                InfoRow(
-                    "Hardware",
-                    if (glyphHardwareStatus.available) {
-                        "${glyphHardwareStatus.deviceLabel} · ${glyphHardwareStatus.matrixSize ?: 13}×${glyphHardwareStatus.matrixSize ?: 13}"
-                    } else {
-                        glyphHardwareStatus.deviceLabel
-                    }
-                )
-                Text(
-                    "Expressive eyes stay active. Focus briefly replaces them with time at phase start, every 5 minutes and 1 minute remaining.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
 
             SectionGap()
@@ -199,10 +175,12 @@ fun SettingsScreen(
             SectionGap()
             SettingsGroup("Calendar") {
                 ToggleSettingRow("Android Calendar sync", calendarSyncEnabled, onCalendarSyncEnabled)
-                InfoRow(
-                    "Sync health",
-                    calendarHealthLabel(calendarSyncEnabled, lastCalendarSyncAt, calendarSyncError)
-                )
+                if (calendarSyncEnabled) {
+                    InfoRow(
+                        "Sync",
+                        calendarHealthLabel(calendarSyncEnabled, lastCalendarSyncAt, calendarSyncError)
+                    )
+                }
                 if (!calendarSyncError.isNullOrBlank()) {
                     Text(
                         calendarSyncError,
@@ -220,8 +198,8 @@ fun SettingsScreen(
 
             SectionGap()
             SettingsGroup("Data") {
-                SelectorRow("Backup Dayline", "JSON") { onBackup() }
-                SelectorRow("Restore backup", "JSON") { onRestore() }
+                SelectorRow("Backup", "JSON") { onBackup() }
+                SelectorRow("Restore", "JSON") { onRestore() }
                 SelectorRow("Export calendar", ".ics") { onExportIcs() }
                 SelectorRow("Import calendar", ".ics") { onImportIcs() }
             }
@@ -229,7 +207,6 @@ fun SettingsScreen(
             if (BuildConfig.UPDATE_CHANNEL == "GitHub beta") {
                 SectionGap()
                 SettingsGroup("Beta updates") {
-                    InfoRow("Channel", "GitHub beta")
                     ToggleSettingRow("Automatic daily check", autoBetaUpdates, onAutoBetaUpdates)
                     SelectorRow("Check for updates", updateActionLabel(updateState)) {
                         if (updateState.status == UpdateStatus.AVAILABLE && updateState.release != null) {
@@ -252,13 +229,6 @@ fun SettingsScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error
                         )
-                    } else {
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            "Beta releases are checked directly against the public Dayline GitHub Releases feed.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                     }
                 }
             }
@@ -275,16 +245,10 @@ fun SettingsScreen(
                     )
                 }
                 InfoRow("Version", BuildConfig.VERSION_NAME)
-                InfoRow("Build", BuildConfig.VERSION_CODE.toString())
-                InfoRow("Commit", BuildConfig.GIT_COMMIT)
+                InfoRow("Build", "${BuildConfig.VERSION_CODE} · ${BuildConfig.GIT_COMMIT}")
             }
 
-            Spacer(Modifier.height(34.dp))
-            Text(
-                "Dayline ${BuildConfig.VERSION_NAME} · ${BuildConfig.UPDATE_CHANNEL}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Spacer(Modifier.height(38.dp))
         }
 
         FloatingControls(
@@ -317,22 +281,6 @@ fun SettingsScreen(
             )
         ) { openSheet = null }
 
-        SettingsSheet.WIDGET_FONT -> SelectionSheet(
-            "Widget font",
-            widgetFontLabel(widgetFontChoice),
-            listOf(
-                "Nothing dots · Bold" to { onWidgetFontChoice(WidgetFontChoice.DOT_BOLD) },
-                "Nothing dots · Fine" to { onWidgetFontChoice(WidgetFontChoice.DOT_FINE) },
-                "Monospace · Bold" to { onWidgetFontChoice(WidgetFontChoice.MONO) }
-            )
-        ) { openSheet = null }
-
-        SettingsSheet.WIDGET_EMOJI -> EmojiSheet(
-            selected = widgetEmojiChoice,
-            onSelect = onWidgetEmojiChoice,
-            onDismiss = { openSheet = null }
-        )
-
         SettingsSheet.GLYPH -> GlyphSettingsSheet(
             preferences = glyphPreferences,
             hardware = glyphHardwareStatus,
@@ -364,14 +312,27 @@ fun SettingsScreen(
 @Composable
 private fun SettingsGroup(label: String, content: @Composable ColumnScope.() -> Unit) {
     Column {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(8.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(Modifier.height(9.dp))
         content()
     }
 }
 
 @Composable
-private fun SectionGap() = Spacer(Modifier.height(24.dp))
+private fun SettingsSubhead(label: String) {
+    Text(
+        label,
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.onBackground
+    )
+}
+
+@Composable
+private fun SectionGap() = Spacer(Modifier.height(30.dp))
 
 @Composable
 private fun SelectorRow(title: String, value: String, onClick: () -> Unit) {
@@ -383,7 +344,7 @@ private fun SelectorRow(title: String, value: String, onClick: () -> Unit) {
                 indication = null,
                 onClick = onClick
             )
-            .padding(vertical = 12.dp),
+            .padding(vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
@@ -396,7 +357,7 @@ private fun SelectorRow(title: String, value: String, onClick: () -> Unit) {
 @Composable
 private fun InfoRow(title: String, value: String) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
@@ -407,7 +368,7 @@ private fun InfoRow(title: String, value: String) {
 @Composable
 private fun ToggleSettingRow(title: String, checked: Boolean, onChecked: (Boolean) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
@@ -424,70 +385,20 @@ private fun SelectionSheet(
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.background) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 28.dp).padding(bottom = 28.dp)) {
-            Text(title, style = MaterialTheme.typography.headlineLarge)
-            Spacer(Modifier.height(18.dp))
+        Column(Modifier.fillMaxWidth().padding(horizontal = 28.dp).padding(bottom = 32.dp)) {
+            Text(title, style = MaterialTheme.typography.displaySmall)
+            Spacer(Modifier.height(24.dp))
             options.forEach { (label, action) ->
                 Row(
                     Modifier.fillMaxWidth().clickable {
                         action()
                         onDismiss()
-                    }.padding(vertical = 13.dp),
+                    }.padding(vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                     Text(if (label == selected) "●" else "○", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun EmojiSheet(
-    selected: WidgetEmojiChoice,
-    onSelect: (WidgetEmojiChoice) -> Unit,
-    onDismiss: () -> Unit
-) {
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.background) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 28.dp)) {
-            Text("Widget emoji", style = MaterialTheme.typography.headlineLarge)
-            Spacer(Modifier.height(6.dp))
-            Text(
-                "Changes stay live while this sheet is open.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.height(20.dp))
-            WidgetEmojiChoice.entries.chunked(4).forEach { row ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    row.forEach { emoji ->
-                        Box(
-                            modifier = Modifier
-                                .size(68.dp)
-                                .background(
-                                    if (emoji == selected) MaterialTheme.colorScheme.primaryContainer
-                                    else MaterialTheme.colorScheme.surfaceVariant,
-                                    CircleShape
-                                )
-                                .clickable { onSelect(emoji) },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Image(
-                                painter = painterResource(widgetEmojiIconRes(emoji)),
-                                contentDescription = widgetEmojiLabel(emoji),
-                                modifier = Modifier.size(31.dp),
-                                colorFilter = ColorFilter.tint(
-                                    if (emoji == selected) MaterialTheme.colorScheme.onPrimaryContainer
-                                    else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            )
-                        }
-                    }
-                    repeat(4 - row.size) { Spacer(Modifier.size(68.dp)) }
-                }
-                Spacer(Modifier.height(14.dp))
             }
         }
     }
@@ -546,73 +457,76 @@ private fun GlyphSettingsSheet(
             Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 36.dp)
+                .padding(horizontal = 26.dp)
+                .padding(bottom = 38.dp)
         ) {
-            Text("Dayline Glyph", style = MaterialTheme.typography.headlineLarge)
-            Spacer(Modifier.height(6.dp))
+            Text("Dayline Glyph", style = MaterialTheme.typography.displaySmall)
+            Spacer(Modifier.height(7.dp))
             Text(
-                "Expressive eyes + brief Focus time announcements. Nothing else interrupts the face.",
+                "Eyes first. Focus time appears only at checkpoints.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(22.dp))
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                 GlyphMatrixPreview(
                     signal = preview,
-                    modifier = Modifier.size(190.dp)
+                    modifier = Modifier.size(156.dp)
                 )
             }
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(26.dp))
 
-            Text("GLYPH", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(8.dp))
-            ToggleSettingRow("Enable Glyph", preferences.enabled) {
+            SettingsSubhead("Glyph")
+            Spacer(Modifier.height(6.dp))
+            ToggleSettingRow("Enabled", preferences.enabled) {
                 update(preferences.copy(mode = if (it) GlyphMode.EYES_ONLY else GlyphMode.OFF))
             }
-            InfoRow("Hardware", if (hardware.available) hardware.deviceLabel else "Unavailable")
-            hardware.detail?.let {
-                Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            InfoRow(
+                "Hardware",
+                if (hardware.available) hardware.deviceLabel else "Unavailable"
+            )
+            if (!hardware.available && !hardware.detail.isNullOrBlank()) {
+                Text(
+                    hardware.detail,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(6.dp))
             }
             Text(
-                "ACTIVATE IN NOTHING SETTINGS  ›",
-                modifier = Modifier.clickable(onClick = onOpenManager).padding(vertical = 8.dp),
-                style = MaterialTheme.typography.labelMedium
+                "OPEN NOTHING SETTINGS  ›",
+                modifier = Modifier.clickable(onClick = onOpenManager).padding(vertical = 10.dp),
+                style = MaterialTheme.typography.labelLarge
             )
 
             SectionGap()
-            Text("LOOK & FEEL", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(8.dp))
+            SettingsSubhead("Look")
+            Spacer(Modifier.height(6.dp))
             Row(
-                Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                Modifier.fillMaxWidth().padding(vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Brightness", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                 TinyAction("−") { changeBrightness(-32) }
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    "${((brightness / 255f) * 100).toInt()}%",
+                    "${((brightness / GlyphVisualPreferencesStore.MAX_BRIGHTNESS.toFloat()) * 100).toInt()}%",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.width(12.dp))
                 TinyAction("+") { changeBrightness(32) }
             }
-            Text(
-                "100% uses the full raw Glyph Matrix intensity range.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            ToggleSettingRow("Frequent blink", preferences.blinkEnabled) {
+            ToggleSettingRow("Blink", preferences.blinkEnabled) {
                 update(preferences.copy(blinkEnabled = it))
             }
-            ToggleSettingRow("Expressions & glances", preferences.randomGlancesEnabled) {
+            ToggleSettingRow("Expressions", preferences.randomGlancesEnabled) {
                 update(preferences.copy(randomGlancesEnabled = it))
             }
             if (preferences.randomGlancesEnabled) {
                 SelectorRow(
-                    "Motion frequency",
+                    "Motion",
                     preferences.glanceFrequency.name.lowercase().replaceFirstChar { it.titlecase() }
                 ) {
                     val entries = GlyphGlanceFrequency.entries
@@ -625,23 +539,23 @@ private fun GlyphSettingsSheet(
             }
 
             SectionGap()
-            Text("FOCUS MODE", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(8.dp))
-            InfoRow("Time announcements", "30 seconds")
+            SettingsSubhead("Focus")
+            Spacer(Modifier.height(6.dp))
+            InfoRow("Time check-ins", "30 sec")
             Text(
-                "The normal eyes stay active during Focus and Rest. At phase start, every 5-minute remaining checkpoint and 1:00 remaining, Dayline goes through CENTER, shows the live MM:SS countdown for 30 seconds, then returns through CENTER to the eyes.",
+                "Start · every 5 min · 1 min left",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             SectionGap()
-            Text("NIGHT", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(8.dp))
+            SettingsSubhead("Night")
+            Spacer(Modifier.height(6.dp))
             ToggleSettingRow("Quiet hours", preferences.quietHoursEnabled) {
                 update(preferences.copy(quietHoursEnabled = it))
             }
             if (preferences.quietHoursEnabled) {
-                SelectorRow("Quiet starts", preferences.quietStart.toString()) {
+                SelectorRow("Starts", preferences.quietStart.toString()) {
                     TimePickerDialog(
                         context,
                         { _, hour, minute -> update(preferences.copy(quietStart = java.time.LocalTime.of(hour, minute))) },
@@ -650,7 +564,7 @@ private fun GlyphSettingsSheet(
                         true
                     ).show()
                 }
-                SelectorRow("Quiet ends", preferences.quietEnd.toString()) {
+                SelectorRow("Ends", preferences.quietEnd.toString()) {
                     TimePickerDialog(
                         context,
                         { _, hour, minute -> update(preferences.copy(quietEnd = java.time.LocalTime.of(hour, minute))) },
@@ -659,13 +573,13 @@ private fun GlyphSettingsSheet(
                         true
                     ).show()
                 }
-            }
-            ToggleSettingRow("Dim during quiet hours", preferences.dimAtNight) {
-                update(preferences.copy(dimAtNight = it))
+                ToggleSettingRow("Dim at night", preferences.dimAtNight) {
+                    update(preferences.copy(dimAtNight = it))
+                }
             }
 
             SectionGap()
-            Text("PREVIEW EXPRESSIONS", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SettingsSubhead("Test expressions")
             Spacer(Modifier.height(10.dp))
             val tests = listOf(
                 "CENTER" to DaylineGlyphSignal.CENTER,
@@ -686,21 +600,14 @@ private fun GlyphSettingsSheet(
                             modifier = Modifier
                                 .weight(1f)
                                 .clickable { test(signal) }
-                                .padding(vertical = 9.dp),
-                            style = MaterialTheme.typography.labelSmall,
+                                .padding(vertical = 10.dp),
+                            style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
-
-            Spacer(Modifier.height(16.dp))
-            Text(
-                "Every non-center expression returns through CENTER before another animation begins. Blink is frequent; happy is common; sleepy stays rare.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
@@ -719,17 +626,17 @@ private fun CalendarControlsSheet(
             Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp)
+                .padding(horizontal = 26.dp)
+                .padding(bottom = 34.dp)
         ) {
-            Text("Calendars", style = MaterialTheme.typography.headlineLarge)
-            Spacer(Modifier.height(6.dp))
+            Text("Calendars", style = MaterialTheme.typography.displaySmall)
+            Spacer(Modifier.height(8.dp))
             Text(
-                "Tap the circle to show/hide. Default controls where new Dayline events are published.",
+                "Choose what Dayline shows and where new events go.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(22.dp))
 
             if (calendars.isEmpty()) {
                 Text("No Android calendars available yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -795,7 +702,7 @@ private fun TinyAction(label: String, onClick: () -> Unit) {
     Text(
         label,
         modifier = Modifier.clickable(onClick = onClick).padding(vertical = 4.dp),
-        style = MaterialTheme.typography.labelSmall,
+        style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
 }
@@ -817,8 +724,8 @@ private fun UpdateSheet(release: BetaRelease, onDismiss: () -> Unit) {
                 .padding(horizontal = 26.dp)
                 .padding(bottom = 34.dp)
         ) {
-            Text("Dayline update", style = MaterialTheme.typography.headlineLarge)
-            Spacer(Modifier.height(8.dp))
+            Text("Dayline update", style = MaterialTheme.typography.displaySmall)
+            Spacer(Modifier.height(10.dp))
             Text(
                 release.versionName,
                 style = MaterialTheme.typography.displayMedium,
@@ -831,11 +738,7 @@ private fun UpdateSheet(release: BetaRelease, onDismiss: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(24.dp))
-            Text(
-                "RELEASE NOTES",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            SettingsSubhead("Release notes")
             Spacer(Modifier.height(10.dp))
             Text(
                 release.notes.ifBlank { "Bug fixes and Dayline polish." },
@@ -912,7 +815,7 @@ private fun UpdateSheet(release: BetaRelease, onDismiss: () -> Unit) {
             }
             Spacer(Modifier.height(8.dp))
             Text(
-                "Dayline verifies the downloaded APK package, version code and published SHA-256 checksum when available. Android still performs the final signature check before replacing the installed beta.",
+                "Dayline verifies package, version and checksum before Android opens the installer.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -925,9 +828,9 @@ private fun UpdateSheet(release: BetaRelease, onDismiss: () -> Unit) {
 private fun PrivacySheet(onDismiss: () -> Unit) {
     val context = LocalContext.current
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.background) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 26.dp).padding(bottom = 32.dp)) {
-            Text("Privacy", style = MaterialTheme.typography.headlineLarge)
-            Spacer(Modifier.height(16.dp))
+        Column(Modifier.fillMaxWidth().padding(horizontal = 26.dp).padding(bottom = 34.dp)) {
+            Text("Privacy", style = MaterialTheme.typography.displaySmall)
+            Spacer(Modifier.height(20.dp))
             Text(
                 "Dayline has no account, advertising SDK, analytics SDK, or Dayline cloud service. Events, tasks, settings and focus state are stored on your device. If Android Calendar sync is enabled, Dayline reads and writes through Android's Calendar Provider; the calendar provider you choose may independently sync that calendar according to its own settings. Backup/export only writes data to a location you explicitly choose. GitHub beta builds can contact the public Dayline GitHub Releases API when you check for updates, or once per day if automatic beta checks are enabled. Play builds hide that update channel and do not request Internet access for it.",
                 style = MaterialTheme.typography.bodyLarge,
@@ -952,28 +855,6 @@ private fun PrivacySheet(onDismiss: () -> Unit) {
     }
 }
 
-@DrawableRes
-private fun widgetEmojiIconRes(emoji: WidgetEmojiChoice): Int = when (emoji.name) {
-    "SMILE" -> R.drawable.emoji_smile
-    "GRIN" -> R.drawable.emoji_grin
-    "WINK" -> R.drawable.emoji_wink
-    "COOL" -> R.drawable.emoji_cool
-    "NERD" -> R.drawable.emoji_nerd
-    "PARTY" -> R.drawable.emoji_party
-    "SLEEPY" -> R.drawable.emoji_sleepy
-    "MELT" -> R.drawable.emoji_melt
-    "GHOST" -> R.drawable.emoji_ghost
-    "ROBOT" -> R.drawable.emoji_robot
-    "RELAXED" -> R.drawable.emoji_relaxed
-    "HEART_EYES" -> R.drawable.emoji_heart_eyes
-    else -> R.drawable.emoji_smile
-}
-
-private fun widgetEmojiLabel(emoji: WidgetEmojiChoice): String = when (emoji.name) {
-    "HEART_EYES" -> "Heart eyes"
-    else -> emoji.name.lowercase().replace('_', ' ').replaceFirstChar { ch -> ch.titlecase() }
-}
-
 private fun CalendarPreferences.withRule(rule: CalendarRule): CalendarPreferences =
     copy(rules = rules.filterNot { it.calendarId == rule.calendarId } + rule)
 
@@ -990,7 +871,7 @@ private fun spaceName(id: String?, spaces: List<DaylineSpace>): String =
 private fun glyphModeLabel(mode: GlyphMode): String = when (mode) {
     GlyphMode.OFF -> "Off"
     GlyphMode.EYES_ONLY,
-    GlyphMode.EYES_AND_STATES -> "Eyes + focus"
+    GlyphMode.EYES_AND_STATES -> "On"
 }
 
 private fun updateActionLabel(state: UpdateUiState): String = when (state.status) {
@@ -1037,12 +918,6 @@ private fun fontLabel(font: FontChoice): String = when (font.name) {
     else -> font.name.lowercase().split('_').joinToString(" ") { part ->
         part.replaceFirstChar { ch -> ch.titlecase() }
     }
-}
-
-private fun widgetFontLabel(font: WidgetFontChoice): String = when (font) {
-    WidgetFontChoice.DOT_BOLD -> "Nothing dots · Bold"
-    WidgetFontChoice.DOT_FINE -> "Nothing dots · Fine"
-    WidgetFontChoice.MONO -> "Monospace · Bold"
 }
 
 private fun preciseStatus(context: Context): String {

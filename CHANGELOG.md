@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.17.0.beta — Flow
+
+### Added
+- Added visible **FREE** gaps directly to Today with quick actions for Event, Task and Focus.
+- Added a dedicated **ALL DAY** strip above the timed timeline.
+- Added task scheduling windows with optional earliest/deadline dates and deadline-aware Fit into my day suggestions.
+- Added Quick Move v2 choices for before/after a block, tomorrow morning/afternoon and next free slot.
+- Added actionable conflict resolution with overlap duration and real free-slot suggestions.
+- Added Search commands for this week, next week, weekdays and local free-time queries such as `free Friday afternoon`.
+- Added richer beta diagnostics: last widget refresh, next reminder, active Focus state, Glyph last-frame time, disconnect/recovery/send-failure counters and a shareable text debug report.
+- Added recurrence/planning unit tests to CI.
+
+### Changed
+- Today move/resize now snaps every 5 minutes, gives stronger 15-minute haptics, uses a larger resize target, exposes clearer floating time previews and can auto-scroll during long drags.
+- Past events fade gently and Today opens near the useful part of the current day rather than always at the top.
+- Month selection, weekends and busy-day overflow are more legible; Day Preview is split into ALL DAY / AGENDA / FREE TIME with an OPEN DAY action.
+- Task fitting respects earliest/deadline bounds.
+- Updater network parsing now preserves Added / Changed / Fixed headings instead of flattening the release body, and release metadata tracks APK size.
+- Glyph transport recovery behavior is unchanged; v0.17 only adds local instrumentation around successful frames and failures.
+
+### Fixed
+- Fixed the real updater parser stripping the section headings before the separate changelog cards could render them.
+- Fixed all-day events consuming timed free-space calculations or creating false overlap conflicts.
+- Hardened monthly recurrence semantics so 29th/30th/31st series do not silently shift into shorter months.
+- Bumped beta versionCode to **1700** and beta versionName to `0.17.0.beta`.
+
 ## 0.16.1.beta — Navigation + updater polish
 
 ### Added

@@ -26,10 +26,10 @@ android {
             dimension = "distribution"
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
-            // v0.16.0.beta: Planning milestone — month/day preview, local
-            // free-time fitting, quick move, cleaner Upcoming and swipe flow.
-            versionCode = 1600
-            versionName = "0.16.0"
+            // v0.16.1.beta: navigation + updater presentation polish.
+            // Swipe navigation stays, while page swaps are intentionally instant.
+            versionCode = 1601
+            versionName = "0.16.1"
             // Nothing's Glyph Matrix SDK 2.0 declares minSdk 33. Keep this
             // requirement isolated to the beta/Glyph build so the normal Play
             // build continues to support Dayline's global minSdk 26.

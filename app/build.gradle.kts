@@ -26,10 +26,11 @@ android {
             dimension = "distribution"
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
-            // v0.15.2.beta: Daily Flow milestone republished after skipped/failed
-            // release tags. Feature set remains the v0.15 Daily Flow release.
-            versionCode = 1502
-            versionName = "0.15.2"
+            // v0.15.3.beta: Glyph stability hotfix — conservative SDK lifecycle,
+            // delayed recovery with backoff, main-thread callbacks and no
+            // redundant hardware heartbeat frames.
+            versionCode = 1503
+            versionName = "0.15.3"
             // Nothing's Glyph Matrix SDK 2.0 declares minSdk 33. Keep this
             // requirement isolated to the beta/Glyph build so the normal Play
             // build continues to support Dayline's global minSdk 26.

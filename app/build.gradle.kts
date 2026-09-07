@@ -26,10 +26,10 @@ android {
             dimension = "distribution"
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
-            // v0.14.8.beta: cleaner app Settings hierarchy, widget controls
-            // only in widget configuration, and a simplified Glyph settings sheet.
-            versionCode = 1408
-            versionName = "0.14.8"
+            // v0.14.9.beta: recover Nothing Glyph service disconnects, keep the
+            // render loop alive after failures, and heartbeat stable frames.
+            versionCode = 1409
+            versionName = "0.14.9"
             // Nothing's Glyph Matrix SDK 2.0 declares minSdk 33. Keep this
             // requirement isolated to the beta/Glyph build so the normal Play
             // build continues to support Dayline's global minSdk 26.

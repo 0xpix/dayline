@@ -26,10 +26,10 @@ android {
             dimension = "distribution"
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
-            // v0.14.6.beta: Focus uses compact top eyes plus a fixed MM:SS
-            // countdown in the bottom five rows instead of the old progress ring.
-            versionCode = 1406
-            versionName = "0.14.6"
+            // v0.14.7.beta: Focus keeps the normal eyes and only shows a
+            // 30-second MM:SS announcement at start / 5m / 1m checkpoints.
+            versionCode = 1407
+            versionName = "0.14.7"
             // Nothing's Glyph Matrix SDK 2.0 declares minSdk 33. Keep this
             // requirement isolated to the beta/Glyph build so the normal Play
             // build continues to support Dayline's global minSdk 26.

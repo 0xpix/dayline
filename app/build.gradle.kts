@@ -26,10 +26,10 @@ android {
             dimension = "distribution"
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
-            // v0.14.1.beta contains the Glyph visual-language and blink fixes
-            // added after the already-published v0.14.0.beta APK.
-            versionCode = 1401
-            versionName = "0.14.1"
+            // v0.14.2.beta: stable expressive-eye runtime, focus progress ring,
+            // simplified Glyph settings and persistent brightness control.
+            versionCode = 1402
+            versionName = "0.14.2"
             // Nothing's Glyph Matrix SDK 2.0 declares minSdk 33. Keep this
             // requirement isolated to the beta/Glyph build so the normal Play
             // build continues to support Dayline's global minSdk 26.

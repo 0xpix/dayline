@@ -121,8 +121,6 @@ class DaylineGlyphToyService : Service() {
      *
      * Every non-centre animation is isolated by CENTER on both sides:
      * CENTER -> animation -> CENTER -> next animation.
-     * This prevents sequences such as SLEEPY -> HAPPY -> RIGHT from visually
-     * blending together on the small 13x13 matrix.
      */
     private fun naturalExpression(
         prefs: GlyphPreferences,
@@ -130,8 +128,6 @@ class DaylineGlyphToyService : Service() {
     ): DaylineGlyphSignal {
         if (nextBlinkAt == 0L || nextMotionAt == 0L) scheduleNaturalMotion(force = true)
 
-        // Complete a motion/expression, then always force a dedicated centre beat
-        // before blink or another expression can begin.
         if (motionUntil > 0L && now >= motionUntil) {
             motionUntil = 0L
             motionOverride = null
@@ -141,10 +137,8 @@ class DaylineGlyphToyService : Service() {
 
         if (now < centerRecoveryUntil) return DaylineGlyphSignal.CENTER
 
-        // Hold the current expression until its time is complete.
         motionOverride?.let { return it }
 
-        // Blink is also treated as an expression and must return through CENTER.
         if (blinkUntil > 0L) {
             if (now < blinkUntil) return DaylineGlyphSignal.BLINK
             blinkUntil = 0L
@@ -171,9 +165,7 @@ class DaylineGlyphToyService : Service() {
     private fun beginCenterRecovery(now: Long) {
         centerRecoveryUntil = now + CENTER_RECOVERY_MS
 
-        // Nothing else may begin during the recovery beat. Push due timers just
-        // beyond it so the next animation always starts from a clearly visible
-        // centre frame rather than on the same renderer tick.
+        // No blink or expression may start during the dedicated centre beat.
         if (nextBlinkAt <= centerRecoveryUntil) {
             nextBlinkAt = centerRecoveryUntil + Random.nextLong(350L, 900L)
         }
@@ -183,8 +175,6 @@ class DaylineGlyphToyService : Service() {
     }
 
     private fun randomExpression(): DaylineGlyphSignal {
-        // Keep only the expressions that read well on the 13×13 matrix.
-        // Happy gets more screen time; sleepy remains deliberately rare.
         return when (Random.nextInt(100)) {
             in 0..21 -> DaylineGlyphSignal.LOOK_LEFT
             in 22..43 -> DaylineGlyphSignal.LOOK_RIGHT
@@ -201,7 +191,6 @@ class DaylineGlyphToyService : Service() {
         val isBreak: Boolean
     )
 
-    /** Resolve the currently active event's 25/5, 50/10 or custom focus phase. */
     private fun focusOverlay(nowMillis: Long): FocusOverlay? {
         val now = LocalDateTime.now()
         val today = now.toLocalDate()
@@ -238,8 +227,6 @@ class DaylineGlyphToyService : Service() {
             )
         }
 
-        // Fallback keeps the Glyph useful before the notification runtime has
-        // created a persisted phase. The event supplies 25/5, 50/10 or custom.
         val start = active.startTime ?: return null
         val startMillis = LocalDateTime.of(today, start)
             .atZone(ZoneId.systemDefault())
@@ -265,11 +252,6 @@ class DaylineGlyphToyService : Service() {
         }
     }
 
-    /**
-     * The settings slider stays on Dayline's simple 0..255 percentage scale,
-     * while raw IntArray frames use the higher range demonstrated by Nothing's
-     * official Matrix sample (up to 2046). This makes 100% materially brighter.
-     */
     private fun currentBrightness(prefs: GlyphPreferences): Int {
         val uiBrightness = visualPrefs.loadBrightness()
         val rawBrightness = (
@@ -323,7 +305,7 @@ class DaylineGlyphToyService : Service() {
     }
 
     private companion object {
-        const val CENTER_RECOVERY_MS = 500L
+        const val CENTER_RECOVERY_MS = 700L
         const val BLINK_HOLD_MS = 350L
     }
 }

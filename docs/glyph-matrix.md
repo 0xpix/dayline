@@ -1,8 +1,8 @@
 # Dayline Glyph Matrix integration
 
-Dayline v0.16.1.beta provides an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
+Dayline v0.17.0.beta provides an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
 
-v0.16.1 is a navigation/updater polish release and deliberately adds **no new Glyph expression or Focus behavior**. The conservative transport recovery and centered stacked timer from v0.15.3–v0.15.4 remain the Glyph baseline while they continue real-device soak testing.
+v0.17.0 is a daily-flow release and deliberately adds **no new Glyph expression, Focus timing or aggressive reconnect behavior**. The conservative transport recovery and centered stacked timer from v0.15.3–v0.15.4 remain the Glyph baseline while they continue real-device soak testing. v0.17 only adds local diagnostic instrumentation so freezes can be investigated without changing the animation contract.
 
 ## Dayline behavior
 
@@ -44,7 +44,7 @@ A Focus time such as `14:54` is rendered as two centered lines:
 54
 ```
 
-The v0.15.4 layout remains unchanged in v0.16.1:
+The compact timer layout remains unchanged in v0.17.0:
 
 - **Minutes** use two 4×5 digits in rows 1–5.
 - **Seconds** use two 4×5 digits in rows 7–11.
@@ -55,22 +55,34 @@ The v0.15.4 layout remains unchanged in v0.16.1:
 
 ## Reliability / freeze recovery
 
-The conservative v0.15.3 transport remains unchanged in v0.16.1.beta.
+The conservative v0.15.3 transport remains the v0.17.0 baseline.
 
 Nothing's Matrix SDK owns a bound proxy service, so Dayline follows a conservative lifecycle:
 
 - SDK callback state is serialized onto the **main looper** so binder callbacks cannot race the animation renderer.
 - When `onServiceDisconnected` fires, Dayline keeps the existing manager/callback binding alive first and waits for the system proxy to reconnect naturally.
 - If it remains disconnected for about **5 seconds**, Dayline performs a clean `unInit()` before initializing a fresh binding.
-- Repeated recovery attempts back off up to **30 seconds** instead of reinitializing every 750 ms.
+- Repeated recovery attempts back off up to **30 seconds** instead of reinitializing every render tick.
 - Only the newest pending frame is retained while disconnected.
 - Connection generations reject callbacks from a superseded binding.
 - A real frame-send exception enters the same delayed recovery path instead of immediately starting a reconnect loop.
-- Duplicate unchanged frames are suppressed inside `NothingGlyphBridge`, so the old service-level 4-second heartbeat request does **not** produce redundant `setMatrixFrame()` traffic on the hardware.
+- Duplicate unchanged frames are suppressed inside `NothingGlyphBridge`, so the service-level stable-frame request does **not** produce redundant `setMatrixFrame()` traffic on the hardware.
 
 The AOD render loop is exception-protected so one unexpected render failure cannot permanently stop later animation ticks.
 
 This design deliberately favors a stable long-lived SDK binding over frequent proactive reconnects.
+
+## v0.17 diagnostics
+
+v0.17 adds **local instrumentation only**. `GlyphDiagnosticsStore` records:
+
+- time of the last frame successfully accepted by the bridge;
+- Matrix service disconnect count;
+- delayed recovery/rebind count;
+- frame-send failure count;
+- the latest compact transport error when one exists.
+
+These counters are shown in the hidden beta diagnostics sheet and can be included in the user-triggered debug export. The export does not include calendar/event/task titles. The counters do not create extra reconnect attempts, frame heartbeats or network traffic.
 
 ## Glyph settings
 
@@ -86,7 +98,7 @@ Dayline keeps a simple 0–100% brightness control and suppresses duplicate raw 
 
 ## Beta diagnostics
 
-v0.16.0 added a hidden beta diagnostics sheet under **Settings → About → tap Build five times**. It remains available in v0.16.1 and reports Glyph hardware availability alongside Calendar/updater/build information. It intentionally does **not** claim a live Glyph transport connection state because Nothing's current SDK does not expose one that Dayline can treat as authoritative.
+The hidden beta diagnostics sheet is available under **Settings → About → tap Build five times**. v0.17 expands it with widget refresh, next-reminder, Focus runtime and Glyph transport counters alongside Calendar/updater/build information. Hardware availability and transport counters are reported separately; Dayline still does **not** invent a live SDK connection state that Nothing's API does not expose authoritatively.
 
 ## Activating the AOD toy
 
@@ -98,11 +110,11 @@ v0.16.0 added a hidden beta diagnostics sheet under **Settings → About → tap
 
 ## Open-source / SDK boundary
 
-Dayline's own Glyph patterns, settings and reflection bridge are part of the MIT-licensed source tree. Nothing's `glyph-matrix-sdk-2.0.aar` is **not** committed to or redistributed as a source artifact by this repository.
+Dayline's own Glyph patterns, settings, diagnostics and reflection bridge are part of the MIT-licensed source tree. Nothing's `glyph-matrix-sdk-2.0.aar` is **not** committed to or redistributed as a source artifact by this repository.
 
 For GitHub beta CI, `.github/workflows/build-apk.yml` first validates that the AAR is absent and then downloads the official binary from `Nothing-Developer-Programme/GlyphMatrix-Developer-Kit` before compiling the beta flavor. `app/build.gradle.kts` only attaches the AAR to `betaImplementation` when the file exists.
 
-The Play flavor does not include the SDK in v0.16.1.beta. Nothing's Glyph SDK license restricts commercial use without written permission, so Play distribution should stay disabled for Glyph hardware until the appropriate permission/license is obtained.
+The Play flavor does not include the SDK in v0.17.0.beta. Nothing's Glyph SDK license restricts commercial use without written permission, so Play distribution should stay disabled for Glyph hardware until the appropriate permission/license is obtained.
 
 ## Release safety
 

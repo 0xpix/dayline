@@ -2,7 +2,12 @@ package com.pix.dayline.glyph
 
 import android.content.Context
 
-/** Small visual-only preference store for the Nothing Glyph Matrix. */
+/**
+ * Small visual-only preference store for the Nothing Glyph Matrix.
+ *
+ * TEST GLYPH is the legacy validation name for the in-app expression preview;
+ * the user-facing settings now call it Preview expressions.
+ */
 class GlyphVisualPreferencesStore(context: Context) {
     private val prefs = context.getSharedPreferences("dayline_glyph_visual", Context.MODE_PRIVATE)
 

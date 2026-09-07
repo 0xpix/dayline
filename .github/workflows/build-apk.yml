@@ -200,14 +200,28 @@ jobs:
             ${{ steps.beta.outputs.apk }}.sha256
           if-no-files-found: error
 
+      - name: Validate beta release notes
+        shell: bash
+        run: |
+          NOTES_FILE="docs/releases/${GITHUB_REF_NAME}.md"
+          test -s "$NOTES_FILE" || {
+            echo "Missing concise release notes: $NOTES_FILE"
+            echo "Every beta must ship Added / Changed / Fixed notes for the in-app updater."
+            exit 1
+          }
+          grep -qi '^## Added' "$NOTES_FILE"
+          grep -qi '^## Changed' "$NOTES_FILE"
+          grep -qi '^## Fixed' "$NOTES_FILE"
+
       - name: Publish GitHub beta release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          NOTES_FILE="docs/releases/${GITHUB_REF_NAME}.md"
           gh release create "$GITHUB_REF_NAME" \
             "${{ steps.beta.outputs.apk }}" \
             "${{ steps.beta.outputs.apk }}.sha256" \
             --repo "$GITHUB_REPOSITORY" \
             --title "Dayline $GITHUB_REF_NAME" \
             --prerelease \
-            --generate-notes
+            --notes-file "$NOTES_FILE"

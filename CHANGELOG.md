@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.14.3.beta — Glyph polish
+
+- Removed Curious, Playful, Surprised, Side-eye, Excited and Rolling from the live eye loop and Settings preview.
+- Rebalanced idle behavior around Center, left/right glances, Happy, Wink, Hearts, Squint and rare Sleepy expressions.
+- Made Look left/right always transition through **Center** before another expression or blink begins.
+- Added a dedicated ~500 ms center-recovery beat after side glances.
+- Reworked Hearts into smaller, cleaner heart-eye patterns.
+- Rebuilt Focus progress as a circular perimeter around the face with a faint full outline and brighter completed pixels.
+- Focus advances clockwise; break advances in reverse while the eyes keep animating.
+- Mapped Dayline's 0–100% brightness control to the higher raw `IntArray` intensity range demonstrated by Nothing's official Glyph Matrix example project.
+- Kept the Settings brightness UI on a normal percentage scale while allowing raw Matrix output up to 2047 internally.
+- Kept duplicate-frame suppression to reduce visible Glyph twitching/flicker.
+- Bumped beta versionCode to **1403** and beta versionName to `0.14.3.beta`.
+
+## 0.14.2.beta — Eyes + Focus redesign
+
+- Removed automatic calendar/app-state takeovers from the live Glyph experience.
+- Kept expressive eyes active continuously and made Focus Mode the only automatic Dayline overlay.
+- Added Focus progress for 25/5, 50/10 and custom focus cycles while retaining normal eye animation.
+- Increased blink frequency and substantially increased Happy frequency while making Sleepy rare.
+- Added persistent Glyph brightness control to Settings.
+- Simplified Glyph settings around enable/hardware, look & feel, Focus, night behavior and expression previews.
+- Added frame-change suppression so identical frames are not resent unnecessarily.
+- Bumped beta versionCode to **1402** and beta versionName to `0.14.2.beta`.
+
+## 0.14.1.beta — Glyph readability pass
+
+- Enlarged the Phone (4a) Pro eyes to a bold 5×5 rounded dot-eye shape.
+- Corrected left/right eye movement with the larger eyes.
+- Reworked Blink timing so the closed frame remains visible on hardware.
+- Simplified weak/crowded app-state symbols into larger centered 13×13 patterns.
+- Improved Sleepy and the main expression patterns for better small-matrix readability.
+- Bumped beta versionCode to **1401** and beta versionName to `0.14.1.beta`.
+
 ## 0.14.0.beta — Dayline Glyph beta
 
 - Added a Phone (4a) Pro 13×13 Glyph Matrix integration for GitHub beta builds.

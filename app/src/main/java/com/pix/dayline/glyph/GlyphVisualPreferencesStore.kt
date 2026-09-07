@@ -17,6 +17,7 @@ class GlyphVisualPreferencesStore(context: Context) {
     }
 
     companion object {
+        private const val KEY_BRIGHTNESS = "brightness"
         const val MIN_BRIGHTNESS = 96
         const val MAX_BRIGHTNESS = 255
         const val DEFAULT_BRIGHTNESS = 255

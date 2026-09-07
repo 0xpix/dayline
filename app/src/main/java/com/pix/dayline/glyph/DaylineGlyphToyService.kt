@@ -16,9 +16,9 @@ import kotlin.random.Random
 /**
  * Phone (4a) Pro Always-on Glyph Toy.
  *
- * Dayline now keeps the expressive eyes as the permanent visual language. The
- * only automatic app overlay is Focus Mode: phase progress lights pixels around
- * the eyes while the eyes continue their normal motion.
+ * Dayline keeps expressive eyes as the permanent visual language. The only
+ * automatic app overlay is Focus Mode: phase progress lights a circular path
+ * around the eyes while the face keeps its natural motion.
  */
 class DaylineGlyphToyService : Service() {
     private val handler = Handler(Looper.getMainLooper())
@@ -34,6 +34,7 @@ class DaylineGlyphToyService : Service() {
     private var nextMotionAt = 0L
     private var motionUntil = 0L
     private var motionOverride: DaylineGlyphSignal? = null
+    private var centerRecoveryUntil = 0L
     private var lastFrame: IntArray? = null
 
     private val systemMessenger by lazy {
@@ -95,8 +96,8 @@ class DaylineGlyphToyService : Service() {
         val nowMillis = System.currentTimeMillis()
         val brightness = currentBrightness(prefs)
 
-        // Manual expression previews from Settings are still allowed, but all
-        // priority > 0 app-state signals are intentionally ignored.
+        // Manual expression previews from Settings are allowed, but all
+        // priority > 0 app-state signals remain intentionally ignored.
         val preview = runtime.current(nowMillis)?.takeIf { it.priority == 0 }
         val expression = when {
             preview != null -> preview
@@ -115,15 +116,35 @@ class DaylineGlyphToyService : Service() {
     }
 
     /**
-     * One calm animation state machine prevents blink callbacks and the regular
-     * render loop from fighting each other. Blink is intentionally frequent, but
-     * expressions are held long enough to read instead of flickering.
+     * A single calm state machine keeps hardware updates stable. Left/right
+     * glances always return to CENTER before blink or another expression starts.
      */
     private fun naturalExpression(
         prefs: GlyphPreferences,
         now: Long
     ): DaylineGlyphSignal {
         if (nextBlinkAt == 0L || nextMotionAt == 0L) scheduleNaturalMotion(force = true)
+
+        // Finish the current expression first. A side glance gets a dedicated
+        // centre recovery beat, so LEFT -> HAPPY / BLINK never looks like a jump.
+        if (motionUntil > 0L && now >= motionUntil) {
+            val completed = motionOverride
+            motionUntil = 0L
+            motionOverride = null
+            if (completed == DaylineGlyphSignal.LOOK_LEFT || completed == DaylineGlyphSignal.LOOK_RIGHT) {
+                centerRecoveryUntil = now + CENTER_RECOVERY_MS
+                if (nextBlinkAt <= centerRecoveryUntil) {
+                    nextBlinkAt = centerRecoveryUntil + Random.nextLong(350L, 900L)
+                }
+                return DaylineGlyphSignal.CENTER
+            }
+        }
+
+        if (now < centerRecoveryUntil) return DaylineGlyphSignal.CENTER
+
+        // Do not let a blink interrupt an expression mid-frame. Finish the
+        // expression, centre if required, then blink.
+        motionOverride?.let { return it }
 
         if (blinkUntil > 0L) {
             if (now < blinkUntil) return DaylineGlyphSignal.BLINK
@@ -136,13 +157,6 @@ class DaylineGlyphToyService : Service() {
             return DaylineGlyphSignal.BLINK
         }
 
-        if (motionUntil > 0L && now >= motionUntil) {
-            motionUntil = 0L
-            motionOverride = null
-        }
-
-        motionOverride?.let { return it }
-
         if (prefs.randomGlancesEnabled && now >= nextMotionAt) {
             motionOverride = randomExpression()
             motionUntil = now + Random.nextLong(900L, 1_550L)
@@ -154,20 +168,15 @@ class DaylineGlyphToyService : Service() {
     }
 
     private fun randomExpression(): DaylineGlyphSignal {
-        // Happy appears often; sleepy is intentionally rare. Glances remain the
-        // most common movement, with occasional personality expressions mixed in.
+        // Keep only the expressions that read well on the 13×13 matrix.
+        // Happy gets more screen time; sleepy remains deliberately rare.
         return when (Random.nextInt(100)) {
-            in 0..15 -> DaylineGlyphSignal.LOOK_LEFT
-            in 16..31 -> DaylineGlyphSignal.LOOK_RIGHT
-            in 32..55 -> DaylineGlyphSignal.HAPPY
-            in 56..65 -> DaylineGlyphSignal.WINK
-            in 66..73 -> DaylineGlyphSignal.CURIOUS
-            in 74..80 -> DaylineGlyphSignal.PLAYFUL
-            in 81..85 -> DaylineGlyphSignal.SURPRISED
-            in 86..89 -> DaylineGlyphSignal.SIDE_EYE
-            in 90..93 -> DaylineGlyphSignal.EXCITED
-            in 94..96 -> DaylineGlyphSignal.ROLLING
-            in 97..98 -> DaylineGlyphSignal.HEARTS
+            in 0..21 -> DaylineGlyphSignal.LOOK_LEFT
+            in 22..43 -> DaylineGlyphSignal.LOOK_RIGHT
+            in 44..74 -> DaylineGlyphSignal.HAPPY
+            in 75..89 -> DaylineGlyphSignal.WINK
+            in 90..96 -> DaylineGlyphSignal.HEARTS
+            in 97..98 -> DaylineGlyphSignal.SQUINT
             else -> DaylineGlyphSignal.SLEEPY
         }
     }
@@ -215,8 +224,7 @@ class DaylineGlyphToyService : Service() {
         }
 
         // Fallback keeps the Glyph useful before the notification runtime has
-        // created a persisted phase. The event's FocusCycle supplies 25/5,
-        // 50/10, or the user's custom focus/rest lengths.
+        // created a persisted phase. The event supplies 25/5, 50/10 or custom.
         val start = active.startTime ?: return null
         val startMillis = LocalDateTime.of(today, start)
             .atZone(ZoneId.systemDefault())
@@ -281,9 +289,14 @@ class DaylineGlyphToyService : Service() {
         running = false
         blinkUntil = 0L
         motionUntil = 0L
+        centerRecoveryUntil = 0L
         motionOverride = null
         lastFrame = null
         handler.removeCallbacksAndMessages(null)
         bridge.close()
+    }
+
+    private companion object {
+        const val CENTER_RECOVERY_MS = 500L
     }
 }

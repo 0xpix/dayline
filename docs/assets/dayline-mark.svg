@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" role="img" aria-labelledby="title desc">
+  <title id="title">Dayline app icon</title>
+  <desc id="desc">A segmented square dial surrounding a horizontal day line and marker.</desc>
+  <rect width="108" height="108" rx="26" fill="#050505"/>
+
+  <!-- Segmented square dial — mirrors the Android adaptive-icon foreground. -->
+  <path fill="#fff" d="M34 28h16v6H34zM58 28h16v6H58zM74 34h6v16h-6zM74 58h6v16h-6zM58 74h16v6H58zM34 74h16v6H34zM28 58h6v16h-6zM28 34h6v16h-6z"/>
+
+  <!-- Dayline + marker. -->
+  <path fill="#fff" d="M38 51h26v6H38zM68 49h9v9h-9z"/>
+</svg>

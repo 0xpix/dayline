@@ -44,6 +44,8 @@ fun BetaDiagnosticsSheet(
     val focus = remember(context) { FocusRuntimeStore(context.applicationContext).active() }
     val nextReminder = remember(context) { nextReminder(store.loadItems()) }
     val widgetAt = store.loadLastWidgetRefreshAt()
+    val roomWriteError = store.loadLastRoomWriteError()
+    val roomWritePending = store.hasPendingRoomWrites()
 
     val rows = buildList {
         add("VERSION" to BuildConfig.VERSION_NAME)
@@ -56,6 +58,11 @@ fun BetaDiagnosticsSheet(
             else -> "WAITING"
         })
         add("WIDGET" to (widgetAt?.let { "UPDATED · ${formatTime(it)}" } ?: "NO REFRESH RECORDED"))
+        add("ROOM WRITE" to when {
+            !roomWriteError.isNullOrBlank() -> "ERROR · ${roomWriteError.take(52)}"
+            roomWritePending -> "PENDING"
+            else -> "OK"
+        })
         add("NEXT REMINDER" to (nextReminder?.let { formatTime(it) } ?: "NONE IN 30 DAYS"))
         add("FOCUS" to when {
             focus == null -> "IDLE"

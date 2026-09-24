@@ -66,7 +66,7 @@ class QuickAddPreviewTest {
         )!!
 
         assertEquals(
-            "Fri, Sep 25 · 09:00 · 1h30m",
+            "Tomorrow · 09:00 · 1h30m",
             parsed.previewLabel(today = thursday, locale = Locale.US)
         )
     }

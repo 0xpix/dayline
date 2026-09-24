@@ -27,10 +27,10 @@ android {
             dimension = "distribution"
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
-            // v0.18.2.beta: queue ordinary Room writes off the UI path while
-            // keeping restore/rollback writes synchronous and ordered.
-            versionCode = 1802
-            versionName = "0.18.2"
+            // v0.18.3.beta: journal queued Room snapshots so non-blocking
+            // writes can be replayed after process death or persistence failure.
+            versionCode = 1803
+            versionName = "0.18.3"
             // Nothing's Glyph Matrix SDK 2.0 declares minSdk 33. Keep this
             // requirement isolated to the beta/Glyph build so the normal Play
             // build continues to support Dayline's global minSdk 26.

@@ -1,13 +1,13 @@
-# Dayline v0.17.0.beta — Validation Report
+# Dayline v0.17.1.beta — Validation Report
 
-This report tracks the current **v0.17.0.beta / versionCode 1700** source. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current **v0.17.1.beta / versionCode 1700** source. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
-- Beta target: **0.17.0.beta / 1700**.
-- `docs/releases/v0.17.0.beta.md` contains concise **Added / Changed / Fixed** updater notes.
+- Beta target: **0.17.1.beta / 1701**.
+- `docs/releases/v0.17.1.beta.md` contains concise **Added / Changed / Fixed** updater notes.
 - Beta/Play flavor separation remains intact; Play stays on the stable base version and does not package the Nothing SDK.
-- Tagged builds must verify signed APK versionName/versionCode against tag `v0.17.0.beta`.
+- Tagged builds must verify signed APK versionName/versionCode against tag `v0.17.1.beta`.
 - Static validation, recurrence/planning unit tests, Beta debug compile and Play debug compile must all pass before tagging.
 
 ## Today Flow
@@ -81,11 +81,28 @@ CI runs pure JVM tests before Android assembly.
 
 ## Updater
 
+- Candidate updates must be newer by both semantic beta version and Dayline's versionCode convention.
+- Downloaded APK package, versionCode, byte size and SHA-256 checksum are verified before install.
+- The downloaded APK signing certificate is compared with the currently installed Dayline beta before Android's installer opens.
 - GitHub release-body cleanup preserves literal `## Added`, `## Changed`, `## Fixed` headings.
 - Settings continues rendering each heading in a separate card.
 - APK size is retained in `BetaRelease`, shown as concise release metadata and verified against the downloaded file when GitHub reports a size.
 - Package/version/checksum verification remains mandatory before the installer opens.
 - GitHub 404/rate/network failures use concise current errors rather than claiming a public repository is private.
+
+## Backup / restore
+
+- Backup schema is now explicit at version 2.
+- Restore rejects unknown future schema versions before clearing existing state.
+- Transient updater state, sync-health timestamps and widget-instance cache entries are excluded from backup payloads.
+- Legacy version-1 backups remain accepted.
+
+## Release discipline
+
+- `scripts/bump_beta.py` prepares versionName/versionCode and release-facing metadata together.
+- `scripts/check_beta_bump.py` compares functional changes against the latest beta tag.
+- Android CI fetches full tag history and fails when functional app/build changes exist without a newer beta version.
+- Static validation derives the active beta version from Gradle and verifies README, CHANGELOG and updater release-note alignment.
 
 ## Beta diagnostics
 
@@ -110,7 +127,7 @@ CI runs pure JVM tests before Android assembly.
 
 ## Android compile gate
 
-Before tagging `v0.17.0.beta`, GitHub Actions must pass:
+Before tagging `v0.17.1.beta`, GitHub Actions must pass:
 
 ```text
 :app:testBetaDebugUnitTest

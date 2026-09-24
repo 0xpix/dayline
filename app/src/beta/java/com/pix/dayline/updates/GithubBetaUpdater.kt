@@ -178,18 +178,59 @@ object GithubBetaUpdater {
     @Suppress("DEPRECATION")
     private fun verifyApk(context: Context, apk: File) {
         val pm = context.packageManager
-        val info = (
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                pm.getPackageArchiveInfo(apk.absolutePath, PackageManager.PackageInfoFlags.of(0))
-            } else {
-                pm.getPackageArchiveInfo(apk.absolutePath, 0)
-            }
-        ) ?: error("Downloaded file is not a valid Android APK")
+        val signingFlag = PackageManager.GET_SIGNING_CERTIFICATES
+        val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            pm.getPackageArchiveInfo(
+                apk.absolutePath,
+                PackageManager.PackageInfoFlags.of(signingFlag.toLong())
+            )
+        } else {
+            pm.getPackageArchiveInfo(apk.absolutePath, signingFlag)
+        } ?: error("Downloaded file is not a valid Android APK")
 
-        check(info.packageName == context.packageName) { "Downloaded APK belongs to ${info.packageName}, not ${context.packageName}" }
-        val downloadedCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode else info.versionCode.toLong()
-        check(downloadedCode > BuildConfig.VERSION_CODE.toLong()) { "This Dayline beta is already installed or the downloaded APK has an older versionCode." }
+        check(info.packageName == context.packageName) {
+            "Downloaded APK belongs to ${info.packageName}, not ${context.packageName}"
+        }
+
+        val downloadedCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            info.longVersionCode
+        } else {
+            info.versionCode.toLong()
+        }
+        check(downloadedCode > BuildConfig.VERSION_CODE.toLong()) {
+            "This Dayline beta is already installed or the downloaded APK has an older versionCode."
+        }
+
+        val installedInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            pm.getPackageInfo(
+                context.packageName,
+                PackageManager.PackageInfoFlags.of(signingFlag.toLong())
+            )
+        } else {
+            pm.getPackageInfo(context.packageName, signingFlag)
+        }
+
+        val downloadedSigners = info.signingInfo?.apkContentsSigners
+            ?.map { sha256(it.toByteArray()) }
+            ?.toSet()
+            .orEmpty()
+        val installedSigners = installedInfo.signingInfo?.apkContentsSigners
+            ?.map { sha256(it.toByteArray()) }
+            ?.toSet()
+            .orEmpty()
+
+        check(downloadedSigners.isNotEmpty() && installedSigners.isNotEmpty()) {
+            "Could not verify the Dayline signing certificate."
+        }
+        check(downloadedSigners == installedSigners) {
+            "Downloaded APK is signed with a different Dayline certificate."
+        }
     }
+
+    private fun sha256(bytes: ByteArray): String =
+        MessageDigest.getInstance("SHA-256")
+            .digest(bytes)
+            .joinToString("") { "%02x".format(it) }
 
     /** Keep the release-note structure intact; Settings parses these headings into distinct cards. */
     private fun cleanNotes(value: String): String {

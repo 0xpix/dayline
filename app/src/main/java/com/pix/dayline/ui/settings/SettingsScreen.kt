@@ -653,6 +653,8 @@ private fun UpdateSheet(release: BetaRelease, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     val sections = remember(release.notes) { parseUpdateNotes(release.notes) }
     var downloading by remember(release.tagName) { mutableStateOf(false) }
+    var downloadProgress by remember(release.tagName) { mutableIntStateOf(0) }
+    var downloadProgressKnown by remember(release.tagName) { mutableStateOf(false) }
     var downloadedApk by remember(release.tagName) { mutableStateOf<File?>(null) }
     var message by remember(release.tagName) { mutableStateOf<String?>(null) }
 
@@ -683,6 +685,8 @@ private fun UpdateSheet(release: BetaRelease, onDismiss: () -> Unit) {
             Spacer(Modifier.height(24.dp))
             val actionLabel = when {
                 release.apkUrl.isNullOrBlank() -> "View release"
+                downloading && downloadProgressKnown && downloadProgress >= 100 -> "Verifying update…"
+                downloading && downloadProgressKnown -> "Downloading $downloadProgress%"
                 downloading -> "Downloading…"
                 downloadedApk != null -> "Continue update"
                 else -> "Download & update"
@@ -694,10 +698,27 @@ private fun UpdateSheet(release: BetaRelease, onDismiss: () -> Unit) {
                         val readyApk = downloadedApk
                         if (readyApk != null) installVerified(readyApk)
                         else {
-                            downloading = true; message = null
+                            downloading = true
+                            downloadProgress = 0
+                            downloadProgressKnown = false
+                            message = null
                             scope.launch {
-                                GithubBetaUpdater.download(context.applicationContext, release)
-                                    .onSuccess { apk -> downloadedApk = apk; installVerified(apk) }
+                                GithubBetaUpdater.download(
+                                    context = context.applicationContext,
+                                    release = release
+                                ) { downloadedBytes, totalBytes ->
+                                    if (totalBytes > 0L) {
+                                        downloadProgressKnown = true
+                                        downloadProgress = (
+                                            downloadedBytes.toDouble() / totalBytes.toDouble() * 100.0
+                                        ).toInt().coerceIn(0, 100)
+                                    }
+                                }
+                                    .onSuccess { apk ->
+                                        downloadProgress = 100
+                                        downloadedApk = apk
+                                        installVerified(apk)
+                                    }
                                     .onFailure { message = it.message ?: "Download failed" }
                                 downloading = false
                             }

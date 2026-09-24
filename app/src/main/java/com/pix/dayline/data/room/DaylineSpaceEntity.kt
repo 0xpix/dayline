@@ -14,6 +14,7 @@ import com.pix.dayline.model.ItemColor
 @TypeConverters(DaylineRoomConverters::class)
 data class DaylineSpaceEntity(
     @PrimaryKey val id: String,
+    val position: Int,
     val name: String,
     val color: ItemColor,
     val calendarId: Long?
@@ -26,8 +27,9 @@ data class DaylineSpaceEntity(
     )
 
     companion object {
-        fun fromModel(space: DaylineSpace): DaylineSpaceEntity = DaylineSpaceEntity(
+        fun fromModel(space: DaylineSpace, position: Int = 0): DaylineSpaceEntity = DaylineSpaceEntity(
             id = space.id,
+            position = position,
             name = space.name,
             color = space.color,
             calendarId = space.calendarId

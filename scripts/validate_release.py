@@ -240,6 +240,7 @@ if beta_version is not None and beta_code is not None:
     beta_tag = f"v{beta_version}.beta"
     readme = read(ROOT / "README.md")
     changelog = read(ROOT / "CHANGELOG.md")
+    validation = read(ROOT / "VALIDATION.md")
     release_notes = ROOT / "docs" / "releases" / f"{beta_tag}.md"
     if beta_tag not in readme:
         fail(f"README does not reference current beta {beta_tag}")
@@ -247,6 +248,10 @@ if beta_version is not None and beta_code is not None:
         fail(f"README versionCode does not match beta versionCode {beta_code}")
     if f"## {beta_version}.beta" not in changelog:
         fail(f"CHANGELOG missing current beta {beta_version}.beta")
+    if f"# Dayline {beta_tag} — Validation Report" not in validation:
+        fail(f"VALIDATION.md does not reference current beta {beta_tag}")
+    if f"**{beta_tag} / versionCode {beta_code}**" not in validation:
+        fail(f"VALIDATION.md versionCode does not match beta versionCode {beta_code}")
     if not release_notes.is_file():
         fail(f"Missing updater release notes: {release_notes.relative_to(ROOT)}")
     else:

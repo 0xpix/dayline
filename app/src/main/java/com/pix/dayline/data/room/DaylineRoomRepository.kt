@@ -6,12 +6,12 @@ import com.pix.dayline.model.DaylineSpace
 import java.util.concurrent.Executors
 
 /**
- * Process-wide compatibility bridge between the current synchronous DaylineStore
- * API and Room.
+ * Process-wide compatibility bridge between DaylineStore and Room.
  *
- * The repository performs database work on one dedicated thread. Callers remain
- * synchronous for this first migration step; later UI work can move individual
- * mutations to suspend APIs without changing the database schema.
+ * Ordinary item/Space mutations update the in-memory snapshot immediately and
+ * queue disk persistence on one dedicated executor, preserving caller order
+ * without blocking the UI path. Restore/rollback uses explicit blocking methods
+ * so transactional recovery semantics remain deterministic.
  */
 class DaylineRoomRepository private constructor(context: Context) {
     private val database = DaylineDatabase.get(context)
@@ -113,27 +113,45 @@ class DaylineRoomRepository private constructor(context: Context) {
     fun replaceItems(items: List<DaylineItem>) {
         check(initialized) { "Dayline Room repository has not been initialized" }
         val snapshot = items.toList()
-        io.submit {
-            itemDao.replaceAll(
-                snapshot.mapIndexed { index, item ->
-                    DaylineItemEntity.fromModel(item, position = index)
-                }
-            )
-        }.get()
+        itemSnapshot = snapshot
+        io.execute { persistItems(snapshot) }
+    }
+
+    fun replaceItemsBlocking(items: List<DaylineItem>) {
+        check(initialized) { "Dayline Room repository has not been initialized" }
+        val snapshot = items.toList()
+        io.submit { persistItems(snapshot) }.get()
         itemSnapshot = snapshot
     }
 
     fun replaceSpaces(spaces: List<DaylineSpace>) {
         check(initialized) { "Dayline Room repository has not been initialized" }
         val snapshot = spaces.toList()
-        io.submit {
-            spaceDao.replaceAll(
-                snapshot.mapIndexed { index, space ->
-                    DaylineSpaceEntity.fromModel(space, position = index)
-                }
-            )
-        }.get()
         spaceSnapshot = snapshot
+        io.execute { persistSpaces(snapshot) }
+    }
+
+    fun replaceSpacesBlocking(spaces: List<DaylineSpace>) {
+        check(initialized) { "Dayline Room repository has not been initialized" }
+        val snapshot = spaces.toList()
+        io.submit { persistSpaces(snapshot) }.get()
+        spaceSnapshot = snapshot
+    }
+
+    private fun persistItems(items: List<DaylineItem>) {
+        itemDao.replaceAll(
+            items.mapIndexed { index, item ->
+                DaylineItemEntity.fromModel(item, position = index)
+            }
+        )
+    }
+
+    private fun persistSpaces(spaces: List<DaylineSpace>) {
+        spaceDao.replaceAll(
+            spaces.mapIndexed { index, space ->
+                DaylineSpaceEntity.fromModel(space, position = index)
+            }
+        )
     }
 
     companion object {

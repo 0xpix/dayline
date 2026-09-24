@@ -426,12 +426,17 @@ class DaylineStore(context: Context) {
     private fun ensureRoomInitialized() {
         if (roomInitialized) return
 
+        val rawLegacyItems = prefs.getString(KEY_ITEMS, null)
+        val rawLegacySpaces = prefs.getString(KEY_SPACES, null)
         val hadLegacyItems = prefs.contains(KEY_ITEMS)
-        roomRepository.initialize(
-            legacyItems = parseLegacyItems(prefs.getString(KEY_ITEMS, null)),
-            legacySpaces = prefs.getString(KEY_SPACES, null)
+
+        val migrationComplete = roomRepository.initialize(
+            legacyItems = parseLegacyItems(rawLegacyItems),
+            legacySpaces = rawLegacySpaces
                 ?.let(::parseLegacySpaces)
-                ?: defaultSpaces()
+                ?: defaultSpaces(),
+            legacyItemsValid = legacyItemsAreValid(rawLegacyItems),
+            legacySpacesValid = legacySpacesAreValid(rawLegacySpaces)
         )
 
         if (
@@ -442,10 +447,37 @@ class DaylineStore(context: Context) {
             prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETE, true).apply()
         }
 
-        // Room is now authoritative. Backup/export synthesizes the legacy JSON
-        // representation on demand, so stale preference copies are unnecessary.
-        prefs.edit().remove(KEY_ITEMS).remove(KEY_SPACES).apply()
+        // Delete the old source only after Room confirms the migration marker.
+        // If a legacy record cannot be decoded completely, keep the raw JSON as
+        // a forensic/recovery copy instead of silently declaring success.
+        if (migrationComplete) {
+            prefs.edit().remove(KEY_ITEMS).remove(KEY_SPACES).apply()
+        }
         roomInitialized = true
+    }
+
+    private fun legacyItemsAreValid(raw: String?): Boolean {
+        if (raw.isNullOrBlank()) return true
+        return runCatching {
+            val array = JSONArray(raw)
+            for (index in 0 until array.length()) {
+                itemFromJson(array.getJSONObject(index))
+            }
+            true
+        }.getOrDefault(false)
+    }
+
+    private fun legacySpacesAreValid(raw: String?): Boolean {
+        if (raw.isNullOrBlank()) return true
+        return runCatching {
+            val array = JSONArray(raw)
+            for (index in 0 until array.length()) {
+                val json = array.getJSONObject(index)
+                json.getString("id")
+                json.getString("name")
+            }
+            true
+        }.getOrDefault(false)
     }
 
     private fun parseLegacyItems(raw: String?): List<DaylineItem> {

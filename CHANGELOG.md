@@ -5,18 +5,22 @@
 ### Added
 - Added a beta-version bump helper so versionName, versionCode, README and updater release-note scaffolding can move together.
 - Added a CI beta-bump guard that compares functional changes with the latest beta tag.
-- Added updater/version regression tests.
+- Added updater/version, Glyph Matrix geometry and recurrence-edit regression tests.
+- Added backup restore previews so Dayline shows event, task and Space counts before replacing local data.
+- Added live APK download progress in the in-app beta updater.
 
 ### Changed
 - Static validation now derives the active beta version from Gradle and checks README, CHANGELOG and updater release-note alignment.
 - Backup schema moved to version 2 and excludes transient updater/sync/widget-instance cache state.
-- The beta updater now verifies the downloaded APK signing certificate against the installed Dayline beta before opening Android's installer.
+- Backup restore now validates nested event/task and Space payloads before clearing current data.
+- The beta updater verifies the downloaded APK signing certificate against the installed Dayline beta before opening Android's installer.
+- Settings text actions and Glyph expression controls now use larger touch targets, and the Glyph preview has an accessibility description.
 
 ### Fixed
 - Prevented stale release metadata from silently drifting away from the embedded beta version.
-- Restore now rejects unsupported future backup schemas before clearing local state while retaining compatibility with version-1 backups.
+- Cached update cards now use versionCode-aware installability checks, matching live GitHub update checks.
+- Restore rejects unsupported or malformed backups before replacing local state while retaining compatibility with version-1 backups.
 - Bumped beta versionCode to **1701** and beta versionName to `0.17.1.beta`.
-
 
 ## 0.17.0.beta — Flow
 

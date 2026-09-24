@@ -307,6 +307,35 @@ class DaylineStore(context: Context) {
             .toString(2)
     }
 
+    fun inspectBackup(raw: String): BackupPreview? = runCatching {
+        val root = JSONObject(raw)
+        require(root.optString("format") == BACKUP_FORMAT) { "Not a Dayline backup" }
+        val version = root.optInt("version", 1)
+        require(version in 1..BACKUP_FORMAT_VERSION) { "Unsupported Dayline backup version: $version" }
+
+        val values = root.getJSONObject("values")
+        val items = values.optString(KEY_ITEMS).takeIf { it.isNotBlank() }?.let(::JSONArray) ?: JSONArray()
+        var events = 0
+        var tasks = 0
+        for (index in 0 until items.length()) {
+            when (items.optJSONObject(index)?.optString("kind")) {
+                AgendaKind.TASK.name -> tasks += 1
+                else -> events += 1
+            }
+        }
+
+        val spaces = values.optString(KEY_SPACES).takeIf { it.isNotBlank() }?.let(::JSONArray)?.length() ?: 0
+        val templates = values.optString(KEY_TEMPLATES).takeIf { it.isNotBlank() }?.let(::JSONArray)?.length() ?: 0
+
+        BackupPreview(
+            version = version,
+            events = events,
+            tasks = tasks,
+            spaces = spaces,
+            templates = templates
+        )
+    }.getOrNull()
+
     fun importState(raw: String): Boolean = runCatching {
         val root = JSONObject(raw)
         require(root.optString("format") == BACKUP_FORMAT) { "Not a Dayline backup" }
@@ -449,6 +478,16 @@ class DaylineStore(context: Context) {
         private const val KEY_LAST_WIDGET_REFRESH_AT = "last_widget_refresh_at"
         private const val KEY_SHOW_ORB = "show_orb"; private const val KEY_WEEK_STARTS_MONDAY = "week_starts_monday"; private const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
     }
+}
+
+data class BackupPreview(
+    val version: Int,
+    val events: Int,
+    val tasks: Int,
+    val spaces: Int,
+    val templates: Int
+) {
+    val items: Int get() = events + tasks
 }
 
 enum class Appearance { SYSTEM, LIGHT, DARK }

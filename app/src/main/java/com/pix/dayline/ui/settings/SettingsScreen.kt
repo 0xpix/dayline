@@ -13,6 +13,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -23,6 +24,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.pix.dayline.BuildConfig
 import com.pix.dayline.data.*
@@ -305,6 +311,7 @@ private fun SelectorRow(title: String, value: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth()
             .heightIn(min = 48.dp)
+            .semantics { role = Role.Button }
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -344,9 +351,20 @@ private fun InfoRow(title: String, value: String, onClick: (() -> Unit)? = null)
 
 @Composable
 private fun ToggleSettingRow(title: String, checked: Boolean, onChecked: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .toggleable(
+                value = checked,
+                role = Role.Switch,
+                onValueChange = onChecked
+            )
+            .padding(vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onChecked)
+        Switch(checked = checked, onCheckedChange = null)
     }
 }
 
@@ -550,6 +568,11 @@ private fun CalendarControlsSheet(
                             if (rule.visible) "●" else "○",
                             modifier = Modifier
                                 .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                                .semantics {
+                                    contentDescription = "${calendar.name} visibility"
+                                    stateDescription = if (rule.visible) "Shown" else "Hidden"
+                                    role = Role.Switch
+                                }
                                 .clickable {
                                     onChange(preferences.withRule(rule.copy(visible = !rule.visible)))
                                 }
@@ -591,6 +614,7 @@ private fun TinyAction(label: String, onClick: () -> Unit) {
         label,
         modifier = Modifier
             .heightIn(min = 48.dp)
+            .semantics { role = Role.Button }
             .clickable(onClick = onClick)
             .wrapContentHeight(Alignment.CenterVertically),
         style = MaterialTheme.typography.labelMedium,

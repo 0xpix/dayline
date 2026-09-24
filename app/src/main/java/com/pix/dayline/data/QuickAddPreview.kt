@@ -19,7 +19,7 @@ fun ParsedQuickAdd.previewLabel(
 ): String? {
     if (!hasDirectives) return null
 
-    val focusNeedsTime = focusMinutes != null && (startTime ?: currentStartTime) == null
+    val focusNeedsTime = needsFocusStartTime(currentStartTime)
 
     val parts = buildList {
         if (kindExplicit) {
@@ -57,6 +57,12 @@ fun ParsedQuickAdd.previewLabel(
 
     return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }
+
+
+fun ParsedQuickAdd.needsFocusStartTime(
+    currentStartTime: LocalTime? = null
+): Boolean =
+    focusMinutes != null && (startTime ?: currentStartTime) == null
 
 private fun formatQuickAddDuration(minutes: Int): String = when {
     minutes < 60 -> "${minutes}m"

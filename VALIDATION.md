@@ -1,13 +1,13 @@
-# Dayline v0.18.0.beta — Validation Report
+# Dayline v0.18.1.beta — Validation Report
 
-This report tracks the current **v0.18.0.beta / versionCode 1800** source. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current **v0.18.1.beta / versionCode 1800** source. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
-- Beta target: **0.18.0.beta / 1800**.
-- `docs/releases/v0.18.0.beta.md` contains concise **Added / Changed / Fixed** updater notes.
+- Beta target: **0.18.1.beta / 1801**.
+- `docs/releases/v0.18.1.beta.md` contains concise **Added / Changed / Fixed** updater notes.
 - Beta/Play flavor separation remains intact; Play stays on the stable base version and does not package the Nothing SDK.
-- Tagged builds must verify signed APK versionName/versionCode against tag `v0.18.0.beta`.
+- Tagged builds must verify signed APK versionName/versionCode against tag `v0.18.1.beta`.
 - Static validation, recurrence/planning unit tests, Beta debug compile and Play debug compile must all pass before tagging.
 
 ## Today Flow
@@ -127,7 +127,9 @@ CI runs pure JVM tests before Android assembly.
 - Item and Space position is persisted so the previous list order survives migration.
 - On first v0.18 load, legacy SharedPreferences JSON is imported only when the corresponding Room table is empty.
 - Migration completion uses a dedicated internal metadata preference and is marked only after Room writes succeed.
-- Once migration succeeds, legacy active item/Space JSON keys are removed and Room becomes authoritative.
+- Legacy item/Space source JSON is decoded strictly before migration may be marked complete.
+- If any legacy source record is malformed, valid decodable rows may still be available in Room, but the migration marker stays incomplete and the original raw preference JSON is retained.
+- Legacy active item/Space JSON keys are removed only after Room reports the migration complete.
 - Existing Room rows are never overwritten merely because the one-time migration marker is absent.
 
 ## Backup / restore
@@ -183,7 +185,7 @@ CI runs pure JVM tests before Android assembly.
 
 ## Android compile gate
 
-Before tagging `v0.18.0.beta`, GitHub Actions must pass:
+Before tagging `v0.18.1.beta`, GitHub Actions must pass:
 
 ```text
 :app:testBetaDebugUnitTest

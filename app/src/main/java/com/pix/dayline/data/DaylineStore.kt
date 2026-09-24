@@ -1,6 +1,7 @@
 package com.pix.dayline.data
 
 import android.content.Context
+import com.pix.dayline.data.room.DaylineRoomRepository
 import com.pix.dayline.model.*
 import org.json.JSONArray
 import org.json.JSONObject
@@ -11,63 +12,29 @@ import java.util.UUID
 
 class DaylineStore(context: Context) {
     private val prefs = context.getSharedPreferences("dayline", Context.MODE_PRIVATE)
+    private val roomRepository = DaylineRoomRepository.get(context.applicationContext)
+
+    @Volatile
+    private var roomInitialized = false
 
     fun loadItems(): List<DaylineItem> {
-        val raw = prefs.getString(KEY_ITEMS, null) ?: return emptyList()
-        val array = runCatching { JSONArray(raw) }.getOrNull() ?: return emptyList()
-
-        return buildList {
-            for (index in 0 until array.length()) {
-                val item = runCatching {
-                    itemFromJson(array.getJSONObject(index))
-                }.getOrNull()
-                if (item != null) add(item)
-            }
-        }
+        ensureRoomInitialized()
+        return roomRepository.loadItems()
     }
 
     fun saveItems(items: List<DaylineItem>) {
-        val array = JSONArray()
-        items.forEach { array.put(itemToJson(it)) }
-        // SharedPreferences updates memory immediately; persist to disk off the
-        // UI thread so larger calendars do not stall a drag, resize or quick edit.
-        prefs.edit().putString(KEY_ITEMS, array.toString()).apply()
+        ensureRoomInitialized()
+        roomRepository.replaceItems(items)
     }
 
     fun loadSpaces(): List<DaylineSpace> {
-        val raw = prefs.getString(KEY_SPACES, null)
-        if (raw == null) {
-            val defaults = listOf(
-                DaylineSpace("personal", "Personal", ItemColor.BLUE),
-                DaylineSpace("work", "Work", ItemColor.VIOLET)
-            )
-            saveSpaces(defaults)
-            return defaults
-        }
-        val array = runCatching { JSONArray(raw) }.getOrNull() ?: return emptyList()
-        return buildList {
-            for (index in 0 until array.length()) {
-                val space = runCatching {
-                    val json = array.getJSONObject(index)
-                    DaylineSpace(
-                        id = json.getString("id"),
-                        name = json.getString("name"),
-                        color = enumValue(json.optString("color"), ItemColor.MONO),
-                        calendarId = json.optLong("calendarId", -1L).takeIf { it >= 0L }
-                    )
-                }.getOrNull()
-                if (space != null) add(space)
-            }
-        }
+        ensureRoomInitialized()
+        return roomRepository.loadSpaces()
     }
 
     fun saveSpaces(spaces: List<DaylineSpace>) {
-        val array = JSONArray()
-        spaces.forEach { space ->
-            array.put(JSONObject().put("id", space.id).put("name", space.name)
-                .put("color", space.color.name).put("calendarId", space.calendarId ?: -1L))
-        }
-        prefs.edit().putString(KEY_SPACES, array.toString()).apply()
+        ensureRoomInitialized()
+        roomRepository.replaceSpaces(spaces)
     }
 
     fun loadTemplates(): List<EventTemplate> {
@@ -303,13 +270,18 @@ class DaylineStore(context: Context) {
     fun saveShowOrb(show: Boolean) { prefs.edit().putBoolean(KEY_SHOW_ORB, show).apply() }
     fun loadWeekStartsMonday(): Boolean = prefs.getBoolean(KEY_WEEK_STARTS_MONDAY, true)
     fun saveWeekStartsMonday(monday: Boolean) { prefs.edit().putBoolean(KEY_WEEK_STARTS_MONDAY, monday).apply() }
-    fun loadOnboardingComplete(): Boolean = prefs.getBoolean(KEY_ONBOARDING_COMPLETE, prefs.contains(KEY_ITEMS))
+    fun loadOnboardingComplete(): Boolean =
+        prefs.getBoolean(KEY_ONBOARDING_COMPLETE, loadItems().isNotEmpty())
     fun saveOnboardingComplete(complete: Boolean) { prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETE, complete).apply() }
 
     fun exportState(): String {
+        ensureRoomInitialized()
         val values = JSONObject()
+            .put(KEY_ITEMS, itemsToLegacyJson(roomRepository.loadItems()))
+            .put(KEY_SPACES, spacesToLegacyJson(roomRepository.loadSpaces()))
+
         prefs.all.forEach { (key, value) ->
-            if (!shouldBackupKey(key)) return@forEach
+            if (!shouldBackupKey(key) || key == KEY_ITEMS || key == KEY_SPACES) return@forEach
             when (value) {
                 is String -> values.put(key, value)
                 is Boolean -> values.put(key, value)
@@ -396,18 +368,28 @@ class DaylineStore(context: Context) {
         require(version in 1..BACKUP_FORMAT_VERSION) { "Unsupported Dayline backup version: $version" }
 
         val values = root.getJSONObject("values")
+        val importedItems = parseLegacyItems(values.optString(KEY_ITEMS))
+        val importedSpaces = if (values.has(KEY_SPACES)) {
+            parseLegacySpaces(values.optString(KEY_SPACES))
+        } else {
+            defaultSpaces()
+        }
+
         val restored = mutableListOf<Pair<String, Any>>()
         val keys = values.keys()
         while (keys.hasNext()) {
             val key = keys.next()
-            if (!shouldBackupKey(key)) continue
+            if (!shouldBackupKey(key) || key == KEY_ITEMS || key == KEY_SPACES) continue
             val value = values.get(key)
             when (value) {
                 is String, is Boolean, is Int, is Long, is Double, is JSONArray -> restored += key to value
             }
         }
 
-        // Parse and validate the whole payload before clearing existing state.
+        ensureRoomInitialized()
+        val previousItems = roomRepository.loadItems()
+        val previousSpaces = roomRepository.loadSpaces()
+
         val editor = prefs.edit().clear()
         restored.forEach { (key, value) ->
             when (value) {
@@ -424,11 +406,98 @@ class DaylineStore(context: Context) {
                 )
             }
         }
-        editor.commit()
+
+        try {
+            roomRepository.replaceItems(importedItems)
+            roomRepository.replaceSpaces(importedSpaces)
+            check(editor.commit()) { "Could not persist restored Dayline settings" }
+        } catch (error: Throwable) {
+            runCatching { roomRepository.replaceItems(previousItems) }
+            runCatching { roomRepository.replaceSpaces(previousSpaces) }
+            throw error
+        }
+
+        true
     }.getOrDefault(false)
 
     private fun shouldBackupKey(key: String): Boolean =
         key !in VOLATILE_BACKUP_KEYS && !key.startsWith(WIDGET_INSTANCE_PREFIX)
+
+    private fun ensureRoomInitialized() {
+        if (roomInitialized) return
+
+        val hadLegacyItems = prefs.contains(KEY_ITEMS)
+        roomRepository.initialize(
+            legacyItems = parseLegacyItems(prefs.getString(KEY_ITEMS, null)),
+            legacySpaces = prefs.getString(KEY_SPACES, null)
+                ?.let(::parseLegacySpaces)
+                ?: defaultSpaces()
+        )
+
+        if (
+            hadLegacyItems &&
+            !prefs.contains(KEY_ONBOARDING_COMPLETE) &&
+            roomRepository.loadItems().isNotEmpty()
+        ) {
+            prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETE, true).apply()
+        }
+
+        // Room is now authoritative. Backup/export synthesizes the legacy JSON
+        // representation on demand, so stale preference copies are unnecessary.
+        prefs.edit().remove(KEY_ITEMS).remove(KEY_SPACES).apply()
+        roomInitialized = true
+    }
+
+    private fun parseLegacyItems(raw: String?): List<DaylineItem> {
+        if (raw.isNullOrBlank()) return emptyList()
+        val array = runCatching { JSONArray(raw) }.getOrNull() ?: return emptyList()
+        return buildList {
+            for (index in 0 until array.length()) {
+                runCatching { itemFromJson(array.getJSONObject(index)) }
+                    .getOrNull()
+                    ?.let(::add)
+            }
+        }
+    }
+
+    private fun parseLegacySpaces(raw: String?): List<DaylineSpace> {
+        if (raw.isNullOrBlank()) return emptyList()
+        val array = runCatching { JSONArray(raw) }.getOrNull() ?: return emptyList()
+        return buildList {
+            for (index in 0 until array.length()) {
+                runCatching {
+                    val json = array.getJSONObject(index)
+                    DaylineSpace(
+                        id = json.getString("id"),
+                        name = json.getString("name"),
+                        color = enumValue(json.optString("color"), ItemColor.MONO),
+                        calendarId = json.optLong("calendarId", -1L).takeIf { it >= 0L }
+                    )
+                }.getOrNull()?.let(::add)
+            }
+        }
+    }
+
+    private fun itemsToLegacyJson(items: List<DaylineItem>): String =
+        JSONArray().apply { items.forEach { put(itemToJson(it)) } }.toString()
+
+    private fun spacesToLegacyJson(spaces: List<DaylineSpace>): String =
+        JSONArray().apply {
+            spaces.forEach { space ->
+                put(
+                    JSONObject()
+                        .put("id", space.id)
+                        .put("name", space.name)
+                        .put("color", space.color.name)
+                        .put("calendarId", space.calendarId ?: -1L)
+                )
+            }
+        }.toString()
+
+    private fun defaultSpaces(): List<DaylineSpace> = listOf(
+        DaylineSpace("personal", "Personal", ItemColor.BLUE),
+        DaylineSpace("work", "Work", ItemColor.VIOLET)
+    )
 
     private fun itemFromJson(json: JSONObject): DaylineItem {
         val completed = parseDates(json.optJSONArray("completedDates")); val excluded = parseDates(json.optJSONArray("excludedDates"))

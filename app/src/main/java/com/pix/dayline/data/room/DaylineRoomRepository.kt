@@ -110,11 +110,19 @@ class DaylineRoomRepository private constructor(context: Context) {
         return spaceSnapshot
     }
 
-    fun replaceItems(items: List<DaylineItem>) {
+    fun replaceItems(
+        items: List<DaylineItem>,
+        onPersisted: (() -> Unit)? = null,
+        onFailure: ((Throwable) -> Unit)? = null
+    ) {
         check(initialized) { "Dayline Room repository has not been initialized" }
         val snapshot = items.toList()
         itemSnapshot = snapshot
-        io.execute { persistItems(snapshot) }
+        io.execute {
+            runCatching { persistItems(snapshot) }
+                .onSuccess { onPersisted?.invoke() }
+                .onFailure { onFailure?.invoke(it) }
+        }
     }
 
     fun replaceItemsBlocking(items: List<DaylineItem>) {
@@ -124,11 +132,19 @@ class DaylineRoomRepository private constructor(context: Context) {
         itemSnapshot = snapshot
     }
 
-    fun replaceSpaces(spaces: List<DaylineSpace>) {
+    fun replaceSpaces(
+        spaces: List<DaylineSpace>,
+        onPersisted: (() -> Unit)? = null,
+        onFailure: ((Throwable) -> Unit)? = null
+    ) {
         check(initialized) { "Dayline Room repository has not been initialized" }
         val snapshot = spaces.toList()
         spaceSnapshot = snapshot
-        io.execute { persistSpaces(snapshot) }
+        io.execute {
+            runCatching { persistSpaces(snapshot) }
+                .onSuccess { onPersisted?.invoke() }
+                .onFailure { onFailure?.invoke(it) }
+        }
     }
 
     fun replaceSpacesBlocking(spaces: List<DaylineSpace>) {

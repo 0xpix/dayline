@@ -19,6 +19,7 @@ object BetaReleaseNotes {
                     current = line.removePrefix("## ").trim()
                     output += "## $current"
                 }
+                line.startsWith("## ") -> current = null
                 line.startsWith("#") -> Unit
                 line.isBlank() -> if (output.lastOrNull()?.isNotBlank() == true) output += ""
                 line.contains("Full Changelog", ignoreCase = true) -> Unit

@@ -290,27 +290,63 @@ class DaylineStore(context: Context) {
     fun exportState(): String {
         val values = JSONObject()
         prefs.all.forEach { (key, value) ->
+            if (!shouldBackupKey(key)) return@forEach
             when (value) {
-                is String -> values.put(key, value); is Boolean -> values.put(key, value); is Int -> values.put(key, value)
-                is Long -> values.put(key, value); is Float -> values.put(key, value.toDouble()); is Set<*> -> values.put(key, JSONArray(value.toList()))
+                is String -> values.put(key, value)
+                is Boolean -> values.put(key, value)
+                is Int -> values.put(key, value)
+                is Long -> values.put(key, value)
+                is Float -> values.put(key, value.toDouble())
+                is Set<*> -> values.put(key, JSONArray(value.toList()))
             }
         }
-        return JSONObject().put("format", "dayline-backup").put("version", 1).put("values", values).toString(2)
+        return JSONObject()
+            .put("format", BACKUP_FORMAT)
+            .put("version", BACKUP_FORMAT_VERSION)
+            .put("values", values)
+            .toString(2)
     }
 
     fun importState(raw: String): Boolean = runCatching {
-        val root = JSONObject(raw); require(root.optString("format") == "dayline-backup")
-        val values = root.getJSONObject("values"); val editor = prefs.edit().clear(); val keys = values.keys()
+        val root = JSONObject(raw)
+        require(root.optString("format") == BACKUP_FORMAT) { "Not a Dayline backup" }
+        val version = root.optInt("version", 1)
+        require(version in 1..BACKUP_FORMAT_VERSION) { "Unsupported Dayline backup version: $version" }
+
+        val values = root.getJSONObject("values")
+        val restored = mutableListOf<Pair<String, Any>>()
+        val keys = values.keys()
         while (keys.hasNext()) {
-            val key = keys.next(); val value = values.get(key)
+            val key = keys.next()
+            if (!shouldBackupKey(key)) continue
+            val value = values.get(key)
             when (value) {
-                is String -> editor.putString(key, value); is Boolean -> editor.putBoolean(key, value); is Int -> editor.putInt(key, value)
-                is Long -> editor.putLong(key, value); is Double -> editor.putFloat(key, value.toFloat())
-                is JSONArray -> editor.putStringSet(key, buildSet { for (index in 0 until value.length()) add(value.getString(index)) })
+                is String, is Boolean, is Int, is Long, is Double, is JSONArray -> restored += key to value
+            }
+        }
+
+        // Parse and validate the whole payload before clearing existing state.
+        val editor = prefs.edit().clear()
+        restored.forEach { (key, value) ->
+            when (value) {
+                is String -> editor.putString(key, value)
+                is Boolean -> editor.putBoolean(key, value)
+                is Int -> editor.putInt(key, value)
+                is Long -> editor.putLong(key, value)
+                is Double -> editor.putFloat(key, value.toFloat())
+                is JSONArray -> editor.putStringSet(
+                    key,
+                    buildSet {
+                        for (index in 0 until value.length()) add(value.getString(index))
+                    }
+                )
             }
         }
         editor.commit()
     }.getOrDefault(false)
+
+    private fun shouldBackupKey(key: String): Boolean =
+        key !in VOLATILE_BACKUP_KEYS && !key.startsWith(WIDGET_INSTANCE_PREFIX)
 
     private fun itemFromJson(json: JSONObject): DaylineItem {
         val completed = parseDates(json.optJSONArray("completedDates")); val excluded = parseDates(json.optJSONArray("excludedDates"))
@@ -387,10 +423,22 @@ class DaylineStore(context: Context) {
         EventTemplate("template-errand", "Errand", durationMinutes = 45, color = ItemColor.ROSE)
     )
 
-    private fun widgetKey(appWidgetId: Int): String = "widget_instance_$appWidgetId"
+    private fun widgetKey(appWidgetId: Int): String = "$WIDGET_INSTANCE_PREFIX$appWidgetId"
     private inline fun <reified T : Enum<T>> enumValue(value: String?, fallback: T): T = runCatching { enumValueOf<T>(value.orEmpty()) }.getOrDefault(fallback)
 
     companion object {
+        private const val BACKUP_FORMAT = "dayline-backup"
+        private const val BACKUP_FORMAT_VERSION = 2
+        private const val WIDGET_INSTANCE_PREFIX = "widget_instance_"
+        private val VOLATILE_BACKUP_KEYS = setOf(
+            "last_update_check_at",
+            "last_update_check_error",
+            "available_beta_release",
+            "last_calendar_sync_at",
+            "last_calendar_sync_error",
+            "last_widget_refresh_at"
+        )
+
         private const val KEY_ITEMS = "items"; private const val KEY_SPACES = "spaces"; private const val KEY_TEMPLATES = "templates"
         private const val KEY_CALENDAR_PREFS = "calendar_prefs"; private const val KEY_APPEARANCE = "appearance"; private const val KEY_FONT = "font"
         private const val KEY_WIDGET_FONT = "widget_font"; private const val KEY_WIDGET_EMOJI = "widget_emoji"; private const val KEY_WIDGET_AUTO_SLIDE = "widget_auto_slide"

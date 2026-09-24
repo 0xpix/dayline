@@ -42,6 +42,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.pix.dayline.data.QuickAddDraft
 import com.pix.dayline.model.*
 import com.pix.dayline.ui.theme.composeColor
 import java.time.DayOfWeek
@@ -482,58 +483,24 @@ fun QuickAddSheet(
                             date
                         }
 
-                        val resolvedAllDay = kind == AgendaKind.EVENT && startTime == null
-                        val preservedTimeZone = if (
-                            kind == AgendaKind.EVENT &&
-                            startTime != null &&
-                            editing?.allDay != true
-                        ) {
-                            editing?.timeZoneId
-                        } else {
-                            null
-                        }
-
-                        val saved = DaylineItem(
-                            id = editing?.id ?: UUID.randomUUID().toString(),
-                            title = title.text.trim(),
+                        val saved = QuickAddDraft(
+                            title = title.text,
                             kind = kind,
-                            startDate = resolvedDate,
+                            date = resolvedDate,
                             startTime = startTime,
-                            endTime = endTime?.takeIf { startTime != null && it.isAfter(startTime) },
+                            endTime = endTime,
                             recurrence = recurrence,
-                            repeatDays = if (recurrence == Recurrence.CUSTOM) {
-                                repeatDays.ifEmpty { setOf(resolvedDate.dayOfWeek.value) }
-                            } else {
-                                emptySet()
-                            },
-                            recurrenceEndDate = editing?.recurrenceEndDate,
-                            excludedDates = editing?.excludedDates ?: emptySet(),
-                            seriesParentId = editing?.seriesParentId,
-                            reminderMinutes = reminderMinutes.takeIf { startTime != null },
-                            focusCycle = focusCycle.takeIf {
-                                kind == AgendaKind.EVENT && startTime != null && endTime != null
-                            } ?: FocusCycle.OFF,
-                            customFocusMinutes = customFocus.toIntOrNull()?.coerceIn(5, 180) ?: 25,
-                            customBreakMinutes = customBreak.toIntOrNull()?.coerceIn(1, 60) ?: 5,
-                            focusSessionsCompleted = editing?.focusSessionsCompleted ?: 0,
-                            focusedMinutesCompleted = editing?.focusedMinutesCompleted ?: 0,
+                            repeatDays = repeatDays,
+                            reminderMinutes = reminderMinutes,
+                            focusCycle = focusCycle,
+                            customFocusMinutes = customFocus.toIntOrNull() ?: 25,
+                            customBreakMinutes = customBreak.toIntOrNull() ?: 5,
                             bufferBeforeMinutes = bufferBefore,
                             bufferAfterMinutes = bufferAfter,
                             priority = priority,
-                            estimatedDurationMinutes = editing?.estimatedDurationMinutes ?: 30,
-                            earliestDate = editing?.earliestDate,
-                            deadlineDate = editing?.deadlineDate,
-                            allDay = resolvedAllDay,
-                            timeZoneId = preservedTimeZone,
                             color = itemColor,
-                            spaceId = spaceId,
-                            details = editing?.details ?: emptyList(),
-                            completedDates = editing?.completedDates ?: emptySet(),
-                            calendarEventId = editing?.calendarEventId,
-                            calendarId = editing?.calendarId,
-                            calendarName = editing?.calendarName,
-                            calendarReadOnly = editing?.calendarReadOnly ?: false
-                        )
+                            spaceId = spaceId
+                        ).toItem(editing = editing)
                         onSave(saved, editScope)
                     },
                     shape = CircleShape,

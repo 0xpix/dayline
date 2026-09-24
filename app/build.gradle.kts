@@ -26,9 +26,10 @@ android {
             dimension = "distribution"
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
-            // v0.17.3.beta: normalize legacy Glyph preferences to the current eyes-first defaults.
-            versionCode = 1703
-            versionName = "0.17.3"
+            // v0.17.4.beta: continue reliability hardening with release-guard tests,
+            // safer backup validation and CI coverage.
+            versionCode = 1704
+            versionName = "0.17.4"
             // Nothing's Glyph Matrix SDK 2.0 declares minSdk 33. Keep this
             // requirement isolated to the beta/Glyph build so the normal Play
             // build continues to support Dayline's global minSdk 26.

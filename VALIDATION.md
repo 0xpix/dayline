@@ -1,6 +1,6 @@
 # Dayline v0.18.2.beta — Validation Report
 
-This report tracks the current **v0.18.2.beta / versionCode 1801** source. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current **v0.18.2.beta / versionCode 1802** source. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.18.0.beta — Quick Add data layer
+
+### Added
+- Started a tested Quick Add item-construction layer.
+
+### Changed
+- Quick Add data invariants are moving out of Compose UI code into pure Kotlin.
+
+### Fixed
+- Bumped beta versionCode to **1800** and beta versionName to `0.18.0.beta`.
+
+
 ## 0.17.4.beta — Reliability guard coverage
 
 ### Added

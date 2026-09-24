@@ -510,10 +510,17 @@ class DaylineStore(context: Context) {
 
     private fun clearPendingRoomWrite(key: String, expectedPayload: String) {
         if (prefs.getString(key, null) != expectedPayload) return
-        prefs.edit()
-            .remove(key)
-            .remove(KEY_LAST_ROOM_WRITE_ERROR)
-            .apply()
+
+        val otherKey = when (key) {
+            KEY_PENDING_ROOM_ITEMS -> KEY_PENDING_ROOM_SPACES
+            KEY_PENDING_ROOM_SPACES -> KEY_PENDING_ROOM_ITEMS
+            else -> null
+        }
+        val editor = prefs.edit().remove(key)
+        if (otherKey == null || prefs.getString(otherKey, null) == null) {
+            editor.remove(KEY_LAST_ROOM_WRITE_ERROR)
+        }
+        editor.apply()
     }
 
     private fun recordRoomWriteFailure(kind: String, error: Throwable) {

@@ -1,13 +1,13 @@
-# Dayline v0.18.3.beta — Validation Report
+# Dayline v0.18.4.beta — Validation Report
 
-This report tracks the current **v0.18.3.beta / versionCode 1803** source. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current **v0.18.4.beta / versionCode 1803** source. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
-- Beta target: **0.18.3.beta / 1803**.
-- `docs/releases/v0.18.3.beta.md` contains concise **Added / Changed / Fixed** updater notes.
+- Beta target: **0.18.4.beta / 1804**.
+- `docs/releases/v0.18.4.beta.md` contains concise **Added / Changed / Fixed** updater notes.
 - Beta/Play flavor separation remains intact; Play stays on the stable base version and does not package the Nothing SDK.
-- Tagged builds must verify signed APK versionName/versionCode against tag `v0.18.3.beta`.
+- Tagged builds must verify signed APK versionName/versionCode against tag `v0.18.4.beta`.
 - Static validation, recurrence/planning unit tests, Beta debug compile and Play debug compile must all pass before tagging.
 
 ## Today Flow
@@ -45,6 +45,9 @@ This report tracks the current **v0.18.3.beta / versionCode 1803** source. GitHu
 - Supported date words include Today, Tomorrow and weekday names/abbreviations.
 - Supported time syntax is 24-hour `H:mm` / `HH:mm`.
 - Supported durations include `45m`, `1h` and `1h30m`.
+- New-item Quick Add shows a compact example while empty and an `UNDERSTOOD` line only when a documented shorthand directive is recognized.
+- The preview describes only parsed directives (type/date/time/duration/deadline); plain titles remain visually quiet and manual form choices are not falsely represented.
+- Preview-label formatting is pure and covered by JVM tests for plain titles, relative/named dates, tasks, Focus, times and mixed durations.
 - Leading `task` and `focus` are explicit type directives.
 - `due Monday`-style deadlines populate Task planning metadata.
 - Normal titles without a recognized directive remain normal titles and do not silently change Type/Date.
@@ -191,7 +194,7 @@ CI runs pure JVM tests before Android assembly.
 
 ## Android compile gate
 
-Before tagging `v0.18.3.beta`, GitHub Actions must pass:
+Before tagging `v0.18.4.beta`, GitHub Actions must pass:
 
 ```text
 :app:testBetaDebugUnitTest

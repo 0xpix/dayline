@@ -401,7 +401,7 @@ feature_checks = {
     "room ordered async writes": "io.execute {" in all_kotlin and "onPersisted" in all_kotlin and "onFailure" in all_kotlin and "replaceItemsBlocking" in all_kotlin and "replaceSpacesBlocking" in all_kotlin,
     "room write journal": "KEY_PENDING_ROOM_ITEMS" in all_kotlin and "KEY_PENDING_ROOM_SPACES" in all_kotlin and "replayPendingRoomWrites" in all_kotlin and "clearPendingRoomWrite" in all_kotlin and "loadLastRoomWriteError" in all_kotlin and "hasPendingRoomWrites" in all_kotlin,
     "local quick add parser": "QuickAddParser" in all_kotlin and "ParsedQuickAdd" in all_kotlin and "applyingShorthand" in all_kotlin,
-    "quick add live preview": "previewLabel" in all_kotlin and "UNDERSTOOD ·" in all_kotlin and "TRY · gym tomorrow 7:30 1h" in all_kotlin,
+    "quick add live preview": "previewLabel" in all_kotlin and "needsFocusStartTime" in all_kotlin and "quickAddNeedsTime" in all_kotlin and "UNDERSTOOD ·" in all_kotlin and "TRY · gym tomorrow 7:30 1h" in all_kotlin,
     "per-widget config": "WidgetInstancePrefs" in all_kotlin and "WidgetConfigActivity" in all_kotlin,
     "activity widget states": "liveWidgetLabel" in all_kotlin,
     "haptics": "HapticFeedbackType.SegmentFrequentTick" in all_kotlin,

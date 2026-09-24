@@ -24,7 +24,17 @@ class DaylineStore(context: Context) {
 
     fun saveItems(items: List<DaylineItem>) {
         ensureRoomInitialized()
-        roomRepository.replaceItems(items)
+        val payload = itemsToLegacyJson(items)
+        prefs.edit().putString(KEY_PENDING_ROOM_ITEMS, payload).apply()
+        roomRepository.replaceItems(
+            items = items,
+            onPersisted = {
+                clearPendingRoomWrite(KEY_PENDING_ROOM_ITEMS, payload)
+            },
+            onFailure = { error ->
+                recordRoomWriteFailure("items", error)
+            }
+        )
     }
 
     fun loadSpaces(): List<DaylineSpace> {
@@ -34,7 +44,17 @@ class DaylineStore(context: Context) {
 
     fun saveSpaces(spaces: List<DaylineSpace>) {
         ensureRoomInitialized()
-        roomRepository.replaceSpaces(spaces)
+        val payload = spacesToLegacyJson(spaces)
+        prefs.edit().putString(KEY_PENDING_ROOM_SPACES, payload).apply()
+        roomRepository.replaceSpaces(
+            spaces = spaces,
+            onPersisted = {
+                clearPendingRoomWrite(KEY_PENDING_ROOM_SPACES, payload)
+            },
+            onFailure = { error ->
+                recordRoomWriteFailure("spaces", error)
+            }
+        )
     }
 
     fun loadTemplates(): List<EventTemplate> {
@@ -439,6 +459,8 @@ class DaylineStore(context: Context) {
             legacySpacesValid = legacySpacesAreValid(rawLegacySpaces)
         )
 
+        replayPendingRoomWrites()
+
         if (
             hadLegacyItems &&
             !prefs.contains(KEY_ONBOARDING_COMPLETE) &&
@@ -455,6 +477,55 @@ class DaylineStore(context: Context) {
         }
         roomInitialized = true
     }
+
+    private fun replayPendingRoomWrites() {
+        prefs.getString(KEY_PENDING_ROOM_ITEMS, null)?.let { payload ->
+            if (legacyItemsAreValid(payload)) {
+                runCatching {
+                    roomRepository.replaceItemsBlocking(parseLegacyItems(payload))
+                }.onSuccess {
+                    clearPendingRoomWrite(KEY_PENDING_ROOM_ITEMS, payload)
+                }.onFailure { error ->
+                    recordRoomWriteFailure("items replay", error)
+                }
+            } else {
+                recordRoomWriteFailure("items replay", IllegalStateException("Pending item journal is malformed"))
+            }
+        }
+
+        prefs.getString(KEY_PENDING_ROOM_SPACES, null)?.let { payload ->
+            if (legacySpacesAreValid(payload)) {
+                runCatching {
+                    roomRepository.replaceSpacesBlocking(parseLegacySpaces(payload))
+                }.onSuccess {
+                    clearPendingRoomWrite(KEY_PENDING_ROOM_SPACES, payload)
+                }.onFailure { error ->
+                    recordRoomWriteFailure("spaces replay", error)
+                }
+            } else {
+                recordRoomWriteFailure("spaces replay", IllegalStateException("Pending Space journal is malformed"))
+            }
+        }
+    }
+
+    private fun clearPendingRoomWrite(key: String, expectedPayload: String) {
+        if (prefs.getString(key, null) != expectedPayload) return
+        prefs.edit()
+            .remove(key)
+            .remove(KEY_LAST_ROOM_WRITE_ERROR)
+            .apply()
+    }
+
+    private fun recordRoomWriteFailure(kind: String, error: Throwable) {
+        val detail = error.message?.takeIf { it.isNotBlank() }
+            ?: error::class.java.simpleName
+        prefs.edit()
+            .putString(KEY_LAST_ROOM_WRITE_ERROR, "$kind · $detail")
+            .apply()
+    }
+
+    fun loadLastRoomWriteError(): String? =
+        prefs.getString(KEY_LAST_ROOM_WRITE_ERROR, null)?.takeIf { it.isNotBlank() }
 
     private fun legacyItemsAreValid(raw: String?): Boolean {
         if (raw.isNullOrBlank()) return true
@@ -619,7 +690,10 @@ class DaylineStore(context: Context) {
             "available_beta_release",
             "last_calendar_sync_at",
             "last_calendar_sync_error",
-            "last_widget_refresh_at"
+            "last_widget_refresh_at",
+            "pending_room_items",
+            "pending_room_spaces",
+            "last_room_write_error"
         )
 
         private const val KEY_ITEMS = "items"; private const val KEY_SPACES = "spaces"; private const val KEY_TEMPLATES = "templates"
@@ -630,6 +704,9 @@ class DaylineStore(context: Context) {
         private const val KEY_AVAILABLE_BETA_RELEASE = "available_beta_release"; private const val KEY_LAST_CALENDAR_SYNC_AT = "last_calendar_sync_at"
         private const val KEY_LAST_CALENDAR_SYNC_ERROR = "last_calendar_sync_error"; private const val KEY_GLYPH_PREFERENCES = "glyph_preferences"
         private const val KEY_LAST_WIDGET_REFRESH_AT = "last_widget_refresh_at"
+        private const val KEY_PENDING_ROOM_ITEMS = "pending_room_items"
+        private const val KEY_PENDING_ROOM_SPACES = "pending_room_spaces"
+        private const val KEY_LAST_ROOM_WRITE_ERROR = "last_room_write_error"
         private const val KEY_SHOW_ORB = "show_orb"; private const val KEY_WEEK_STARTS_MONDAY = "week_starts_monday"; private const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
     }
 }

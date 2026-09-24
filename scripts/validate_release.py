@@ -49,6 +49,7 @@ required = [
     "docs/glyph-matrix.md",
     "scripts/bump_beta.py",
     "scripts/check_beta_bump.py",
+    "scripts/test_bump_beta.py",
     "app/src/test/java/com/pix/dayline/data/DaylineVersionTest.kt",
     "app/src/test/java/com/pix/dayline/data/SeriesEditorTest.kt",
     "app/src/test/java/com/pix/dayline/glyph/GlyphMatrixPatternsTest.kt",

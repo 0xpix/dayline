@@ -39,6 +39,11 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -199,7 +204,9 @@ private fun AllDayStrip(items: List<DaylineItem>, onEdit: (DaylineItem) -> Unit)
         Spacer(Modifier.height(8.dp))
         items.forEach { item ->
             Row(
-                Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { onEdit(item) }.padding(vertical = 8.dp),
+                Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    .semantics { contentDescription = "All day event, ${item.title}"; role = Role.Button }
+                    .clickable { onEdit(item) }.padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(Modifier.width(5.dp).height(28.dp).background(item.color.composeColor(), RoundedCornerShape(99.dp)))
@@ -311,17 +318,21 @@ private fun TimelineItem(
                                 if (abs(gestureOffset) > 140f) onAutoScroll(amount.y * .7f)
                             }
                         }
+                        .semantics {
+                            contentDescription = "${item.title}, ${previewStart.format(TIME)} to ${displayEnd.format(TIME)}"
+                            role = Role.Button
+                        }
                         .clickable(enabled = !dragging && !resizing, interactionSource = remember { MutableInteractionSource() }, indication = null) { onEdit(item) }
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(item.title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onBackground, textDecoration = if (completed) TextDecoration.LineThrough else TextDecoration.None, modifier = Modifier.weight(1f, fill = false))
                         if (conflict) {
                             Spacer(Modifier.width(8.dp))
-                            Text("!", modifier = Modifier.clickable(onClick = onConflict).padding(8.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.error)
+                            Text("!", modifier = Modifier.semantics { contentDescription = "Resolve time conflict for ${item.title}"; role = Role.Button }.clickable(onClick = onConflict).padding(8.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.error)
                         }
                         if (item.kind == AgendaKind.TASK) {
                             Spacer(Modifier.width(8.dp))
-                            Text(if (completed) "✓" else "○", modifier = Modifier.clickable { onToggleTask(item, date) }.padding(8.dp), style = MaterialTheme.typography.titleMedium)
+                            Text(if (completed) "✓" else "○", modifier = Modifier.semantics { contentDescription = "Task completion for ${item.title}"; stateDescription = if (completed) "Completed" else "Not completed"; role = Role.Button }.clickable { onToggleTask(item, date) }.padding(8.dp), style = MaterialTheme.typography.titleMedium)
                         }
                     }
                     Spacer(Modifier.height(4.dp))
@@ -332,6 +343,9 @@ private fun TimelineItem(
                     Spacer(Modifier.height(6.dp))
                     Box(
                         Modifier.width(120.dp).height(48.dp)
+                            .semantics {
+                                contentDescription = "Resize ${item.title}. Drag vertically to change the end time."
+                            }
                             .pointerInput(item.id, item.endTime) {
                                 var gestureOffset = 0f
                                 var gestureStep = 0
@@ -376,7 +390,7 @@ private fun TimelineGap(date: LocalDate, from: LocalTime, to: LocalTime, onSelec
     val total = Duration.between(from, to).toMinutes().coerceAtLeast(15L)
     val visible = total >= 30
     val height = if (visible) 48.dp else 24.dp
-    Box(Modifier.fillMaxWidth().height(height).clickable { onSelect(FreeSlot(date, from, to)) }, contentAlignment = Alignment.CenterStart) {
+    Box(Modifier.fillMaxWidth().height(height).semantics { contentDescription = "Free time, ${from.format(TIME)} to ${to.format(TIME)}, ${durationLabel(total.toInt())}"; role = Role.Button }.clickable { onSelect(FreeSlot(date, from, to)) }, contentAlignment = Alignment.CenterStart) {
         if (visible) {
             Text(
                 "FREE · ${from.format(TIME)}–${to.format(TIME)} · ${durationLabel(total.toInt())}",
@@ -501,6 +515,10 @@ private fun AnytimeItem(
 
     Row(
         Modifier.fillMaxWidth().heightIn(min = 48.dp)
+            .semantics {
+                contentDescription = "${item.title}, anytime task, ${durationLabel(item.estimatedDurationMinutes)}"
+                role = Role.Button
+            }
             .pointerInput(item.id, item.calendarReadOnly) {
                 if (item.calendarReadOnly) return@pointerInput
                 var gestureOffset = 0f
@@ -526,7 +544,7 @@ private fun AnytimeItem(
             Text(item.title, style = MaterialTheme.typography.bodyLarge, textDecoration = if (completed) TextDecoration.LineThrough else TextDecoration.None)
             Text(if (dragging) "Release · ${previewTime.format(TIME)}" else "${durationLabel(item.estimatedDurationMinutes)} · hold + drag to schedule", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Text(if (completed) "✓" else "○", modifier = Modifier.clickable { onToggleTask(item, date) }.padding(10.dp), style = MaterialTheme.typography.titleMedium)
+        Text(if (completed) "✓" else "○", modifier = Modifier.semantics { contentDescription = "Task completion for ${item.title}"; stateDescription = if (completed) "Completed" else "Not completed"; role = Role.Button }.clickable { onToggleTask(item, date) }.padding(10.dp), style = MaterialTheme.typography.titleMedium)
     }
 }
 

@@ -9,6 +9,7 @@
 - Continued the reliability pass with stricter release automation and backup validation.
 
 ### Fixed
+- Backup restore now rejects blank or duplicate event/task, Space and template IDs before replacing local data.
 - Bumped beta versionCode to **1704** and beta versionName to `0.17.4.beta`.
 
 

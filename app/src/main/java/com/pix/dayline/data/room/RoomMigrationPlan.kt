@@ -11,7 +11,9 @@ fun planLegacyRoomMigration(
     roomItemCount: Int,
     roomSpaceCount: Int,
     legacyItemCount: Int,
-    legacySpaceCount: Int
+    legacySpaceCount: Int,
+    legacyItemsValid: Boolean = true,
+    legacySpacesValid: Boolean = true
 ): RoomMigrationPlan {
     if (alreadyImported) {
         return RoomMigrationPlan(
@@ -24,6 +26,6 @@ fun planLegacyRoomMigration(
     return RoomMigrationPlan(
         importItems = roomItemCount == 0 && legacyItemCount > 0,
         importSpaces = roomSpaceCount == 0 && legacySpaceCount > 0,
-        markComplete = true
+        markComplete = legacyItemsValid && legacySpacesValid
     )
 }

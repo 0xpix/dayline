@@ -28,6 +28,9 @@ jobs:
       - name: Verify Nothing SDK binary is not committed
         run: test ! -f app/libs/glyph-matrix-sdk-2.0.aar
 
+      - name: Test beta version tooling
+        run: python3 -m unittest scripts.test_bump_beta
+
       - name: Static release validation
         run: python3 scripts/validate_release.py
 

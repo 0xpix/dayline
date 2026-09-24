@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.17.1.beta — Reliability
+
+### Added
+- Added a beta-version bump helper so versionName, versionCode, README and updater release-note scaffolding can move together.
+- Added stricter static validation for beta version consistency.
+
+### Changed
+- Started a focused reliability pass before the next feature milestone.
+
+### Fixed
+- Prevented stale release metadata from silently drifting away from the embedded beta version.
+- Bumped beta versionCode to **1701** and beta versionName to `0.17.1.beta`.
+
+
 ## 0.17.0.beta — Flow
 
 ### Added

@@ -4,13 +4,17 @@
 
 ### Added
 - Added a beta-version bump helper so versionName, versionCode, README and updater release-note scaffolding can move together.
-- Added stricter static validation for beta version consistency.
+- Added a CI beta-bump guard that compares functional changes with the latest beta tag.
+- Added updater/version regression tests.
 
 ### Changed
-- Started a focused reliability pass before the next feature milestone.
+- Static validation now derives the active beta version from Gradle and checks README, CHANGELOG and updater release-note alignment.
+- Backup schema moved to version 2 and excludes transient updater/sync/widget-instance cache state.
+- The beta updater now verifies the downloaded APK signing certificate against the installed Dayline beta before opening Android's installer.
 
 ### Fixed
 - Prevented stale release metadata from silently drifting away from the embedded beta version.
+- Restore now rejects unsupported future backup schemas before clearing local state while retaining compatibility with version-1 backups.
 - Bumped beta versionCode to **1701** and beta versionName to `0.17.1.beta`.
 
 

@@ -26,6 +26,7 @@ import java.time.LocalTime
 @TypeConverters(DaylineRoomConverters::class)
 data class DaylineItemEntity(
     @PrimaryKey val id: String,
+    val position: Int,
     val title: String,
     val kind: AgendaKind,
     val startDate: LocalDate,
@@ -96,8 +97,9 @@ data class DaylineItemEntity(
     )
 
     companion object {
-        fun fromModel(item: DaylineItem): DaylineItemEntity = DaylineItemEntity(
+        fun fromModel(item: DaylineItem, position: Int = 0): DaylineItemEntity = DaylineItemEntity(
             id = item.id,
+            position = position,
             title = item.title,
             kind = item.kind,
             startDate = item.startDate,

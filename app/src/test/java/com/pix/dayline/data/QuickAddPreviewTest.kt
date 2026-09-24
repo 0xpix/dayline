@@ -59,6 +59,36 @@ class QuickAddPreviewTest {
     }
 
     @Test
+    fun focusPreviewSignalsWhenATimeIsStillMissing() {
+        val parsed = QuickAddParser.parse(
+            "focus 50m",
+            today = thursday
+        )!!
+
+        assertEquals(
+            "Focus · 50m · Needs time",
+            parsed.previewLabel(today = thursday, locale = Locale.US)
+        )
+    }
+
+    @Test
+    fun manuallySelectedTimeCompletesFocusPreview() {
+        val parsed = QuickAddParser.parse(
+            "focus 50m",
+            today = thursday
+        )!!
+
+        assertEquals(
+            "Focus · 50m",
+            parsed.previewLabel(
+                today = thursday,
+                locale = Locale.US,
+                currentStartTime = LocalTime.of(18, 0)
+            )
+        )
+    }
+
+    @Test
     fun mixedDurationUsesCompactHourMinuteForm() {
         val parsed = QuickAddParser.parse(
             "meeting Friday 09:00 1h30m",

@@ -408,12 +408,12 @@ class DaylineStore(context: Context) {
         }
 
         try {
-            roomRepository.replaceItems(importedItems)
-            roomRepository.replaceSpaces(importedSpaces)
+            roomRepository.replaceItemsBlocking(importedItems)
+            roomRepository.replaceSpacesBlocking(importedSpaces)
             check(editor.commit()) { "Could not persist restored Dayline settings" }
         } catch (error: Throwable) {
-            runCatching { roomRepository.replaceItems(previousItems) }
-            runCatching { roomRepository.replaceSpaces(previousSpaces) }
+            runCatching { roomRepository.replaceItemsBlocking(previousItems) }
+            runCatching { roomRepository.replaceSpacesBlocking(previousSpaces) }
             throw error
         }
 

@@ -5,6 +5,7 @@
 ### Added
 - Added regression coverage for the beta-bump guard and release-version enforcement.
 - Added unit-tested parsing for updater release notes, including Added / Changed / Fixed sections and unknown-heading boundaries.
+- Added planning-engine edge-case coverage for adjacent busy blocks, quarter-hour fitting, previous-slot selection and overlap math.
 
 ### Changed
 - Continued the reliability pass with stricter release automation and backup validation.

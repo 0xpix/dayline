@@ -1,6 +1,6 @@
 # Dayline v0.17.1.beta — Validation Report
 
-This report tracks the current **v0.17.1.beta / versionCode 1700** source. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current **v0.17.1.beta / versionCode 1701** source. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
@@ -63,7 +63,7 @@ This report tracks the current **v0.17.1.beta / versionCode 1700** source. GitHu
 - Recurrence UNTIL conversion preserves the intended event-zone end date while serializing the provider rule in UTC.
 - Calendar deletion/reconciliation behavior from v0.15 remains intact.
 
-## Recurrence regression tests
+## JVM regression tests
 
 CI runs pure JVM tests before Android assembly.
 
@@ -72,6 +72,11 @@ CI runs pure JVM tests before Android assembly.
 - All-day entries do not consume free time.
 - Buffered busy windows merge correctly.
 - Task suggestions obey earliest/deadline bounds.
+- THIS OCCURRENCE detaches only the selected recurring occurrence.
+- THIS + FOLLOWING keeps past/future exclusions on the correct series segment.
+- ENTIRE SERIES preserves mapped Calendar provider identity.
+- Beta version comparison/versionCode installability rules are covered.
+- Glyph Center geometry stays symmetric and solid, Look left/right shift the full face by one column, removed legacy expressions fall back to Center, and Focus timer pixels stay inside the intended Matrix columns.
 
 ## Widgets
 
@@ -82,6 +87,8 @@ CI runs pure JVM tests before Android assembly.
 ## Updater
 
 - Candidate updates must be newer by both semantic beta version and Dayline's versionCode convention.
+- Cached update cards use the same installability rule, so stale releases are not resurfaced after an app upgrade.
+- The update sheet shows live percentage progress while the APK downloads and switches to a verification state after transfer completes.
 - Downloaded APK package, versionCode, byte size and SHA-256 checksum are verified before install.
 - The downloaded APK signing certificate is compared with the currently installed Dayline beta before Android's installer opens.
 - GitHub release-body cleanup preserves literal `## Added`, `## Changed`, `## Fixed` headings.
@@ -94,6 +101,8 @@ CI runs pure JVM tests before Android assembly.
 
 - Backup schema is now explicit at version 2.
 - Restore rejects unknown future schema versions before clearing existing state.
+- Nested event/task JSON and Space records are decoded and validated before any current data is cleared.
+- Selecting a backup shows event, task and Space counts and requires an explicit RESTORE action before replacement.
 - Transient updater state, sync-health timestamps and widget-instance cache entries are excluded from backup payloads.
 - Legacy version-1 backups remain accepted.
 
@@ -122,7 +131,8 @@ CI runs pure JVM tests before Android assembly.
 
 - Main destination changes remain instant; the disliked full-page animation stays removed.
 - Today ↔ Upcoming swipe shortcuts remain available.
-- New interactive rows/handles use larger touch targets while keeping visual chrome small.
+- Settings selector rows, compact text actions, calendar visibility controls and Glyph expression tests use larger touch targets while keeping visual chrome small.
+- The visual Glyph Matrix preview exposes one concise accessibility description instead of exposing 169 individual pixels.
 - Typography continues using Material hierarchy so larger Android font scales can expand without fixed-height text clipping where practical.
 
 ## Android compile gate

@@ -1,13 +1,13 @@
-# Dayline v0.17.4.beta — Validation Report
+# Dayline v0.18.0.beta — Validation Report
 
-This report tracks the current **v0.17.4.beta / versionCode 1704** source. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current **v0.18.0.beta / versionCode 1704** source. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
-- Beta target: **0.17.4.beta / 1704**.
-- `docs/releases/v0.17.4.beta.md` contains concise **Added / Changed / Fixed** updater notes.
+- Beta target: **0.18.0.beta / 1800**.
+- `docs/releases/v0.18.0.beta.md` contains concise **Added / Changed / Fixed** updater notes.
 - Beta/Play flavor separation remains intact; Play stays on the stable base version and does not package the Nothing SDK.
-- Tagged builds must verify signed APK versionName/versionCode against tag `v0.17.4.beta`.
+- Tagged builds must verify signed APK versionName/versionCode against tag `v0.18.0.beta`.
 - Static validation, recurrence/planning unit tests, Beta debug compile and Play debug compile must all pass before tagging.
 
 ## Today Flow
@@ -38,6 +38,19 @@ This report tracks the current **v0.17.4.beta / versionCode 1704** source. GitHu
 - Fit into my day uses the task scheduling window and refuses suggestions after the deadline.
 - Busy intervals merge buffers and ignore all-day entries.
 - Search free-time commands remain deterministic and local-only.
+
+## Local Quick Add
+
+- Parsing is deterministic and on-device; no AI model, account or network call is involved.
+- Supported date words include Today, Tomorrow and weekday names/abbreviations.
+- Supported time syntax is 24-hour `H:mm` / `HH:mm`.
+- Supported durations include `45m`, `1h` and `1h30m`.
+- Leading `task` and `focus` are explicit type directives.
+- `due Monday`-style deadlines populate Task planning metadata.
+- Normal titles without a recognized directive remain normal titles and do not silently change Type/Date.
+- Editing an existing item never reinterprets its title as shorthand.
+- Event duration shorthand derives end time; Focus shorthand creates a custom Focus cycle.
+- Calendar-backed Event → Task conversion clears provider-only identity/read-only/timezone metadata.
 
 ## Quick Move + conflicts
 
@@ -79,6 +92,9 @@ CI runs pure JVM tests before Android assembly.
 - Beta bump/version-guard helpers are covered by Python regression tests.
 - Updater release-note parsing preserves Added / Changed / Fixed content, stops at unsupported headings, strips unsupported source text and compacts Markdown spacing.
 - Planning regression coverage includes adjacent busy blocks, quarter-hour fitting, previous-slot selection and overlap calculations.
+- Quick Add parser tests cover the four documented shorthand examples, explicit/directive detection, mixed hour/minute durations and invalid/blank input.
+- Quick Add draft tests cover provider-metadata hygiene, manual-vs-explicit merge rules, task duration/deadline metadata and Focus shorthand.
+- Room entity mapping tests round-trip every DaylineItem field and Space metadata while preserving list position.
 - Glyph Center geometry stays symmetric and solid, Look left/right shift the full face by one column, removed legacy expressions fall back to Center, and Focus timer pixels stay inside the intended Matrix columns.
 
 ## Widgets
@@ -104,16 +120,26 @@ CI runs pure JVM tests before Android assembly.
 - Package/version/checksum verification remains mandatory before the installer opens.
 - GitHub 404/rate/network failures use concise current errors rather than claiming a public repository is private.
 
+## Room storage + migration
+
+- Events/tasks and Spaces are stored in the typed Room database; ordinary preferences remain in SharedPreferences.
+- Room uses explicit converters for dates/times, enums, recurrence-day/date sets and task-detail lists.
+- Item and Space position is persisted so the previous list order survives migration.
+- On first v0.18 load, legacy SharedPreferences JSON is imported only when the corresponding Room table is empty.
+- Migration completion uses a dedicated internal metadata preference and is marked only after Room writes succeed.
+- Once migration succeeds, legacy active item/Space JSON keys are removed and Room becomes authoritative.
+- Existing Room rows are never overwritten merely because the one-time migration marker is absent.
+
 ## Backup / restore
 
-- Backup schema is now explicit at version 2.
-- Restore rejects unknown future schema versions before clearing existing state.
-- Nested event/task JSON and Space records are decoded and validated before any current data is cleared.
+- Backup schema remains version 2 and the serialized backup representation stays compatible with v1/v2 Dayline backups.
+- Export synthesizes the existing JSON item/Space payload from Room instead of depending on stale preference copies.
+- Restore rejects unknown future schema versions before changing existing state.
+- Nested event/task JSON and Space records are decoded and validated before any current data is replaced.
 - Selecting a backup shows event, task and Space counts and requires an explicit RESTORE action before replacement.
-- Saved event/task, Space, template and Calendar-rule loaders isolate malformed records instead of dropping the entire collection.
-- Item writes use asynchronous SharedPreferences disk persistence so interaction paths do not wait for synchronous disk I/O.
 - Transient updater state, sync-health timestamps and widget-instance cache entries are excluded from backup payloads.
 - Blank or duplicate event/task, Space and template IDs are rejected before restore can replace current local data.
+- Room item/Space data is rolled back if the SharedPreferences portion of restore cannot be committed.
 - Legacy version-1 backups remain accepted.
 
 ## Release discipline
@@ -124,6 +150,7 @@ CI runs pure JVM tests before Android assembly.
 - Android CI fetches full tag history and fails when functional app/build changes exist without a newer beta version.
 - Main-branch CI cancels obsolete runs after a newer push; tagged beta release runs are never cancelled.
 - Static validation derives the active beta version from Gradle and verifies README, CHANGELOG and updater release-note alignment.
+- Static validation requires the v0.18 Room/KSP dependencies, Room database/repository/entities and Quick Add parser/mapper/test anchors.
 
 ## Beta diagnostics
 
@@ -156,7 +183,7 @@ CI runs pure JVM tests before Android assembly.
 
 ## Android compile gate
 
-Before tagging `v0.17.4.beta`, GitHub Actions must pass:
+Before tagging `v0.18.0.beta`, GitHub Actions must pass:
 
 ```text
 :app:testBetaDebugUnitTest

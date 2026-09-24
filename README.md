@@ -94,6 +94,17 @@ Dayline includes a small local planning engine rather than an AI planner.
 - **Quick Move** can move something before/after another block, tomorrow morning/afternoon or to the next free slot.
 - Conflict handling shows how much two items overlap and offers useful alternatives.
 
+### Quick Add
+
+New items can use a small deterministic shorthand grammar directly in the title field:
+
+- `gym tomorrow 7:30 1h`
+- `dentist Friday 14:00`
+- `task report 45m due Monday`
+- `focus 50m at 18:00`
+
+Parsing is entirely on-device and rule-based — no AI model, cloud call or account is involved. Ordinary titles remain ordinary unless Dayline finds an explicit task/focus/date/time/duration/due directive.
+
 ### Tasks
 
 Tasks can stay lightweight or become part of the timeline.
@@ -214,7 +225,7 @@ Dayline has:
 - no analytics SDK
 - no Dayline-operated cloud
 
-Calendar access is optional and uses Android's Calendar Provider. GitHub beta update checks contact GitHub's public release endpoint but do not send your calendar, task or Focus data.
+Events, tasks and Spaces are stored in Dayline's on-device Room database; ordinary preferences remain local Android preferences. Calendar access is optional and uses Android's Calendar Provider. GitHub beta update checks contact GitHub's public release endpoint but do not send your calendar, task or Focus data.
 
 Beta diagnostics remain on-device unless you explicitly share the generated report.
 

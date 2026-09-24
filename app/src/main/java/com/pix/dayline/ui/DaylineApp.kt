@@ -227,8 +227,40 @@ fun DaylineApp() {
     }
     val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
-        val raw = runCatching { appContext.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } }.getOrNull() ?: return@rememberLauncherForActivityResult
-        if (store.importState(raw)) reloadState()
+        val raw = runCatching {
+            appContext.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+        }.getOrNull() ?: return@rememberLauncherForActivityResult
+
+        val preview = store.inspectBackup(raw)
+        if (preview == null) {
+            scope.launch {
+                snackbarHostState.showSnackbar("That file is not a supported Dayline backup.")
+            }
+            return@rememberLauncherForActivityResult
+        }
+
+        val summary = buildList {
+            if (preview.events > 0) add("${preview.events} event${if (preview.events == 1) "" else "s"}")
+            if (preview.tasks > 0) add("${preview.tasks} task${if (preview.tasks == 1) "" else "s"}")
+            if (preview.spaces > 0) add("${preview.spaces} space${if (preview.spaces == 1) "" else "s"}")
+            if (isEmpty()) add("settings only")
+        }.joinToString(" · ")
+
+        scope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = "Restore $summary? Existing Dayline data will be replaced.",
+                actionLabel = "RESTORE",
+                duration = SnackbarDuration.Long
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                if (store.importState(raw)) {
+                    reloadState()
+                    snackbarHostState.showSnackbar("Backup restored.")
+                } else {
+                    snackbarHostState.showSnackbar("Could not restore this backup.")
+                }
+            }
+        }
     }
     val exportIcsLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/calendar")) { uri ->
         uri ?: return@rememberLauncherForActivityResult

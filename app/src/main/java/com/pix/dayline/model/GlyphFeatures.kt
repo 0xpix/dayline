@@ -73,3 +73,15 @@ data class GlyphHardwareStatus(
     val deviceLabel: String = "Unavailable",
     val detail: String? = null
 )
+
+
+/**
+ * Removes legacy Glyph modes that are still accepted only so older preference
+ * JSON can be read. OFF remains OFF; every enabled legacy mode becomes the
+ * current eyes-only behavior.
+ */
+fun GlyphPreferences.normalizedForCurrentGlyph(): GlyphPreferences = copy(
+    mode = if (mode == GlyphMode.OFF) GlyphMode.OFF else GlyphMode.EYES_ONLY,
+    showAppStates = false,
+    restAnimation = false
+)

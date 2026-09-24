@@ -52,6 +52,13 @@ required = [
     "scripts/test_bump_beta.py",
     "app/src/test/java/com/pix/dayline/data/DaylineVersionTest.kt",
     "app/src/test/java/com/pix/dayline/data/SeriesEditorTest.kt",
+    "app/src/test/java/com/pix/dayline/data/QuickAddDraftTest.kt",
+    "app/src/test/java/com/pix/dayline/data/QuickAddParserTest.kt",
+    "app/src/test/java/com/pix/dayline/data/room/RoomEntityMappingTest.kt",
+    "app/src/main/java/com/pix/dayline/data/room/DaylineDatabase.kt",
+    "app/src/main/java/com/pix/dayline/data/room/DaylineRoomRepository.kt",
+    "app/src/main/java/com/pix/dayline/data/room/DaylineItemEntity.kt",
+    "app/src/main/java/com/pix/dayline/data/room/DaylineSpaceEntity.kt",
     "app/src/test/java/com/pix/dayline/glyph/GlyphMatrixPatternsTest.kt",
     "app/src/test/java/com/pix/dayline/model/RecurrenceAndPlanningTest.kt",
     ".github/workflows/build-apk.yml",
@@ -165,6 +172,7 @@ for kind, name in re.findall(r"@([A-Za-z0-9_]+)/([A-Za-z0-9_]+)", manifest_text)
 
 # Build/release config.
 gradle = read(APP / "build.gradle.kts")
+root_gradle = read(ROOT / "build.gradle.kts")
 
 beta_block_match = re.search(
     r'create\("beta"\)\s*\{(?P<body>.*?)\n\s*\}',
@@ -191,6 +199,9 @@ else:
         if beta_code != expected_code:
             fail(f"beta versionCode {beta_code} does not match {beta_version} (expected {expected_code})")
 
+if 'id("com.google.devtools.ksp") version "2.3.12" apply false' not in root_gradle:
+    fail("KSP root plugin declaration missing or changed")
+
 for token, label in (
     ('targetSdk = 36', "targetSdk 36 expected"),
     ('compileSdk = 37', "compileSdk 37 expected"),
@@ -203,6 +214,15 @@ for token, label in (
 ):
     if token not in gradle:
         fail(label)
+
+for token in (
+    'id("com.google.devtools.ksp")',
+    'androidx.room:room-runtime:2.8.5',
+    'androidx.room:room-compiler:2.8.5',
+    'androidx.room:room-testing:2.8.5',
+):
+    if token not in gradle:
+        fail(f"Room/KSP dependency guard missing: {token}")
 
 for token in (
     'file("libs/glyph-matrix-sdk-2.0.aar")',
@@ -367,6 +387,9 @@ feature_checks = {
     "search commands": "unfinished" in all_kotlin and "tomorrow" in all_kotlin and "focus" in all_kotlin,
     "backup/export": "exportState" in all_kotlin and "exportIcs" in all_kotlin,
     "backup schema validation": "BACKUP_FORMAT_VERSION = 2" in all_kotlin and "inspectBackup" in all_kotlin,
+    "room data layer": "DaylineDatabase" in all_kotlin and "DaylineRoomRepository" in all_kotlin and "DaylineItemEntity" in all_kotlin and "DaylineSpaceEntity" in all_kotlin,
+    "room legacy migration": "KEY_LEGACY_IMPORTED" in all_kotlin and "itemsToLegacyJson" in all_kotlin and "spacesToLegacyJson" in all_kotlin,
+    "local quick add parser": "QuickAddParser" in all_kotlin and "ParsedQuickAdd" in all_kotlin and "applyingShorthand" in all_kotlin,
     "per-widget config": "WidgetInstancePrefs" in all_kotlin and "WidgetConfigActivity" in all_kotlin,
     "activity widget states": "liveWidgetLabel" in all_kotlin,
     "haptics": "HapticFeedbackType.SegmentFrequentTick" in all_kotlin,

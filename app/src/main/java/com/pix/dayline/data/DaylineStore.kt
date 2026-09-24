@@ -29,7 +29,9 @@ class DaylineStore(context: Context) {
     fun saveItems(items: List<DaylineItem>) {
         val array = JSONArray()
         items.forEach { array.put(itemToJson(it)) }
-        prefs.edit().putString(KEY_ITEMS, array.toString()).commit()
+        // SharedPreferences updates memory immediately; persist to disk off the
+        // UI thread so larger calendars do not stall a drag, resize or quick edit.
+        prefs.edit().putString(KEY_ITEMS, array.toString()).apply()
     }
 
     fun loadSpaces(): List<DaylineSpace> {

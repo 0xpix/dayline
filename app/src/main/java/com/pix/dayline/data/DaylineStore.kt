@@ -253,27 +253,42 @@ class DaylineStore(context: Context) {
     }
 
     fun loadGlyphPreferences(): GlyphPreferences {
-        val raw = prefs.getString(KEY_GLYPH_PREFERENCES, null) ?: return GlyphPreferences()
-        return runCatching {
+        val defaults = GlyphPreferences()
+        val raw = prefs.getString(KEY_GLYPH_PREFERENCES, null) ?: return defaults
+
+        val loaded = runCatching {
             val json = JSONObject(raw)
             GlyphPreferences(
-                mode = enumValue(json.optString("mode"), GlyphMode.EYES_AND_STATES),
-                idleExpression = enumValue(json.optString("idleExpression"), GlyphIdleExpression.CENTER),
-                blinkEnabled = json.optBoolean("blinkEnabled", true),
-                randomGlancesEnabled = json.optBoolean("randomGlancesEnabled", true),
-                glanceFrequency = enumValue(json.optString("glanceFrequency"), GlyphGlanceFrequency.RARE),
-                showAppStates = json.optBoolean("showAppStates", true),
-                stateDurationSeconds = json.optInt("stateDurationSeconds", 3).coerceIn(2, 10),
-                returnToEyes = json.optBoolean("returnToEyes", true),
-                reminderFlashSeconds = json.optInt("reminderFlashSeconds", 5).coerceIn(2, 10),
-                focusStyle = enumValue(json.optString("focusStyle"), GlyphFocusStyle.SUBTLE),
-                restAnimation = json.optBoolean("restAnimation", true),
-                quietHoursEnabled = json.optBoolean("quietHoursEnabled", true),
-                quietStart = json.optString("quietStart", "23:00").let { LocalTime.parse(it) },
-                quietEnd = json.optString("quietEnd", "07:00").let { LocalTime.parse(it) },
-                dimAtNight = json.optBoolean("dimAtNight", true), reduceMotion = json.optBoolean("reduceMotion", false)
+                mode = enumValue(json.optString("mode"), defaults.mode),
+                idleExpression = enumValue(json.optString("idleExpression"), defaults.idleExpression),
+                blinkEnabled = json.optBoolean("blinkEnabled", defaults.blinkEnabled),
+                randomGlancesEnabled = json.optBoolean("randomGlancesEnabled", defaults.randomGlancesEnabled),
+                glanceFrequency = enumValue(json.optString("glanceFrequency"), defaults.glanceFrequency),
+                showAppStates = json.optBoolean("showAppStates", defaults.showAppStates),
+                stateDurationSeconds = json.optInt("stateDurationSeconds", defaults.stateDurationSeconds).coerceIn(2, 10),
+                returnToEyes = json.optBoolean("returnToEyes", defaults.returnToEyes),
+                reminderFlashSeconds = json.optInt("reminderFlashSeconds", defaults.reminderFlashSeconds).coerceIn(2, 10),
+                focusStyle = enumValue(json.optString("focusStyle"), defaults.focusStyle),
+                restAnimation = json.optBoolean("restAnimation", defaults.restAnimation),
+                quietHoursEnabled = json.optBoolean("quietHoursEnabled", defaults.quietHoursEnabled),
+                quietStart = json.optString("quietStart", defaults.quietStart.toString()).let(LocalTime::parse),
+                quietEnd = json.optString("quietEnd", defaults.quietEnd.toString()).let(LocalTime::parse),
+                dimAtNight = json.optBoolean("dimAtNight", defaults.dimAtNight),
+                reduceMotion = json.optBoolean("reduceMotion", defaults.reduceMotion)
             )
-        }.getOrDefault(GlyphPreferences())
+        }.getOrDefault(defaults)
+
+        // EYES_AND_STATES/showAppStates/restAnimation only exist for loading old
+        // preference JSON. Current Dayline is eyes-first, so upgraded installs
+        // must behave exactly like fresh installs without requiring Settings to
+        // be opened once to normalize those legacy flags.
+        val normalized = loaded.copy(
+            mode = if (loaded.mode == GlyphMode.OFF) GlyphMode.OFF else GlyphMode.EYES_ONLY,
+            showAppStates = false,
+            restAnimation = false
+        )
+        if (normalized != loaded) saveGlyphPreferences(normalized)
+        return normalized
     }
 
     fun saveGlyphPreferences(value: GlyphPreferences) {

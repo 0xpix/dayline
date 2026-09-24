@@ -38,20 +38,25 @@ class DaylineRoomRepository private constructor(context: Context) {
 
     fun initialize(
         legacyItems: List<DaylineItem>,
-        legacySpaces: List<DaylineSpace>
-    ) {
-        if (initialized) return
+        legacySpaces: List<DaylineSpace>,
+        legacyItemsValid: Boolean = true,
+        legacySpacesValid: Boolean = true
+    ): Boolean {
+        if (initialized) return metadata.getBoolean(KEY_LEGACY_IMPORTED, false)
 
         synchronized(initializeLock) {
-            if (initialized) return
+            if (initialized) return metadata.getBoolean(KEY_LEGACY_IMPORTED, false)
 
-            val snapshot = io.submit<Pair<List<DaylineItem>, List<DaylineSpace>>> {
+            val result = io.submit<Triple<List<DaylineItem>, List<DaylineSpace>, Boolean>> {
+                val alreadyImported = metadata.getBoolean(KEY_LEGACY_IMPORTED, false)
                 val plan = planLegacyRoomMigration(
-                    alreadyImported = metadata.getBoolean(KEY_LEGACY_IMPORTED, false),
+                    alreadyImported = alreadyImported,
                     roomItemCount = itemDao.count(),
                     roomSpaceCount = spaceDao.count(),
                     legacyItemCount = legacyItems.size,
-                    legacySpaceCount = legacySpaces.size
+                    legacySpaceCount = legacySpaces.size,
+                    legacyItemsValid = legacyItemsValid,
+                    legacySpacesValid = legacySpacesValid
                 )
 
                 if (plan.importItems) {
@@ -68,6 +73,8 @@ class DaylineRoomRepository private constructor(context: Context) {
                         }
                     )
                 }
+
+                var migrationComplete = alreadyImported
                 if (plan.markComplete) {
                     check(
                         metadata.edit()
@@ -76,15 +83,20 @@ class DaylineRoomRepository private constructor(context: Context) {
                     ) {
                         "Could not mark Dayline Room migration complete"
                     }
+                    migrationComplete = true
                 }
 
-                itemDao.loadAll().map(DaylineItemEntity::toModel) to
-                    spaceDao.loadAll().map(DaylineSpaceEntity::toModel)
+                Triple(
+                    itemDao.loadAll().map(DaylineItemEntity::toModel),
+                    spaceDao.loadAll().map(DaylineSpaceEntity::toModel),
+                    migrationComplete
+                )
             }.get()
 
-            itemSnapshot = snapshot.first
-            spaceSnapshot = snapshot.second
+            itemSnapshot = result.first
+            spaceSnapshot = result.second
             initialized = true
+            return result.third
         }
     }
 

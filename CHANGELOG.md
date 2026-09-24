@@ -14,6 +14,7 @@
 
 ### Fixed
 - Backup restore now rejects blank or duplicate event/task, Space and template IDs before replacing local data.
+- Updater release-note normalization no longer retains unnecessary blank rows between headings and bullets.
 - Bumped beta versionCode to **1704** and beta versionName to `0.17.4.beta`.
 
 

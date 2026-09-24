@@ -37,6 +37,9 @@ jobs:
       - name: Test beta version tooling
         run: python3 -m unittest scripts.test_bump_beta
 
+      - name: Test beta bump guard
+        run: python3 -m unittest scripts.test_check_beta_bump
+
       - name: Static release validation
         run: python3 scripts/validate_release.py
 

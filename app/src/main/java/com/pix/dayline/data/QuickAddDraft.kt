@@ -37,6 +37,42 @@ data class QuickAddDraft(
     val color: ItemColor = ItemColor.MONO,
     val spaceId: String? = null
 ) {
+    fun applyingShorthand(parsed: ParsedQuickAdd?): QuickAddDraft {
+        if (parsed == null || !parsed.hasDirectives) return this
+
+        val nextKind = if (parsed.kindExplicit) parsed.kind else kind
+        val nextDate = if (parsed.dateExplicit) parsed.date else date
+        val nextStart = parsed.startTime ?: startTime
+        val nextDuration = parsed.durationMinutes
+        val nextEnd = when {
+            nextKind == AgendaKind.EVENT && nextStart != null && nextDuration != null ->
+                nextStart.plusMinutes(nextDuration.toLong())
+            else -> endTime
+        }
+        val shorthandFocus = parsed.focusMinutes
+            ?.takeIf { nextKind == AgendaKind.EVENT && nextStart != null }
+
+        return copy(
+            title = parsed.title,
+            kind = nextKind,
+            date = nextDate,
+            startTime = nextStart,
+            endTime = nextEnd,
+            focusCycle = if (shorthandFocus != null) FocusCycle.CUSTOM else focusCycle,
+            customFocusMinutes = shorthandFocus ?: customFocusMinutes,
+            estimatedDurationMinutes = if (nextKind == AgendaKind.TASK) {
+                nextDuration ?: estimatedDurationMinutes
+            } else {
+                estimatedDurationMinutes
+            },
+            deadlineDate = if (nextKind == AgendaKind.TASK) {
+                parsed.deadlineDate ?: deadlineDate
+            } else {
+                deadlineDate
+            }
+        )
+    }
+
     fun toItem(
         editing: DaylineItem? = null,
         idFactory: () -> String = { UUID.randomUUID().toString() }

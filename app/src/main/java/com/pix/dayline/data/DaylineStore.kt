@@ -72,33 +72,38 @@ class DaylineStore(context: Context) {
 
     fun loadTemplates(): List<EventTemplate> {
         val raw = prefs.getString(KEY_TEMPLATES, null) ?: return defaultTemplates()
-        return runCatching {
-            val array = JSONArray(raw)
-            val loaded = buildList {
-                for (index in 0 until array.length()) {
+        val array = runCatching { JSONArray(raw) }.getOrNull() ?: return defaultTemplates()
+
+        val loaded = buildList {
+            for (index in 0 until array.length()) {
+                val template = runCatching {
                     val json = array.getJSONObject(index)
-                    add(
-                        EventTemplate(
-                            id = json.optString("id").ifBlank { UUID.randomUUID().toString() },
-                            title = json.optString("title"),
-                            kind = enumValue(json.optString("kind"), AgendaKind.EVENT),
-                            durationMinutes = json.optInt("durationMinutes", 60).coerceIn(15, 24 * 60),
-                            startTime = json.optString("startTime").takeIf { it.isNotBlank() }?.let(LocalTime::parse),
-                            spaceId = json.optString("spaceId").takeIf { it.isNotBlank() },
-                            color = enumValue(json.optString("color"), ItemColor.MONO),
-                            focusCycle = enumValue(json.optString("focusCycle"), FocusCycle.OFF),
-                            customFocusMinutes = json.optInt("customFocusMinutes", 25).coerceIn(5, 180),
-                            customBreakMinutes = json.optInt("customBreakMinutes", 5).coerceIn(1, 60),
-                            bufferBeforeMinutes = json.optInt("bufferBeforeMinutes", 0).coerceIn(0, 180),
-                            bufferAfterMinutes = json.optInt("bufferAfterMinutes", 0).coerceIn(0, 180),
-                            priority = enumValue(json.optString("priority"), TaskPriority.NORMAL)
-                        )
+                    EventTemplate(
+                        id = json.optString("id").ifBlank { UUID.randomUUID().toString() },
+                        title = json.optString("title"),
+                        kind = enumValue(json.optString("kind"), AgendaKind.EVENT),
+                        durationMinutes = json.optInt("durationMinutes", 60).coerceIn(15, 24 * 60),
+                        startTime = json.optString("startTime").takeIf { it.isNotBlank() }?.let(LocalTime::parse),
+                        spaceId = json.optString("spaceId").takeIf { it.isNotBlank() },
+                        color = enumValue(json.optString("color"), ItemColor.MONO),
+                        focusCycle = enumValue(json.optString("focusCycle"), FocusCycle.OFF),
+                        customFocusMinutes = json.optInt("customFocusMinutes", 25).coerceIn(5, 180),
+                        customBreakMinutes = json.optInt("customBreakMinutes", 5).coerceIn(1, 60),
+                        bufferBeforeMinutes = json.optInt("bufferBeforeMinutes", 0).coerceIn(0, 180),
+                        bufferAfterMinutes = json.optInt("bufferAfterMinutes", 0).coerceIn(0, 180),
+                        priority = enumValue(json.optString("priority"), TaskPriority.NORMAL)
                     )
-                }
+                }.getOrNull()
+                if (template != null) add(template)
             }
-            val legacyIds = setOf("template-gym", "template-deep-work", "template-cs2", "template-0x00")
-            if (loaded.size == legacyIds.size && loaded.map { it.id }.toSet() == legacyIds) defaultTemplates() else loaded
-        }.getOrDefault(defaultTemplates())
+        }
+
+        val legacyIds = setOf("template-gym", "template-deep-work", "template-cs2", "template-0x00")
+        return if (loaded.size == legacyIds.size && loaded.map { it.id }.toSet() == legacyIds) {
+            defaultTemplates()
+        } else {
+            loaded
+        }
     }
 
     fun saveTemplates(templates: List<EventTemplate>) {

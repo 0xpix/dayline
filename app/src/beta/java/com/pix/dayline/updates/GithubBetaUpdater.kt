@@ -119,7 +119,14 @@ object GithubBetaUpdater {
         }
     }
 
-    suspend fun download(context: Context, release: BetaRelease): Result<File> = withContext(Dispatchers.IO) {
+    suspend fun download(context: Context, release: BetaRelease): Result<File> =
+        download(context, release) { _, _ -> }
+
+    suspend fun download(
+        context: Context,
+        release: BetaRelease,
+        onProgress: (downloadedBytes: Long, totalBytes: Long) -> Unit
+    ): Result<File> = withContext(Dispatchers.IO) {
         runCatching {
             check(
                 DaylineVersion.isInstallableUpdate(
@@ -133,7 +140,13 @@ object GithubBetaUpdater {
             val updateDir = File(context.cacheDir, "updates").apply { mkdirs() }
             updateDir.listFiles()?.forEach { old -> if (old.isFile) old.delete() }
             val apk = File(updateDir, safeFileName(release.apkName ?: "dayline-${release.tagName}.apk"))
-            downloadTo(url, apk, release.versionName)
+            downloadTo(
+                url = url,
+                destination = apk,
+                version = release.versionName,
+                expectedBytes = release.apkSizeBytes,
+                onProgress = onProgress
+            )
 
             release.apkSizeBytes?.takeIf { it > 0L }?.let { expectedBytes ->
                 check(apk.length() == expectedBytes) {
@@ -295,10 +308,35 @@ object GithubBetaUpdater {
         return try { connection.inputStream.bufferedReader().use { it.readText() } } finally { connection.disconnect() }
     }
 
-    private fun downloadTo(url: String, destination: File, version: String) {
+    private fun downloadTo(
+        url: String,
+        destination: File,
+        version: String,
+        expectedBytes: Long?,
+        onProgress: (downloadedBytes: Long, totalBytes: Long) -> Unit
+    ) {
         val connection = open(url, version)
-        try { connection.inputStream.use { input -> destination.outputStream().buffered().use { output -> input.copyTo(output) } } }
-        finally { connection.disconnect() }
+        try {
+            val total = expectedBytes?.takeIf { it > 0L }
+                ?: connection.contentLengthLong.takeIf { it > 0L }
+                ?: -1L
+            var downloaded = 0L
+            onProgress(0L, total)
+            connection.inputStream.use { input ->
+                destination.outputStream().buffered().use { output ->
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count <= 0) break
+                        output.write(buffer, 0, count)
+                        downloaded += count
+                        onProgress(downloaded, total)
+                    }
+                }
+            }
+        } finally {
+            connection.disconnect()
+        }
     }
 
     private fun open(url: String, version: String): HttpURLConnection {

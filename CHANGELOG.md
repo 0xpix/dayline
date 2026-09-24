@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.17.3.beta — Glyph preference migration
+
+### Added
+- Legacy Glyph preference normalization for upgraded installs.
+
+### Changed
+- Started a focused Glyph migration patch after freezing v0.17.2.beta.
+
+### Fixed
+- Bumped beta versionCode to **1703** and beta versionName to `0.17.3.beta`.
+
+
 ## 0.17.2.beta — Accessibility polish
 
 ### Added

@@ -14,8 +14,10 @@ permissions:
   contents: write
 
 concurrency:
+  # Each branch/tag gets its own lane. A newer run on the same ref supersedes
+  # an older one; different beta tags never cancel one another.
   group: android-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  cancel-in-progress: true
 
 jobs:
   ci:

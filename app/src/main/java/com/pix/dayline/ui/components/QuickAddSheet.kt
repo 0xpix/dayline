@@ -491,54 +491,26 @@ fun QuickAddSheet(
                             null
                         }
 
-                        val effectiveKind = shorthand
-                            ?.takeIf { it.kindExplicit }
-                            ?.kind
-                            ?: kind
-                        val effectiveDate = shorthand
-                            ?.takeIf { it.dateExplicit }
-                            ?.date
-                            ?: resolvedDate
-                        val effectiveStart = shorthand?.startTime ?: startTime
-                        val effectiveDuration = shorthand?.durationMinutes
-                        val effectiveEnd = when {
-                            effectiveKind == AgendaKind.EVENT &&
-                                effectiveStart != null &&
-                                effectiveDuration != null ->
-                                effectiveStart.plusMinutes(effectiveDuration.toLong())
-                            else -> endTime
-                        }
-                        val shorthandFocus = shorthand?.focusMinutes
-                            ?.takeIf { effectiveKind == AgendaKind.EVENT && effectiveStart != null }
-
                         val saved = QuickAddDraft(
-                            title = shorthand?.title ?: title.text,
-                            kind = effectiveKind,
-                            date = effectiveDate,
-                            startTime = effectiveStart,
-                            endTime = effectiveEnd,
+                            title = title.text,
+                            kind = kind,
+                            date = resolvedDate,
+                            startTime = startTime,
+                            endTime = endTime,
                             recurrence = recurrence,
                             repeatDays = repeatDays,
                             reminderMinutes = reminderMinutes,
-                            focusCycle = if (shorthandFocus != null) {
-                                FocusCycle.CUSTOM
-                            } else {
-                                focusCycle
-                            },
-                            customFocusMinutes = shorthandFocus
-                                ?: customFocus.toIntOrNull()
-                                ?: 25,
+                            focusCycle = focusCycle,
+                            customFocusMinutes = customFocus.toIntOrNull() ?: 25,
                             customBreakMinutes = customBreak.toIntOrNull() ?: 5,
                             bufferBeforeMinutes = bufferBefore,
                             bufferAfterMinutes = bufferAfter,
                             priority = priority,
-                            estimatedDurationMinutes = effectiveDuration
-                                ?.takeIf { effectiveKind == AgendaKind.TASK },
-                            deadlineDate = shorthand?.deadlineDate
-                                ?.takeIf { effectiveKind == AgendaKind.TASK },
                             color = itemColor,
                             spaceId = spaceId
-                        ).toItem(editing = editing)
+                        )
+                            .applyingShorthand(shorthand)
+                            .toItem(editing = editing)
                         onSave(saved, editScope)
                     },
                     shape = CircleShape,

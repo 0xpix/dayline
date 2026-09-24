@@ -26,10 +26,10 @@ android {
             dimension = "distribution"
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
-            // v0.17.0.beta: Flow — Today free gaps, interaction polish,
-            // all-day planning, smarter fitting/search and beta diagnostics.
-            versionCode = 1700
-            versionName = "0.17.0"
+            // v0.17.1.beta: reliability pass — version automation, updater/backup
+            // hardening and broader regression coverage.
+            versionCode = 1701
+            versionName = "0.17.1"
             // Nothing's Glyph Matrix SDK 2.0 declares minSdk 33. Keep this
             // requirement isolated to the beta/Glyph build so the normal Play
             // build continues to support Dayline's global minSdk 26.

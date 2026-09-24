@@ -2,7 +2,7 @@
 
 Use this as a release checklist, not as a substitute for reviewing the final Play Console form.
 
-Current v0.13.0 beta/play architecture:
+Current v0.18.0 beta/play architecture:
 
 - no Dayline account
 - no Dayline backend
@@ -11,6 +11,9 @@ Current v0.13.0 beta/play architecture:
 - no Play-flavor INTERNET permission
 - no Play-flavor REQUEST_INSTALL_PACKAGES permission
 - optional Android Calendar Provider access when the user enables calendar sync
+- events/tasks and Spaces stored locally in Dayline's on-device Room database
+- ordinary preferences, templates, widget settings and local runtime state remain on-device
+- Quick Add shorthand parsing is deterministic and fully on-device; it does not call AI or network services
 - explicit user-selected JSON backup/restore and ICS import/export
 - Android automatic app-data backup disabled
 - local notifications and alarms

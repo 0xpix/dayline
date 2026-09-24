@@ -90,7 +90,12 @@ fun DaylineApp() {
     var updateState by remember {
         val lastError = store.loadLastUpdateCheckError()
         val cachedRelease = store.loadAvailableBetaRelease()?.takeIf {
-            BuildConfig.UPDATE_CHANNEL == "GitHub beta" && DaylineVersion.compare(it.versionName, BuildConfig.VERSION_NAME) > 0
+            BuildConfig.UPDATE_CHANNEL == "GitHub beta" &&
+                DaylineVersion.isInstallableUpdate(
+                    candidateVersion = it.versionName,
+                    currentVersion = BuildConfig.VERSION_NAME,
+                    currentVersionCode = BuildConfig.VERSION_CODE.toLong()
+                )
         }
         mutableStateOf(UpdateUiState(
             status = when { cachedRelease != null -> UpdateStatus.AVAILABLE; lastError != null -> UpdateStatus.ERROR; else -> UpdateStatus.IDLE },
@@ -194,7 +199,12 @@ fun DaylineApp() {
         autoBetaUpdates = store.loadAutoBetaUpdates(); lastCalendarSyncAt = store.loadLastCalendarSyncAt(); calendarSyncError = store.loadLastCalendarSyncError()
         val updateError = store.loadLastUpdateCheckError()
         val cachedRelease = store.loadAvailableBetaRelease()?.takeIf {
-            BuildConfig.UPDATE_CHANNEL == "GitHub beta" && DaylineVersion.compare(it.versionName, BuildConfig.VERSION_NAME) > 0
+            BuildConfig.UPDATE_CHANNEL == "GitHub beta" &&
+                DaylineVersion.isInstallableUpdate(
+                    candidateVersion = it.versionName,
+                    currentVersion = BuildConfig.VERSION_NAME,
+                    currentVersionCode = BuildConfig.VERSION_CODE.toLong()
+                )
         }
         updateState = UpdateUiState(
             status = when { cachedRelease != null -> UpdateStatus.AVAILABLE; updateError != null -> UpdateStatus.ERROR; else -> UpdateStatus.IDLE },

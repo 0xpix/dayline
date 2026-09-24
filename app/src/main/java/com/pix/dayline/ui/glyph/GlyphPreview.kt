@@ -9,6 +9,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.pix.dayline.glyph.GlyphMatrixPatterns
 import com.pix.dayline.model.DaylineGlyphSignal
 import kotlinx.coroutines.delay
@@ -37,7 +39,13 @@ fun GlyphMatrixPreview(
         visibleSignal = DaylineGlyphSignal.CENTER
     }
 
-    Canvas(modifier.aspectRatio(1f)) {
+    Canvas(
+        modifier
+            .aspectRatio(1f)
+            .semantics {
+                contentDescription = "Glyph preview: ${signal.accessibilityLabel()}"
+            }
+    ) {
         // One preview surface only. The old component drew a circular container
         // plus 169 dark cells, which visually produced a square inside the circle.
         drawCircle(Color.Black, radius = size.minDimension / 2f)
@@ -72,4 +80,18 @@ private fun DrawScope.drawMatrix(frame: IntArray) {
             )
         }
     }
+}
+
+
+private fun DaylineGlyphSignal.accessibilityLabel(): String = when (this) {
+    DaylineGlyphSignal.CENTER -> "center"
+    DaylineGlyphSignal.LOOK_LEFT -> "look left"
+    DaylineGlyphSignal.LOOK_RIGHT -> "look right"
+    DaylineGlyphSignal.BLINK -> "blink"
+    DaylineGlyphSignal.WINK -> "wink"
+    DaylineGlyphSignal.HAPPY -> "happy"
+    DaylineGlyphSignal.HEARTS -> "hearts"
+    DaylineGlyphSignal.SQUINT -> "squint"
+    DaylineGlyphSignal.SLEEPY -> "sleepy"
+    else -> name.lowercase().replace('_', ' ')
 }

@@ -14,15 +14,16 @@ class DaylineStore(context: Context) {
 
     fun loadItems(): List<DaylineItem> {
         val raw = prefs.getString(KEY_ITEMS, null) ?: return emptyList()
-        return runCatching {
-            val array = JSONArray(raw)
-            buildList {
-                for (index in 0 until array.length()) {
-                    val json = array.getJSONObject(index)
-                    add(itemFromJson(json))
-                }
+        val array = runCatching { JSONArray(raw) }.getOrNull() ?: return emptyList()
+
+        return buildList {
+            for (index in 0 until array.length()) {
+                val item = runCatching {
+                    itemFromJson(array.getJSONObject(index))
+                }.getOrNull()
+                if (item != null) add(item)
             }
-        }.getOrDefault(emptyList())
+        }
     }
 
     fun saveItems(items: List<DaylineItem>) {

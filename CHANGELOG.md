@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.18.5.beta — Honest Focus shorthand
+
+### Added
+- Added a clear incomplete-state hint when Focus shorthand is missing a required start time.
+
+### Changed
+- Started a focused Quick Add consistency patch after freezing v0.18.4.beta.
+
+### Fixed
+- Bumped beta versionCode to **1805** and beta versionName to `0.18.5.beta`.
+
+
 ## 0.18.4.beta — Quick Add preview
 
 ### Added

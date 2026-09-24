@@ -58,7 +58,7 @@ jobs:
         with:
           gradle-version: "9.4.1"
 
-      - name: Run recurrence and planning unit tests
+      - name: Run JVM regression tests
         run: gradle :app:testBetaDebugUnitTest :app:testPlayDebugUnitTest --no-daemon --stacktrace
 
       - name: Compile beta and Play debug variants

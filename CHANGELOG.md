@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.18.4.beta — Quick Add preview
+
+### Added
+- Added a compact live interpretation preview for local Quick Add shorthand.
+
+### Changed
+- Started a discoverability pass for deterministic Quick Add after freezing v0.18.3.beta.
+
+### Fixed
+- Bumped beta versionCode to **1804** and beta versionName to `0.18.4.beta`.
+
+
 ## 0.18.3.beta — Durable queued Room writes
 
 ### Added

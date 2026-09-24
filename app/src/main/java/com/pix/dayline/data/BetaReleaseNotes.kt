@@ -21,7 +21,10 @@ object BetaReleaseNotes {
                 }
                 line.startsWith("## ") -> current = null
                 line.startsWith("#") -> Unit
-                line.isBlank() -> if (output.lastOrNull()?.isNotBlank() == true) output += ""
+                // The updater renders sections as separate cards, so source
+                // Markdown spacing should not create extra blank rows in the
+                // normalized note payload.
+                line.isBlank() -> Unit
                 line.contains("Full Changelog", ignoreCase = true) -> Unit
                 line.startsWith("http://") || line.startsWith("https://") -> Unit
                 current != null -> {

@@ -46,22 +46,29 @@ class DaylineRoomRepository private constructor(context: Context) {
             if (initialized) return
 
             val snapshot = io.submit<Pair<List<DaylineItem>, List<DaylineSpace>>> {
-                if (!metadata.getBoolean(KEY_LEGACY_IMPORTED, false)) {
-                    if (itemDao.count() == 0 && legacyItems.isNotEmpty()) {
-                        itemDao.replaceAll(
-                            legacyItems.mapIndexed { index, item ->
-                                DaylineItemEntity.fromModel(item, position = index)
-                            }
-                        )
-                    }
-                    if (spaceDao.count() == 0 && legacySpaces.isNotEmpty()) {
-                        spaceDao.replaceAll(
-                            legacySpaces.mapIndexed { index, space ->
-                                DaylineSpaceEntity.fromModel(space, position = index)
-                            }
-                        )
-                    }
+                val plan = planLegacyRoomMigration(
+                    alreadyImported = metadata.getBoolean(KEY_LEGACY_IMPORTED, false),
+                    roomItemCount = itemDao.count(),
+                    roomSpaceCount = spaceDao.count(),
+                    legacyItemCount = legacyItems.size,
+                    legacySpaceCount = legacySpaces.size
+                )
 
+                if (plan.importItems) {
+                    itemDao.replaceAll(
+                        legacyItems.mapIndexed { index, item ->
+                            DaylineItemEntity.fromModel(item, position = index)
+                        }
+                    )
+                }
+                if (plan.importSpaces) {
+                    spaceDao.replaceAll(
+                        legacySpaces.mapIndexed { index, space ->
+                            DaylineSpaceEntity.fromModel(space, position = index)
+                        }
+                    )
+                }
+                if (plan.markComplete) {
                     check(
                         metadata.edit()
                             .putBoolean(KEY_LEGACY_IMPORTED, true)

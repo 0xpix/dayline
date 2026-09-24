@@ -9,6 +9,7 @@ import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.pix.dayline.BuildConfig
 import com.pix.dayline.data.BetaRelease
+import com.pix.dayline.data.BetaReleaseNotes
 import com.pix.dayline.data.DaylineVersion
 import com.pix.dayline.data.UpdateStatus
 import com.pix.dayline.data.UpdateUiState
@@ -90,7 +91,7 @@ object GithubBetaUpdater {
                             tagName = tag,
                             versionName = version,
                             title = releaseSubtitle(rawTitle, version, published, selected?.size),
-                            notes = cleanNotes(json.optString("body")),
+                            notes = BetaReleaseNotes.clean(json.optString("body")),
                             publishedAt = published,
                             htmlUrl = json.optString("html_url"),
                             apkName = selected?.name,
@@ -244,34 +245,6 @@ object GithubBetaUpdater {
         MessageDigest.getInstance("SHA-256")
             .digest(bytes)
             .joinToString("") { "%02x".format(it) }
-
-    /** Keep the release-note structure intact; Settings parses these headings into distinct cards. */
-    private fun cleanNotes(value: String): String {
-        if (value.isBlank()) return "## Changed\n• Bug fixes and Dayline polish."
-        val allowed = setOf("Added", "Changed", "Fixed")
-        val output = mutableListOf<String>()
-        var current: String? = null
-        value.lineSequence().forEach { raw ->
-            val line = raw.trim()
-            when {
-                line.startsWith("## ") && line.removePrefix("## ").trim() in allowed -> {
-                    current = line.removePrefix("## ").trim()
-                    output += "## $current"
-                }
-                line.startsWith("#") -> Unit
-                line.isBlank() -> if (output.lastOrNull()?.isNotBlank() == true) output += ""
-                line.contains("Full Changelog", ignoreCase = true) -> Unit
-                line.startsWith("http://") || line.startsWith("https://") -> Unit
-                current != null -> {
-                    val clean = line.trimStart('-', '*', '•', ' ').replace("**", "").replace("`", "").trim()
-                    if (clean.isNotBlank()) output += "• $clean"
-                }
-            }
-        }
-        val compact = output.joinToString("\n").trim().take(3_000)
-        return if (compact.contains("## Added") || compact.contains("## Changed") || compact.contains("## Fixed")) compact
-        else "## Changed\n• Bug fixes and Dayline polish."
-    }
 
     private fun releaseSubtitle(
         rawTitle: String,

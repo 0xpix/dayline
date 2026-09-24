@@ -1,0 +1,96 @@
+package com.pix.dayline.data
+
+import com.pix.dayline.model.AgendaKind
+import com.pix.dayline.model.DaylineItem
+import com.pix.dayline.model.FocusCycle
+import com.pix.dayline.model.ItemColor
+import com.pix.dayline.model.Recurrence
+import com.pix.dayline.model.TaskPriority
+import java.time.LocalDate
+import java.time.LocalTime
+import java.util.UUID
+
+/**
+ * Pure Quick Add state used to materialize a DaylineItem.
+ *
+ * Keeping these invariants outside Compose makes editing behavior testable and
+ * prevents UI refactors from silently dropping or retaining hidden metadata.
+ */
+data class QuickAddDraft(
+    val title: String,
+    val kind: AgendaKind,
+    val date: LocalDate,
+    val startTime: LocalTime?,
+    val endTime: LocalTime?,
+    val recurrence: Recurrence,
+    val repeatDays: Set<Int> = emptySet(),
+    val reminderMinutes: Int? = null,
+    val focusCycle: FocusCycle = FocusCycle.OFF,
+    val customFocusMinutes: Int = 25,
+    val customBreakMinutes: Int = 5,
+    val bufferBeforeMinutes: Int = 0,
+    val bufferAfterMinutes: Int = 0,
+    val priority: TaskPriority = TaskPriority.NORMAL,
+    val color: ItemColor = ItemColor.MONO,
+    val spaceId: String? = null
+) {
+    fun toItem(
+        editing: DaylineItem? = null,
+        idFactory: () -> String = { UUID.randomUUID().toString() }
+    ): DaylineItem {
+        val validEnd = endTime?.takeIf { startTime != null && it.isAfter(startTime) }
+        val allDay = kind == AgendaKind.EVENT && startTime == null
+        val preserveCalendarIdentity = kind == AgendaKind.EVENT && editing?.kind == AgendaKind.EVENT
+        val preservedTimeZone = if (
+            preserveCalendarIdentity &&
+            startTime != null &&
+            editing?.allDay != true
+        ) {
+            editing.timeZoneId
+        } else {
+            null
+        }
+
+        return DaylineItem(
+            id = editing?.id ?: idFactory(),
+            title = title.trim(),
+            kind = kind,
+            startDate = date,
+            startTime = startTime,
+            endTime = validEnd,
+            recurrence = recurrence,
+            repeatDays = if (recurrence == Recurrence.CUSTOM) {
+                repeatDays.ifEmpty { setOf(date.dayOfWeek.value) }
+            } else {
+                emptySet()
+            },
+            recurrenceEndDate = editing?.recurrenceEndDate,
+            excludedDates = editing?.excludedDates ?: emptySet(),
+            seriesParentId = editing?.seriesParentId,
+            reminderMinutes = reminderMinutes.takeIf { startTime != null },
+            focusCycle = focusCycle.takeIf {
+                kind == AgendaKind.EVENT && startTime != null && validEnd != null
+            } ?: FocusCycle.OFF,
+            customFocusMinutes = customFocusMinutes.coerceIn(5, 180),
+            customBreakMinutes = customBreakMinutes.coerceIn(1, 60),
+            focusSessionsCompleted = editing?.focusSessionsCompleted ?: 0,
+            focusedMinutesCompleted = editing?.focusedMinutesCompleted ?: 0,
+            bufferBeforeMinutes = bufferBeforeMinutes.coerceIn(0, 180),
+            bufferAfterMinutes = bufferAfterMinutes.coerceIn(0, 180),
+            priority = priority,
+            estimatedDurationMinutes = editing?.estimatedDurationMinutes ?: 30,
+            earliestDate = editing?.earliestDate,
+            deadlineDate = editing?.deadlineDate,
+            allDay = allDay,
+            timeZoneId = preservedTimeZone,
+            color = color,
+            spaceId = spaceId,
+            details = editing?.details ?: emptyList(),
+            completedDates = editing?.completedDates ?: emptySet(),
+            calendarEventId = editing?.calendarEventId.takeIf { preserveCalendarIdentity },
+            calendarId = editing?.calendarId.takeIf { preserveCalendarIdentity },
+            calendarName = editing?.calendarName.takeIf { preserveCalendarIdentity },
+            calendarReadOnly = editing?.calendarReadOnly?.takeIf { preserveCalendarIdentity } ?: false
+        )
+    }
+}

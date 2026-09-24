@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.18.6.beta — Safe Focus shorthand
+
+### Added
+- Added save gating for incomplete Focus shorthand.
+
+### Changed
+- Started a focused Quick Add safety patch after freezing v0.18.5.beta.
+
+### Fixed
+- Bumped beta versionCode to **1806** and beta versionName to `0.18.6.beta`.
+
+
 ## 0.18.5.beta — Honest Focus shorthand
 
 ### Added

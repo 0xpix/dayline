@@ -123,26 +123,27 @@ class DaylineStore(context: Context) {
 
     fun loadCalendarPreferences(): CalendarPreferences {
         val raw = prefs.getString(KEY_CALENDAR_PREFS, null) ?: return CalendarPreferences()
-        return runCatching {
-            val json = JSONObject(raw)
-            val rulesArray = json.optJSONArray("rules") ?: JSONArray()
-            val rules = buildList {
-                for (index in 0 until rulesArray.length()) {
-                    val rule = rulesArray.getJSONObject(index)
-                    add(CalendarRule(
-                        calendarId = rule.getLong("calendarId"),
-                        visible = rule.optBoolean("visible", true),
-                        editable = rule.optBoolean("editable", false),
-                        spaceId = rule.optString("spaceId").takeIf { it.isNotBlank() },
-                        color = enumValue(rule.optString("color"), ItemColor.MONO)
-                    ))
-                }
+        val json = runCatching { JSONObject(raw) }.getOrNull() ?: return CalendarPreferences()
+        val rulesArray = json.optJSONArray("rules") ?: JSONArray()
+        val rules = buildList {
+            for (index in 0 until rulesArray.length()) {
+                val rule = runCatching {
+                    val value = rulesArray.getJSONObject(index)
+                    CalendarRule(
+                        calendarId = value.getLong("calendarId"),
+                        visible = value.optBoolean("visible", true),
+                        editable = value.optBoolean("editable", false),
+                        spaceId = value.optString("spaceId").takeIf { it.isNotBlank() },
+                        color = enumValue(value.optString("color"), ItemColor.MONO)
+                    )
+                }.getOrNull()
+                if (rule != null) add(rule)
             }
-            CalendarPreferences(
-                defaultCalendarId = json.optLong("defaultCalendarId", -1L).takeIf { it >= 0L },
-                rules = rules
-            )
-        }.getOrDefault(CalendarPreferences())
+        }
+        return CalendarPreferences(
+            defaultCalendarId = json.optLong("defaultCalendarId", -1L).takeIf { it >= 0L },
+            rules = rules
+        )
     }
 
     fun saveCalendarPreferences(preferences: CalendarPreferences) {

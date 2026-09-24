@@ -3,14 +3,19 @@
 ## 0.18.3.beta — Durable queued Room writes
 
 ### Added
-- Added a local recovery journal for queued item/Space Room snapshots.
+- Added a lightweight SharedPreferences recovery journal for the latest queued item and Space Room snapshots.
+- Added startup replay for pending journals and hidden beta diagnostics for Room write health.
+- Added queued-write success/failure callbacks so Dayline clears only the exact snapshot that actually reached Room.
 
 ### Changed
-- Started a durability pass for non-blocking Room persistence after freezing v0.18.2.beta.
+- Normal Room writes remain non-blocking and ordered, while the latest pending snapshot stays recoverable outside Room until persistence succeeds.
+- Older write completions cannot clear a newer pending journal.
+- Pending item/Space journals and Room write errors are excluded from user backup payloads.
 
 ### Fixed
+- Closed the process-death/persistence-failure durability gap between an immediate UI mutation and its asynchronous Room disk write.
+- A failed queued write now leaves its recovery journal intact for replay on the next initialization instead of failing silently.
 - Bumped beta versionCode to **1803** and beta versionName to `0.18.3.beta`.
-
 
 ## 0.18.2.beta — Non-blocking Room writes
 

@@ -9,6 +9,7 @@
 ### Changed
 - Continued the reliability pass with stricter release automation and backup validation.
 - Extracted GitHub release-note normalization into a pure Kotlin helper shared by the beta updater.
+- Added spoken labels/state to timeline events, free gaps, conflict controls, task completion controls and resize handles without changing the visual layout.
 
 ### Fixed
 - Backup restore now rejects blank or duplicate event/task, Space and template IDs before replacing local data.

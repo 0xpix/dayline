@@ -1,13 +1,13 @@
-# Dayline v0.18.4.beta — Validation Report
+# Dayline v0.18.5.beta — Validation Report
 
-This report tracks the current **v0.18.4.beta / versionCode 1804** source. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current **v0.18.5.beta / versionCode 1805** source. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
-- Beta target: **0.18.4.beta / 1804**.
-- `docs/releases/v0.18.4.beta.md` contains concise **Added / Changed / Fixed** updater notes.
+- Beta target: **0.18.5.beta / 1805**.
+- `docs/releases/v0.18.5.beta.md` contains concise **Added / Changed / Fixed** updater notes.
 - Beta/Play flavor separation remains intact; Play stays on the stable base version and does not package the Nothing SDK.
-- Tagged builds must verify signed APK versionName/versionCode against tag `v0.18.4.beta`.
+- Tagged builds must verify signed APK versionName/versionCode against tag `v0.18.5.beta`.
 - Static validation, recurrence/planning unit tests, Beta debug compile and Play debug compile must all pass before tagging.
 
 ## Today Flow
@@ -194,7 +194,7 @@ CI runs pure JVM tests before Android assembly.
 
 ## Android compile gate
 
-Before tagging `v0.18.4.beta`, GitHub Actions must pass:
+Before tagging `v0.18.5.beta`, GitHub Actions must pass:
 
 ```text
 :app:testBetaDebugUnitTest

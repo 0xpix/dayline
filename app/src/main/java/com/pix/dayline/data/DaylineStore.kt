@@ -44,22 +44,21 @@ class DaylineStore(context: Context) {
             saveSpaces(defaults)
             return defaults
         }
-        return runCatching {
-            val array = JSONArray(raw)
-            buildList {
-                for (index in 0 until array.length()) {
+        val array = runCatching { JSONArray(raw) }.getOrNull() ?: return emptyList()
+        return buildList {
+            for (index in 0 until array.length()) {
+                val space = runCatching {
                     val json = array.getJSONObject(index)
-                    add(
-                        DaylineSpace(
-                            id = json.getString("id"),
-                            name = json.getString("name"),
-                            color = enumValue(json.optString("color"), ItemColor.MONO),
-                            calendarId = json.optLong("calendarId", -1L).takeIf { it >= 0L }
-                        )
+                    DaylineSpace(
+                        id = json.getString("id"),
+                        name = json.getString("name"),
+                        color = enumValue(json.optString("color"), ItemColor.MONO),
+                        calendarId = json.optLong("calendarId", -1L).takeIf { it >= 0L }
                     )
-                }
+                }.getOrNull()
+                if (space != null) add(space)
             }
-        }.getOrDefault(emptyList())
+        }
     }
 
     fun saveSpaces(spaces: List<DaylineSpace>) {

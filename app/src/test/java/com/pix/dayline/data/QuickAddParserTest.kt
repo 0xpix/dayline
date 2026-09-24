@@ -23,6 +23,8 @@ class QuickAddParserTest {
         assertEquals(LocalTime.of(7, 30), parsed.startTime)
         assertEquals(60, parsed.durationMinutes)
         assertNull(parsed.deadlineDate)
+        assertEquals(true, parsed.dateExplicit)
+        assertEquals(true, parsed.hasDirectives)
     }
 
     @Test
@@ -74,6 +76,19 @@ class QuickAddParserTest {
         assertEquals(thursday, parsed.date)
         assertNull(QuickAddParser.parse("   ", today = thursday))
         assertNull(QuickAddParser.parse("task tomorrow", today = thursday))
+    }
+
+    @Test
+    fun plainTitleHasNoDirectivesAndTaskKeywordIsExplicit() {
+        val plain = QuickAddParser.parse("write report", today = thursday)!!
+        assertEquals(false, plain.hasDirectives)
+        assertEquals(false, plain.kindExplicit)
+        assertEquals(false, plain.dateExplicit)
+
+        val task = QuickAddParser.parse("task write report", today = thursday)!!
+        assertEquals(true, task.kindExplicit)
+        assertEquals(true, task.hasDirectives)
+        assertEquals(AgendaKind.TASK, task.kind)
     }
 
     @Test

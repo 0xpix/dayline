@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.17.4.beta — Reliability guard coverage
+
+### Added
+- Added regression coverage for the beta-bump guard and release-version enforcement.
+
+### Changed
+- Continued the reliability pass with stricter release automation and backup validation.
+
+### Fixed
+- Bumped beta versionCode to **1704** and beta versionName to `0.17.4.beta`.
+
+
 ## 0.17.3.beta — Glyph preference migration
 
 ### Added

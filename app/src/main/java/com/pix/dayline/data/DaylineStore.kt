@@ -534,6 +534,9 @@ class DaylineStore(context: Context) {
     fun loadLastRoomWriteError(): String? =
         prefs.getString(KEY_LAST_ROOM_WRITE_ERROR, null)?.takeIf { it.isNotBlank() }
 
+    fun hasPendingRoomWrites(): Boolean =
+        prefs.contains(KEY_PENDING_ROOM_ITEMS) || prefs.contains(KEY_PENDING_ROOM_SPACES)
+
     private fun legacyItemsAreValid(raw: String?): Boolean {
         if (raw.isNullOrBlank()) return true
         return runCatching {

@@ -4,9 +4,11 @@
 
 ### Added
 - Added regression coverage for the beta-bump guard and release-version enforcement.
+- Added unit-tested parsing for updater release notes, including Added / Changed / Fixed sections and unknown-heading boundaries.
 
 ### Changed
 - Continued the reliability pass with stricter release automation and backup validation.
+- Extracted GitHub release-note normalization into a pure Kotlin helper shared by the beta updater.
 
 ### Fixed
 - Backup restore now rejects blank or duplicate event/task, Space and template IDs before replacing local data.

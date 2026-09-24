@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pix.dayline.data.QuickAddDraft
 import com.pix.dayline.data.QuickAddParser
+import com.pix.dayline.data.needsFocusStartTime
 import com.pix.dayline.data.previewLabel
 import com.pix.dayline.model.*
 import com.pix.dayline.ui.theme.composeColor
@@ -114,18 +115,20 @@ fun QuickAddSheet(
     var itemColor by remember(editing?.id) { mutableStateOf(editing?.color ?: ItemColor.MONO) }
     var spaceId by remember(editing?.id) { mutableStateOf(editing?.spaceId) }
 
-    val quickAddPreview = if (editing == null) {
+    val quickAddInterpretation = if (editing == null) {
         remember(title.text, date) {
             QuickAddParser.parse(title.text, today = date)
                 ?.takeIf { it.hasDirectives }
-                ?.previewLabel(
-                    today = date,
-                    currentStartTime = startTime
-                )
         }
     } else {
         null
     }
+    val quickAddPreview = quickAddInterpretation?.previewLabel(
+        today = date,
+        currentStartTime = startTime
+    )
+    val quickAddNeedsTime =
+        quickAddInterpretation?.needsFocusStartTime(currentStartTime = startTime) == true
 
     fun applyTemplate(template: EventTemplate) {
         title = TextFieldValue(template.title)
@@ -459,7 +462,7 @@ fun QuickAddSheet(
             }
 
             Spacer(Modifier.height(26.dp))
-            val canSave = title.text.isNotBlank()
+            val canSave = title.text.isNotBlank() && !quickAddNeedsTime
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

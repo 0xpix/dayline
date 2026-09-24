@@ -321,7 +321,25 @@ object GithubBetaUpdater {
                 ?: connection.contentLengthLong.takeIf { it > 0L }
                 ?: -1L
             var downloaded = 0L
-            onProgress(0L, total)
+            var lastPercent = -1
+            var lastUnknownReportBytes = 0L
+
+            fun reportProgress(force: Boolean = false) {
+                if (total > 0L) {
+                    val percent = ((downloaded.toDouble() / total.toDouble()) * 100.0)
+                        .toInt()
+                        .coerceIn(0, 100)
+                    if (force || percent != lastPercent) {
+                        lastPercent = percent
+                        onProgress(downloaded, total)
+                    }
+                } else if (force || downloaded - lastUnknownReportBytes >= 256L * 1024L) {
+                    lastUnknownReportBytes = downloaded
+                    onProgress(downloaded, total)
+                }
+            }
+
+            reportProgress(force = true)
             connection.inputStream.use { input ->
                 destination.outputStream().buffered().use { output ->
                     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
@@ -330,10 +348,11 @@ object GithubBetaUpdater {
                         if (count <= 0) break
                         output.write(buffer, 0, count)
                         downloaded += count
-                        onProgress(downloaded, total)
+                        reportProgress()
                     }
                 }
             }
+            reportProgress(force = true)
         } finally {
             connection.disconnect()
         }

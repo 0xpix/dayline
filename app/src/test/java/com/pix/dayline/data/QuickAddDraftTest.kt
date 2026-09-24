@@ -1,0 +1,118 @@
+package com.pix.dayline.data
+
+import com.pix.dayline.model.AgendaKind
+import com.pix.dayline.model.DaylineItem
+import com.pix.dayline.model.FocusCycle
+import com.pix.dayline.model.Recurrence
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import java.time.LocalDate
+import java.time.LocalTime
+
+class QuickAddDraftTest {
+    private val date = LocalDate.of(2026, 9, 24)
+
+    private fun providerEvent() = DaylineItem(
+        id = "event-1",
+        title = "Mapped event",
+        kind = AgendaKind.EVENT,
+        startDate = date,
+        startTime = LocalTime.of(9, 0),
+        endTime = LocalTime.of(10, 0),
+        recurrence = Recurrence.ONCE,
+        focusSessionsCompleted = 2,
+        focusedMinutesCompleted = 75,
+        calendarEventId = 42L,
+        calendarId = 7L,
+        calendarName = "Work",
+        calendarReadOnly = true,
+        timeZoneId = "Europe/Berlin"
+    )
+
+    @Test
+    fun eventEditPreservesProviderIdentityAndHiddenProgress() {
+        val editing = providerEvent()
+        val saved = QuickAddDraft(
+            title = "Renamed event",
+            kind = AgendaKind.EVENT,
+            date = date,
+            startTime = LocalTime.of(9, 30),
+            endTime = LocalTime.of(10, 30),
+            recurrence = Recurrence.ONCE
+        ).toItem(editing = editing)
+
+        assertEquals(editing.id, saved.id)
+        assertEquals(42L, saved.calendarEventId)
+        assertEquals(7L, saved.calendarId)
+        assertEquals("Work", saved.calendarName)
+        assertTrue(saved.calendarReadOnly)
+        assertEquals("Europe/Berlin", saved.timeZoneId)
+        assertEquals(2, saved.focusSessionsCompleted)
+        assertEquals(75, saved.focusedMinutesCompleted)
+    }
+
+    @Test
+    fun convertingProviderEventToTaskClearsCalendarIdentity() {
+        val saved = QuickAddDraft(
+            title = "Turn into task",
+            kind = AgendaKind.TASK,
+            date = date,
+            startTime = LocalTime.of(9, 30),
+            endTime = LocalTime.of(10, 30),
+            recurrence = Recurrence.ONCE,
+            focusCycle = FocusCycle.POMODORO_25_5
+        ).toItem(editing = providerEvent())
+
+        assertNull(saved.calendarEventId)
+        assertNull(saved.calendarId)
+        assertNull(saved.calendarName)
+        assertFalse(saved.calendarReadOnly)
+        assertNull(saved.timeZoneId)
+        assertEquals(FocusCycle.OFF, saved.focusCycle)
+    }
+
+    @Test
+    fun convertingTimedEventToAllDayKeepsMappingButDropsTimedMetadata() {
+        val saved = QuickAddDraft(
+            title = "All day",
+            kind = AgendaKind.EVENT,
+            date = date,
+            startTime = null,
+            endTime = null,
+            recurrence = Recurrence.ONCE,
+            reminderMinutes = 15,
+            focusCycle = FocusCycle.POMODORO_25_5
+        ).toItem(editing = providerEvent())
+
+        assertTrue(saved.allDay)
+        assertEquals(42L, saved.calendarEventId)
+        assertNull(saved.timeZoneId)
+        assertNull(saved.reminderMinutes)
+        assertEquals(FocusCycle.OFF, saved.focusCycle)
+    }
+
+    @Test
+    fun newCustomItemUsesDeterministicIdAndDateDayFallback() {
+        val saved = QuickAddDraft(
+            title = "  New item  ",
+            kind = AgendaKind.EVENT,
+            date = date,
+            startTime = LocalTime.of(14, 0),
+            endTime = LocalTime.of(13, 0),
+            recurrence = Recurrence.CUSTOM,
+            repeatDays = emptySet(),
+            customFocusMinutes = 999,
+            customBreakMinutes = 0
+        ).toItem(idFactory = { "new-id" })
+
+        assertEquals("new-id", saved.id)
+        assertEquals("New item", saved.title)
+        assertEquals(setOf(date.dayOfWeek.value), saved.repeatDays)
+        assertNull(saved.endTime)
+        assertEquals(180, saved.customFocusMinutes)
+        assertEquals(1, saved.customBreakMinutes)
+    }
+}

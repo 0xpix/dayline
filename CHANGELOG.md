@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.18.3.beta — Durable queued Room writes
+
+### Added
+- Added a local recovery journal for queued item/Space Room snapshots.
+
+### Changed
+- Started a durability pass for non-blocking Room persistence after freezing v0.18.2.beta.
+
+### Fixed
+- Bumped beta versionCode to **1803** and beta versionName to `0.18.3.beta`.
+
+
 ## 0.18.2.beta — Non-blocking Room writes
 
 ### Added

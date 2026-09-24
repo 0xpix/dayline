@@ -31,6 +31,9 @@ data class QuickAddDraft(
     val bufferBeforeMinutes: Int = 0,
     val bufferAfterMinutes: Int = 0,
     val priority: TaskPriority = TaskPriority.NORMAL,
+    val estimatedDurationMinutes: Int? = null,
+    val earliestDate: LocalDate? = null,
+    val deadlineDate: LocalDate? = null,
     val color: ItemColor = ItemColor.MONO,
     val spaceId: String? = null
 ) {
@@ -78,9 +81,11 @@ data class QuickAddDraft(
             bufferBeforeMinutes = bufferBeforeMinutes.coerceIn(0, 180),
             bufferAfterMinutes = bufferAfterMinutes.coerceIn(0, 180),
             priority = priority,
-            estimatedDurationMinutes = editing?.estimatedDurationMinutes ?: 30,
-            earliestDate = editing?.earliestDate,
-            deadlineDate = editing?.deadlineDate,
+            estimatedDurationMinutes = (
+                estimatedDurationMinutes ?: editing?.estimatedDurationMinutes ?: 30
+            ).coerceIn(15, 8 * 60),
+            earliestDate = earliestDate ?: editing?.earliestDate,
+            deadlineDate = deadlineDate ?: editing?.deadlineDate,
             allDay = allDay,
             timeZoneId = preservedTimeZone,
             color = color,

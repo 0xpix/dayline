@@ -6,19 +6,26 @@
 - Added a beta-version bump helper so versionName, versionCode, README and updater release-note scaffolding can move together.
 - Added a CI beta-bump guard that compares functional changes with the latest beta tag.
 - Added updater/version, Glyph Matrix geometry and recurrence-edit regression tests.
+- Added a regression test for the beta bump helper itself, including multi-line Gradle flavor matching.
 - Added backup restore previews so Dayline shows event, task and Space counts before replacing local data.
 - Added live APK download progress in the in-app beta updater.
 
 ### Changed
 - Static validation now derives the active beta version from Gradle and checks README, CHANGELOG and updater release-note alignment.
+- Main-branch Android CI cancels obsolete in-progress builds while tagged beta release builds remain non-cancellable.
 - Backup schema moved to version 2 and excludes transient updater/sync/widget-instance cache state.
-- Backup restore now validates nested event/task and Space payloads before clearing current data.
+- Backup restore validates nested event/task and Space payloads before clearing current data.
+- Saved events/tasks, Spaces, templates and calendar rules now isolate malformed records instead of discarding the whole collection.
+- Item saves update SharedPreferences immediately and persist to disk asynchronously instead of blocking the UI thread.
 - The beta updater verifies the downloaded APK signing certificate against the installed Dayline beta before opening Android's installer.
+- Download progress callbacks are throttled to meaningful percentage/byte changes instead of updating Compose for every stream chunk.
 - Settings text actions and Glyph expression controls now use larger touch targets, and the Glyph preview has an accessibility description.
 
 ### Fixed
 - Prevented stale release metadata from silently drifting away from the embedded beta version.
+- Fixed multi-line matching in the beta bump helper.
 - Cached update cards now use versionCode-aware installability checks, matching live GitHub update checks.
+- Granting Android's install-apps permission now resumes the verified beta installation automatically when returning to Dayline.
 - Restore rejects unsupported or malformed backups before replacing local state while retaining compatibility with version-1 backups.
 - Bumped beta versionCode to **1701** and beta versionName to `0.17.1.beta`.
 

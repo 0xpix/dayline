@@ -1,6 +1,7 @@
 package com.pix.dayline.data
 
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -13,9 +14,12 @@ import java.util.Locale
  */
 fun ParsedQuickAdd.previewLabel(
     today: LocalDate,
-    locale: Locale = Locale.getDefault()
+    locale: Locale = Locale.getDefault(),
+    currentStartTime: LocalTime? = null
 ): String? {
     if (!hasDirectives) return null
+
+    val focusNeedsTime = focusMinutes != null && (startTime ?: currentStartTime) == null
 
     val parts = buildList {
         if (kindExplicit) {
@@ -43,6 +47,8 @@ fun ParsedQuickAdd.previewLabel(
         }
 
         durationMinutes?.let { add(formatQuickAddDuration(it)) }
+
+        if (focusNeedsTime) add("Needs time")
 
         deadlineDate?.let { deadline ->
             add("Due ${deadline.format(DateTimeFormatter.ofPattern("EEE, MMM d", locale))}")

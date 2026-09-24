@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.18.1.beta — Safe Room migration
+
+### Added
+- Added migration-source validation for legacy item/Space preference data.
+
+### Changed
+- Started a focused fail-closed Room migration patch after freezing v0.18.0.beta.
+
+### Fixed
+- Bumped beta versionCode to **1801** and beta versionName to `0.18.1.beta`.
+
+
 ## 0.18.0.beta — Room + local Quick Add
 
 ### Added

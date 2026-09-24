@@ -158,9 +158,33 @@ for kind, name in re.findall(r"@([A-Za-z0-9_]+)/([A-Za-z0-9_]+)", manifest_text)
 
 # Build/release config.
 gradle = read(APP / "build.gradle.kts")
+
+beta_block_match = re.search(
+    r'create\("beta"\)\s*\{(?P<body>.*?)\n\s*\}',
+    gradle,
+    re.DOTALL,
+)
+if not beta_block_match:
+    fail("beta product flavor missing")
+    beta_version = None
+    beta_code = None
+else:
+    beta_block = beta_block_match.group("body")
+    version_match = re.search(r'versionName\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"', beta_block)
+    code_match = re.search(r'versionCode\s*=\s*([0-9]+)', beta_block)
+    beta_version = version_match.group(1) if version_match else None
+    beta_code = int(code_match.group(1)) if code_match else None
+    if beta_version is None:
+        fail("beta versionName missing")
+    if beta_code is None:
+        fail("beta versionCode missing")
+    if beta_version is not None and beta_code is not None:
+        major, minor, patch = map(int, beta_version.split("."))
+        expected_code = major * 1_000_000 + minor * 100 + patch
+        if beta_code != expected_code:
+            fail(f"beta versionCode {beta_code} does not match {beta_version} (expected {expected_code})")
+
 for token, label in (
-    ('versionName = "0.14.0"', "app versionName must be 0.14.0 before beta suffix"),
-    ('versionCode = 1400', "app versionCode must be 1400"),
     ('targetSdk = 36', "targetSdk 36 expected"),
     ('compileSdk = 37', "compileSdk 37 expected"),
     ('create("beta")', "beta product flavor missing"),
@@ -182,6 +206,25 @@ for token in (
 
 if (APP / "libs/glyph-matrix-sdk-2.0.aar").exists():
     fail("Proprietary Nothing Glyph Matrix AAR must not be committed or packaged in the source ZIP")
+
+if beta_version is not None and beta_code is not None:
+    beta_tag = f"v{beta_version}.beta"
+    readme = read(ROOT / "README.md")
+    changelog = read(ROOT / "CHANGELOG.md")
+    release_notes = ROOT / "docs" / "releases" / f"{beta_tag}.md"
+    if beta_tag not in readme:
+        fail(f"README does not reference current beta {beta_tag}")
+    if f"**Android versionCode** | `{beta_code}`" not in readme:
+        fail(f"README versionCode does not match beta versionCode {beta_code}")
+    if f"## {beta_version}.beta" not in changelog:
+        fail(f"CHANGELOG missing current beta {beta_version}.beta")
+    if not release_notes.is_file():
+        fail(f"Missing updater release notes: {release_notes.relative_to(ROOT)}")
+    else:
+        notes = read(release_notes)
+        for heading in ("## Added", "## Changed", "## Fixed"):
+            if heading not in notes:
+                fail(f"{release_notes.relative_to(ROOT)} missing {heading}")
 
 play = read(ROOT / ".github/workflows/play-release.yml")
 for token in (
@@ -350,7 +393,8 @@ for path in [*kotlin_files, *ROOT.glob("*.md"), *ROOT.glob("docs/*.md")]:
     if any(marker in text for marker in ("<<<<<<<", ">>>>>>>")):
         fail(f"Merge marker left in {path.relative_to(ROOT)}")
 
-print("Dayline v0.14.0.beta release validation")
+version_label = f"v{beta_version}.beta" if beta_version else "unknown beta"
+print(f"Dayline {version_label} release validation")
 print(f"  Kotlin files: {len(kotlin_files)}")
 print(f"  XML files: {len(list((APP / 'src').rglob('*.xml')))}")
 print(f"  Errors: {len(ERRORS)}")

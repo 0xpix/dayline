@@ -299,9 +299,14 @@ private fun SectionGap() = Spacer(Modifier.height(30.dp))
 @Composable
 private fun SelectorRow(title: String, value: String, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().clickable(
-            interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick
-        ).padding(vertical = 13.dp),
+        modifier = Modifier.fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+            .padding(vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
@@ -315,9 +320,16 @@ private fun SelectorRow(title: String, value: String, onClick: () -> Unit) {
 private fun InfoRow(title: String, value: String, onClick: (() -> Unit)? = null) {
     Row(
         modifier = Modifier.fillMaxWidth()
-            .then(if (onClick != null) Modifier.clickable(
-                interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick
-            ) else Modifier)
+            .heightIn(min = 48.dp)
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onClick
+                    )
+                } else Modifier
+            )
             .padding(vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -348,7 +360,10 @@ private fun SelectionSheet(
             Spacer(Modifier.height(24.dp))
             options.forEach { (label, action) ->
                 Row(
-                    Modifier.fillMaxWidth().clickable { action(); onDismiss() }.padding(vertical = 14.dp),
+                    Modifier.fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .clickable { action(); onDismiss() }
+                        .padding(vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
@@ -414,7 +429,14 @@ private fun GlyphSettingsSheet(
                 Text(hardware.detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(6.dp))
             }
-            Text("OPEN NOTHING SETTINGS  ›", modifier = Modifier.clickable(onClick = onOpenManager).padding(vertical = 10.dp), style = MaterialTheme.typography.labelLarge)
+            Text(
+                "OPEN NOTHING SETTINGS  ›",
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .clickable(onClick = onOpenManager)
+                    .wrapContentHeight(Alignment.CenterVertically),
+                style = MaterialTheme.typography.labelLarge
+            )
 
             SectionGap()
             SettingsSubhead("Look")
@@ -471,7 +493,16 @@ private fun GlyphSettingsSheet(
             tests.chunked(3).forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     row.forEach { (label, signal) ->
-                        Text(label, modifier = Modifier.weight(1f).clickable { test(signal) }.padding(vertical = 10.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            label,
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 48.dp)
+                                .clickable { test(signal) }
+                                .wrapContentHeight(Alignment.CenterVertically),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                     repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
                 }
@@ -511,9 +542,16 @@ private fun CalendarControlsSheet(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Text(if (rule.visible) "●" else "○", modifier = Modifier.clickable {
-                            onChange(preferences.withRule(rule.copy(visible = !rule.visible)))
-                        }, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            if (rule.visible) "●" else "○",
+                            modifier = Modifier
+                                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                                .clickable {
+                                    onChange(preferences.withRule(rule.copy(visible = !rule.visible)))
+                                }
+                                .wrapContentSize(Alignment.Center),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                     Spacer(Modifier.height(8.dp))
                     if (calendar.writable) {
@@ -545,7 +583,15 @@ private fun CalendarControlsSheet(
 
 @Composable
 private fun TinyAction(label: String, onClick: () -> Unit) {
-    Text(label, modifier = Modifier.clickable(onClick = onClick).padding(vertical = 4.dp), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(
+        label,
+        modifier = Modifier
+            .heightIn(min = 48.dp)
+            .clickable(onClick = onClick)
+            .wrapContentHeight(Alignment.CenterVertically),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }
 
 private data class UpdateNoteSection(val title: String, val items: List<String>)
@@ -669,7 +715,15 @@ private fun UpdateSheet(release: BetaRelease, onDismiss: () -> Unit) {
             Text("Package, version and checksum are verified before Android opens the installer.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (release.htmlUrl.isNotBlank()) {
                 Spacer(Modifier.height(6.dp))
-                Text("View on GitHub", modifier = Modifier.clickable { GithubBetaUpdater.openRelease(context, release) }.padding(vertical = 10.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "View on GitHub",
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .clickable { GithubBetaUpdater.openRelease(context, release) }
+                        .wrapContentHeight(Alignment.CenterVertically),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

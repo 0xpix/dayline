@@ -47,6 +47,12 @@ required = [
     "docs/github-beta-updates.md",
     "docs/github-beta-signing.md",
     "docs/glyph-matrix.md",
+    "scripts/bump_beta.py",
+    "scripts/check_beta_bump.py",
+    "app/src/test/java/com/pix/dayline/data/DaylineVersionTest.kt",
+    "app/src/test/java/com/pix/dayline/data/SeriesEditorTest.kt",
+    "app/src/test/java/com/pix/dayline/glyph/GlyphMatrixPatternsTest.kt",
+    "app/src/test/java/com/pix/dayline/model/RecurrenceAndPlanningTest.kt",
     ".github/workflows/build-apk.yml",
     ".github/workflows/play-release.yml",
 ]
@@ -311,8 +317,11 @@ updater = read(APP / "src/beta/java/com/pix/dayline/updates/GithubBetaUpdater.kt
 for token in (
     "api.github.com/repos/0xpix/dayline/releases",
     "DaylineVersion.compare",
+    "DaylineVersion.isInstallableUpdate",
     "checksumUrl",
     "verifyApk",
+    "GET_SIGNING_CERTIFICATES",
+    "onProgress",
     "canRequestPackageInstalls",
     "GitHub releases are not publicly reachable yet",
 ):
@@ -356,6 +365,7 @@ feature_checks = {
     "undo": '"UNDO"' in all_kotlin,
     "search commands": "unfinished" in all_kotlin and "tomorrow" in all_kotlin and "focus" in all_kotlin,
     "backup/export": "exportState" in all_kotlin and "exportIcs" in all_kotlin,
+    "backup schema validation": "BACKUP_FORMAT_VERSION = 2" in all_kotlin and "inspectBackup" in all_kotlin,
     "per-widget config": "WidgetInstancePrefs" in all_kotlin and "WidgetConfigActivity" in all_kotlin,
     "activity widget states": "liveWidgetLabel" in all_kotlin,
     "haptics": "HapticFeedbackType.SegmentFrequentTick" in all_kotlin,

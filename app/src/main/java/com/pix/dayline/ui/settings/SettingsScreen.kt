@@ -3,6 +3,7 @@ package com.pix.dayline.ui.settings
 import android.app.AlarmManager
 import android.app.TimePickerDialog
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -30,6 +31,9 @@ import com.pix.dayline.model.*
 import com.pix.dayline.ui.components.FloatingControls
 import com.pix.dayline.ui.glyph.GlyphMatrixPreview
 import com.pix.dayline.updates.GithubBetaUpdater
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.launch
 import java.io.File
 import java.time.Instant
@@ -656,13 +660,58 @@ private fun UpdateSheet(release: BetaRelease, onDismiss: () -> Unit) {
     var downloadProgress by remember(release.tagName) { mutableIntStateOf(0) }
     var downloadProgressKnown by remember(release.tagName) { mutableStateOf(false) }
     var downloadedApk by remember(release.tagName) { mutableStateOf<File?>(null) }
+    var waitingForInstallPermission by remember(release.tagName) { mutableStateOf(false) }
     var message by remember(release.tagName) { mutableStateOf<String?>(null) }
 
     fun installVerified(apk: File) {
         when (val result = GithubBetaUpdater.install(context, apk)) {
-            GithubBetaUpdater.InstallResult.Started -> message = "Verified · Android installer opened"
-            GithubBetaUpdater.InstallResult.PermissionRequested -> message = "Allow Dayline β to install apps, then tap Continue update."
-            is GithubBetaUpdater.InstallResult.Error -> message = result.message
+            GithubBetaUpdater.InstallResult.Started -> {
+                waitingForInstallPermission = false
+                message = "Verified · Android installer opened"
+            }
+            GithubBetaUpdater.InstallResult.PermissionRequested -> {
+                waitingForInstallPermission = true
+                message = "Allow Dayline β to install apps. The update will continue automatically when you return."
+            }
+            is GithubBetaUpdater.InstallResult.Error -> {
+                waitingForInstallPermission = false
+                message = result.message
+            }
+        }
+    }
+
+    val lifecycleOwner = remember(context) {
+        var current: Context? = context
+        var owner: LifecycleOwner? = null
+        while (current != null && owner == null) {
+            if (current is LifecycleOwner) {
+                owner = current
+            } else {
+                current = (current as? ContextWrapper)?.baseContext
+            }
+        }
+        owner
+    }
+
+    DisposableEffect(lifecycleOwner, waitingForInstallPermission, downloadedApk) {
+        val owner = lifecycleOwner
+        if (owner == null) {
+            onDispose { }
+        } else {
+            val observer = LifecycleEventObserver { _, event ->
+                if (
+                    event == Lifecycle.Event.ON_RESUME &&
+                    waitingForInstallPermission &&
+                    context.packageManager.canRequestPackageInstalls()
+                ) {
+                    downloadedApk?.let { apk ->
+                        waitingForInstallPermission = false
+                        installVerified(apk)
+                    }
+                }
+            }
+            owner.lifecycle.addObserver(observer)
+            onDispose { owner.lifecycle.removeObserver(observer) }
         }
     }
 

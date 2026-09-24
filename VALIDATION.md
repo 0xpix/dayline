@@ -1,13 +1,13 @@
-# Dayline v0.17.1.beta — Validation Report
+# Dayline v0.17.2.beta — Validation Report
 
-This report tracks the current **v0.17.1.beta / versionCode 1701** source. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current **v0.17.2.beta / versionCode 1701** source. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
-- Beta target: **0.17.1.beta / 1701**.
-- `docs/releases/v0.17.1.beta.md` contains concise **Added / Changed / Fixed** updater notes.
+- Beta target: **0.17.2.beta / 1702**.
+- `docs/releases/v0.17.2.beta.md` contains concise **Added / Changed / Fixed** updater notes.
 - Beta/Play flavor separation remains intact; Play stays on the stable base version and does not package the Nothing SDK.
-- Tagged builds must verify signed APK versionName/versionCode against tag `v0.17.1.beta`.
+- Tagged builds must verify signed APK versionName/versionCode against tag `v0.17.2.beta`.
 - Static validation, recurrence/planning unit tests, Beta debug compile and Play debug compile must all pass before tagging.
 
 ## Today Flow
@@ -138,12 +138,15 @@ CI runs pure JVM tests before Android assembly.
 - Main destination changes remain instant; the disliked full-page animation stays removed.
 - Today ↔ Upcoming swipe shortcuts remain available.
 - Settings selector rows, compact text actions, calendar visibility controls and Glyph expression tests use larger touch targets while keeping visual chrome small.
+- Toggle rows expose one coherent Switch semantic target and can be activated from either the label or switch.
+- Calendar visibility exposes the calendar name plus Shown/Hidden state instead of an unlabeled filled/empty dot.
+- Compact Settings actions expose Button roles for accessibility services.
 - The visual Glyph Matrix preview exposes one concise accessibility description instead of exposing 169 individual pixels.
 - Typography continues using Material hierarchy so larger Android font scales can expand without fixed-height text clipping where practical.
 
 ## Android compile gate
 
-Before tagging `v0.17.1.beta`, GitHub Actions must pass:
+Before tagging `v0.17.2.beta`, GitHub Actions must pass:
 
 ```text
 :app:testBetaDebugUnitTest

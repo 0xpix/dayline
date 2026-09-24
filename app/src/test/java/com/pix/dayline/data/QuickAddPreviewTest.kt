@@ -89,6 +89,25 @@ class QuickAddPreviewTest {
     }
 
     @Test
+    fun focusCompletenessUsesParsedOrManualStartTime() {
+        val untimed = QuickAddParser.parse(
+            "focus 50m",
+            today = thursday
+        )!!
+        val timed = QuickAddParser.parse(
+            "focus 50m at 18:00",
+            today = thursday
+        )!!
+
+        assertEquals(true, untimed.needsFocusStartTime())
+        assertEquals(
+            false,
+            untimed.needsFocusStartTime(currentStartTime = LocalTime.of(18, 0))
+        )
+        assertEquals(false, timed.needsFocusStartTime())
+    }
+
+    @Test
     fun mixedDurationUsesCompactHourMinuteForm() {
         val parsed = QuickAddParser.parse(
             "meeting Friday 09:00 1h30m",

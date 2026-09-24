@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.18.2.beta — Non-blocking Room writes
+
+### Added
+- Added ordered background persistence for ordinary item/Space Room writes.
+
+### Changed
+- Started a focused Room write-latency patch after freezing v0.18.1.beta.
+
+### Fixed
+- Bumped beta versionCode to **1802** and beta versionName to `0.18.2.beta`.
+
+
 ## 0.18.1.beta — Safe Room migration
 
 ### Added

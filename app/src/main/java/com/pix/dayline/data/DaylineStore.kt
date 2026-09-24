@@ -336,11 +336,14 @@ class DaylineStore(context: Context) {
         val items = values.optString(KEY_ITEMS).takeIf { it.isNotBlank() }?.let(::JSONArray) ?: JSONArray()
         var events = 0
         var tasks = 0
+        val itemIds = mutableSetOf<String>()
         for (index in 0 until items.length()) {
             val itemJson = items.getJSONObject(index)
             // Fully decode each item now so malformed dates/required fields are
             // rejected before restore can clear the existing local database.
             val decoded = itemFromJson(itemJson)
+            require(decoded.id.isNotBlank()) { "Backup contains an item without an id" }
+            require(itemIds.add(decoded.id)) { "Backup contains duplicate item id: ${decoded.id}" }
             when (decoded.kind) {
                 AgendaKind.TASK -> tasks += 1
                 else -> events += 1
@@ -351,9 +354,12 @@ class DaylineStore(context: Context) {
             .takeIf { it.isNotBlank() }
             ?.let(::JSONArray)
             ?: JSONArray()
+        val spaceIds = mutableSetOf<String>()
         for (index in 0 until spacesArray.length()) {
             val space = spacesArray.getJSONObject(index)
-            require(space.optString("id").isNotBlank()) { "Backup contains a Space without an id" }
+            val spaceId = space.optString("id")
+            require(spaceId.isNotBlank()) { "Backup contains a Space without an id" }
+            require(spaceIds.add(spaceId)) { "Backup contains duplicate Space id: $spaceId" }
             require(space.optString("name").isNotBlank()) { "Backup contains a Space without a name" }
         }
 
@@ -361,8 +367,12 @@ class DaylineStore(context: Context) {
             .takeIf { it.isNotBlank() }
             ?.let(::JSONArray)
             ?: JSONArray()
+        val templateIds = mutableSetOf<String>()
         for (index in 0 until templatesArray.length()) {
-            templatesArray.getJSONObject(index)
+            val template = templatesArray.getJSONObject(index)
+            val templateId = template.optString("id")
+            require(templateId.isNotBlank()) { "Backup contains a template without an id" }
+            require(templateIds.add(templateId)) { "Backup contains duplicate template id: $templateId" }
         }
 
         val spaces = spacesArray.length()

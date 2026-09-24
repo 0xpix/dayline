@@ -282,11 +282,7 @@ class DaylineStore(context: Context) {
         // preference JSON. Current Dayline is eyes-first, so upgraded installs
         // must behave exactly like fresh installs without requiring Settings to
         // be opened once to normalize those legacy flags.
-        val normalized = loaded.copy(
-            mode = if (loaded.mode == GlyphMode.OFF) GlyphMode.OFF else GlyphMode.EYES_ONLY,
-            showAppStates = false,
-            restAnimation = false
-        )
+        val normalized = loaded.normalizedForCurrentGlyph()
         if (normalized != loaded) saveGlyphPreferences(normalized)
         return normalized
     }

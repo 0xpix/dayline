@@ -318,14 +318,36 @@ class DaylineStore(context: Context) {
         var events = 0
         var tasks = 0
         for (index in 0 until items.length()) {
-            when (items.optJSONObject(index)?.optString("kind")) {
-                AgendaKind.TASK.name -> tasks += 1
+            val itemJson = items.getJSONObject(index)
+            // Fully decode each item now so malformed dates/required fields are
+            // rejected before restore can clear the existing local database.
+            val decoded = itemFromJson(itemJson)
+            when (decoded.kind) {
+                AgendaKind.TASK -> tasks += 1
                 else -> events += 1
             }
         }
 
-        val spaces = values.optString(KEY_SPACES).takeIf { it.isNotBlank() }?.let(::JSONArray)?.length() ?: 0
-        val templates = values.optString(KEY_TEMPLATES).takeIf { it.isNotBlank() }?.let(::JSONArray)?.length() ?: 0
+        val spacesArray = values.optString(KEY_SPACES)
+            .takeIf { it.isNotBlank() }
+            ?.let(::JSONArray)
+            ?: JSONArray()
+        for (index in 0 until spacesArray.length()) {
+            val space = spacesArray.getJSONObject(index)
+            require(space.optString("id").isNotBlank()) { "Backup contains a Space without an id" }
+            require(space.optString("name").isNotBlank()) { "Backup contains a Space without a name" }
+        }
+
+        val templatesArray = values.optString(KEY_TEMPLATES)
+            .takeIf { it.isNotBlank() }
+            ?.let(::JSONArray)
+            ?: JSONArray()
+        for (index in 0 until templatesArray.length()) {
+            templatesArray.getJSONObject(index)
+        }
+
+        val spaces = spacesArray.length()
+        val templates = templatesArray.length()
 
         BackupPreview(
             version = version,
@@ -337,6 +359,8 @@ class DaylineStore(context: Context) {
     }.getOrNull()
 
     fun importState(raw: String): Boolean = runCatching {
+        require(inspectBackup(raw) != null) { "Backup contents could not be validated" }
+
         val root = JSONObject(raw)
         require(root.optString("format") == BACKUP_FORMAT) { "Not a Dayline backup" }
         val version = root.optInt("version", 1)

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.17.2.beta — Accessibility polish
+
+### Added
+- Accessibility polish in progress.
+
+### Changed
+- Started the next focused reliability patch after freezing v0.17.1.beta.
+
+### Fixed
+- Bumped beta versionCode to **1702** and beta versionName to `0.17.2.beta`.
+
+
 ## 0.17.1.beta — Reliability
 
 ### Added

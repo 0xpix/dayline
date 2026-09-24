@@ -385,6 +385,7 @@ feature_checks = {
     "glyph hardware bridge": "NothingGlyphBridge" in all_kotlin and "setAppMatrixFrame" in all_kotlin,
     "glyph AOD toy": "DaylineGlyphToyService" in all_kotlin and "Always-on Glyph Toy" in all_kotlin,
     "glyph live preview": "GlyphMatrixPreview" in all_kotlin and "TEST GLYPH" in all_kotlin,
+    "timeline accessibility": "Task completion for" in all_kotlin and "Resize ${item.title}" in all_kotlin and "stateDescription = if (completed)" in all_kotlin,
 }
 for label, ok in feature_checks.items():
     if not ok:

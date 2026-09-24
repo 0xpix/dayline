@@ -89,6 +89,8 @@ CI runs pure JVM tests before Android assembly.
 - Candidate updates must be newer by both semantic beta version and Dayline's versionCode convention.
 - Cached update cards use the same installability rule, so stale releases are not resurfaced after an app upgrade.
 - The update sheet shows live percentage progress while the APK downloads and switches to a verification state after transfer completes.
+- Progress callbacks are throttled to percentage changes (or 256 KiB steps if total size is unknown) to avoid unnecessary Compose churn.
+- If Android requires install-apps permission, returning to Dayline after granting it automatically resumes the verified APK install.
 - Downloaded APK package, versionCode, byte size and SHA-256 checksum are verified before install.
 - The downloaded APK signing certificate is compared with the currently installed Dayline beta before Android's installer opens.
 - GitHub release-body cleanup preserves literal `## Added`, `## Changed`, `## Fixed` headings.
@@ -103,14 +105,18 @@ CI runs pure JVM tests before Android assembly.
 - Restore rejects unknown future schema versions before clearing existing state.
 - Nested event/task JSON and Space records are decoded and validated before any current data is cleared.
 - Selecting a backup shows event, task and Space counts and requires an explicit RESTORE action before replacement.
+- Saved event/task, Space, template and Calendar-rule loaders isolate malformed records instead of dropping the entire collection.
+- Item writes use asynchronous SharedPreferences disk persistence so interaction paths do not wait for synchronous disk I/O.
 - Transient updater state, sync-health timestamps and widget-instance cache entries are excluded from backup payloads.
 - Legacy version-1 backups remain accepted.
 
 ## Release discipline
 
 - `scripts/bump_beta.py` prepares versionName/versionCode and release-facing metadata together.
+- Its multi-line Gradle matching has a dedicated Python regression test that runs in Android CI.
 - `scripts/check_beta_bump.py` compares functional changes against the latest beta tag.
 - Android CI fetches full tag history and fails when functional app/build changes exist without a newer beta version.
+- Main-branch CI cancels obsolete runs after a newer push; tagged beta release runs are never cancelled.
 - Static validation derives the active beta version from Gradle and verifies README, CHANGELOG and updater release-note alignment.
 
 ## Beta diagnostics

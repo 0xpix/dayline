@@ -1,13 +1,13 @@
-# Dayline v0.18.2.beta — Validation Report
+# Dayline v0.18.3.beta — Validation Report
 
-This report tracks the current **v0.18.2.beta / versionCode 1802** source. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current **v0.18.3.beta / versionCode 1802** source. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
-- Beta target: **0.18.2.beta / 1802**.
-- `docs/releases/v0.18.2.beta.md` contains concise **Added / Changed / Fixed** updater notes.
+- Beta target: **0.18.3.beta / 1803**.
+- `docs/releases/v0.18.3.beta.md` contains concise **Added / Changed / Fixed** updater notes.
 - Beta/Play flavor separation remains intact; Play stays on the stable base version and does not package the Nothing SDK.
-- Tagged builds must verify signed APK versionName/versionCode against tag `v0.18.2.beta`.
+- Tagged builds must verify signed APK versionName/versionCode against tag `v0.18.3.beta`.
 - Static validation, recurrence/planning unit tests, Beta debug compile and Play debug compile must all pass before tagging.
 
 ## Today Flow
@@ -132,6 +132,10 @@ CI runs pure JVM tests before Android assembly.
 - Legacy active item/Space JSON keys are removed only after Room reports the migration complete.
 - Existing Room rows are never overwritten merely because the one-time migration marker is absent.
 - Ordinary event/task and Space replacements update the in-memory snapshot immediately and queue Room disk persistence on the single ordered Room executor.
+- Before a queued write, Dayline journals the latest item/Space snapshot in SharedPreferences using the existing legacy-compatible JSON shape.
+- A journal entry is removed only after the matching Room write succeeds; newer queued snapshots cannot be cleared by an older completion callback.
+- Pending journal data is replayed with blocking Room writes during the next initialization after process death or a persistence failure.
+- Room journal/error keys are excluded from normal backup payloads.
 - Backup restore and rollback use explicit blocking Room replacement methods so settings/Room recovery remains deterministic.
 
 ## Backup / restore
@@ -159,7 +163,7 @@ CI runs pure JVM tests before Android assembly.
 ## Beta diagnostics
 
 - Available only in the GitHub beta channel behind five taps on Settings → About → Build.
-- Reports build/channel, Calendar sync, last widget refresh, next scheduled reminder, active Focus state and updater status.
+- Reports build/channel, Calendar sync, last widget refresh, Room write health, next scheduled reminder, active Focus state and updater status.
 - Glyph diagnostics report last successful frame timestamp, disconnect count, recovery count, send-failure count and last error text when present.
 - Export Debug Log shares only diagnostic facts; event/task titles and calendar contents are excluded.
 
@@ -187,7 +191,7 @@ CI runs pure JVM tests before Android assembly.
 
 ## Android compile gate
 
-Before tagging `v0.18.2.beta`, GitHub Actions must pass:
+Before tagging `v0.18.3.beta`, GitHub Actions must pass:
 
 ```text
 :app:testBetaDebugUnitTest

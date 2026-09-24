@@ -22,6 +22,13 @@ object GithubBetaUpdater {
     suspend fun download(context: Context, release: BetaRelease): Result<File> =
         Result.failure(UnsupportedOperationException("Google Play manages updates for this build"))
 
+    suspend fun download(
+        context: Context,
+        release: BetaRelease,
+        onProgress: (downloadedBytes: Long, totalBytes: Long) -> Unit
+    ): Result<File> =
+        Result.failure(UnsupportedOperationException("Google Play manages updates for this build"))
+
     fun install(context: Context, apk: File): InstallResult =
         InstallResult.Error("Google Play manages updates for this build")
 

@@ -1,13 +1,13 @@
-# Dayline v0.18.1.beta — Validation Report
+# Dayline v0.18.2.beta — Validation Report
 
-This report tracks the current **v0.18.1.beta / versionCode 1801** source. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current **v0.18.2.beta / versionCode 1801** source. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
-- Beta target: **0.18.1.beta / 1801**.
-- `docs/releases/v0.18.1.beta.md` contains concise **Added / Changed / Fixed** updater notes.
+- Beta target: **0.18.2.beta / 1802**.
+- `docs/releases/v0.18.2.beta.md` contains concise **Added / Changed / Fixed** updater notes.
 - Beta/Play flavor separation remains intact; Play stays on the stable base version and does not package the Nothing SDK.
-- Tagged builds must verify signed APK versionName/versionCode against tag `v0.18.1.beta`.
+- Tagged builds must verify signed APK versionName/versionCode against tag `v0.18.2.beta`.
 - Static validation, recurrence/planning unit tests, Beta debug compile and Play debug compile must all pass before tagging.
 
 ## Today Flow
@@ -131,6 +131,8 @@ CI runs pure JVM tests before Android assembly.
 - If any legacy source record is malformed, valid decodable rows may still be available in Room, but the migration marker stays incomplete and the original raw preference JSON is retained.
 - Legacy active item/Space JSON keys are removed only after Room reports the migration complete.
 - Existing Room rows are never overwritten merely because the one-time migration marker is absent.
+- Ordinary event/task and Space replacements update the in-memory snapshot immediately and queue Room disk persistence on the single ordered Room executor.
+- Backup restore and rollback use explicit blocking Room replacement methods so settings/Room recovery remains deterministic.
 
 ## Backup / restore
 
@@ -185,7 +187,7 @@ CI runs pure JVM tests before Android assembly.
 
 ## Android compile gate
 
-Before tagging `v0.18.1.beta`, GitHub Actions must pass:
+Before tagging `v0.18.2.beta`, GitHub Actions must pass:
 
 ```text
 :app:testBetaDebugUnitTest

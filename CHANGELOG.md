@@ -1,16 +1,27 @@
 # Changelog
 
-## 0.18.0.beta — Quick Add data layer
+## 0.18.0.beta — Room + local Quick Add
 
 ### Added
-- Started a tested Quick Add item-construction layer.
+- Added a typed Room database for events/tasks and Spaces, backed by KSP-generated Room code.
+- Added a one-time migration repository that imports existing SharedPreferences item/Space JSON into Room without overwriting already-migrated Room rows.
+- Added explicit Room entities, converters, ordered DAOs and domain round-trip regression tests.
+- Added a fully local deterministic Quick Add parser for shorthand such as `gym tomorrow 7:30 1h`, `dentist Friday 14:00`, `task report 45m due Monday` and `focus 50m at 18:00`.
+- Added pure Quick Add draft/merge tests covering provider identity, task planning fields, explicit directives and Focus shorthand.
 
 ### Changed
-- Quick Add data invariants are moving out of Compose UI code into pure Kotlin.
+- Events/tasks and Spaces now use Room as their live source of truth; ordinary settings remain in SharedPreferences.
+- Existing list order is preserved explicitly in Room.
+- Legacy item/Space preference keys are removed after a successful Room migration.
+- Backup/export still emits the existing v1/v2-compatible JSON representation, and restore writes imported items/Spaces back into Room.
+- Quick Add item construction and shorthand merging now live in pure Kotlin data-layer code instead of Compose.
+- Normal text remains normal: shorthand only overrides fields when the parser finds an explicit task/focus/date/time/duration/due directive.
 
 ### Fixed
+- Converting an Android Calendar-backed event into a task no longer leaves stale provider IDs, calendar metadata, read-only state or timezone attached to the task.
+- Timed event → all-day conversion keeps legitimate Calendar mapping while clearing timed-only timezone/reminder/Focus state.
+- Backup restore rolls Room item/Space data back if restoring SharedPreferences settings fails.
 - Bumped beta versionCode to **1800** and beta versionName to `0.18.0.beta`.
-
 
 ## 0.17.4.beta — Reliability guard coverage
 

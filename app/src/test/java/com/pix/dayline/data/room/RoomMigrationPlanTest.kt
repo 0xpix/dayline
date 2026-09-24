@@ -66,6 +66,40 @@ class RoomMigrationPlanTest {
     }
 
     @Test
+    fun invalidLegacySourceKeepsMigrationOpen() {
+        val plan = planLegacyRoomMigration(
+            alreadyImported = false,
+            roomItemCount = 0,
+            roomSpaceCount = 0,
+            legacyItemCount = 3,
+            legacySpaceCount = 2,
+            legacyItemsValid = false,
+            legacySpacesValid = true
+        )
+
+        assertTrue(plan.importItems)
+        assertTrue(plan.importSpaces)
+        assertFalse(plan.markComplete)
+    }
+
+    @Test
+    fun invalidSpacesAlsoKeepMigrationOpen() {
+        val plan = planLegacyRoomMigration(
+            alreadyImported = false,
+            roomItemCount = 4,
+            roomSpaceCount = 0,
+            legacyItemCount = 8,
+            legacySpaceCount = 2,
+            legacyItemsValid = true,
+            legacySpacesValid = false
+        )
+
+        assertFalse(plan.importItems)
+        assertTrue(plan.importSpaces)
+        assertFalse(plan.markComplete)
+    }
+
+    @Test
     fun completedMigrationNeverReimportsLegacyData() {
         val plan = planLegacyRoomMigration(
             alreadyImported = true,

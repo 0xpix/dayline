@@ -95,6 +95,83 @@ class QuickAddDraftTest {
     }
 
     @Test
+    fun shorthandOnlyOverridesExplicitFields() {
+        val manual = QuickAddDraft(
+            title = "report tomorrow 45m",
+            kind = AgendaKind.TASK,
+            date = date,
+            startTime = null,
+            endTime = null,
+            recurrence = Recurrence.ONCE,
+            estimatedDurationMinutes = 30
+        )
+        val parsed = QuickAddParser.parse(manual.title, today = date)!!
+
+        val resolved = manual.applyingShorthand(parsed)
+
+        assertEquals(AgendaKind.TASK, resolved.kind)
+        assertEquals(date.plusDays(1), resolved.date)
+        assertEquals(45, resolved.estimatedDurationMinutes)
+        assertEquals("report", resolved.title)
+    }
+
+    @Test
+    fun explicitTaskDirectiveOverridesManualEventType() {
+        val manual = QuickAddDraft(
+            title = "task report 45m due Monday",
+            kind = AgendaKind.EVENT,
+            date = date,
+            startTime = null,
+            endTime = null,
+            recurrence = Recurrence.ONCE
+        )
+        val parsed = QuickAddParser.parse(manual.title, today = date)!!
+
+        val resolved = manual.applyingShorthand(parsed)
+
+        assertEquals(AgendaKind.TASK, resolved.kind)
+        assertEquals(45, resolved.estimatedDurationMinutes)
+        assertEquals(LocalDate.of(2026, 9, 28), resolved.deadlineDate)
+        assertEquals("report", resolved.title)
+    }
+
+    @Test
+    fun eventDurationBuildsEndTimeAndFocusShortcutBuildsCustomCycle() {
+        val eventDraft = QuickAddDraft(
+            title = "gym tomorrow 7:30 1h",
+            kind = AgendaKind.EVENT,
+            date = date,
+            startTime = null,
+            endTime = null,
+            recurrence = Recurrence.ONCE
+        ).applyingShorthand(
+            QuickAddParser.parse("gym tomorrow 7:30 1h", today = date)
+        )
+
+        assertEquals(date.plusDays(1), eventDraft.date)
+        assertEquals(LocalTime.of(7, 30), eventDraft.startTime)
+        assertEquals(LocalTime.of(8, 30), eventDraft.endTime)
+
+        val focusDraft = QuickAddDraft(
+            title = "focus 50m at 18:00",
+            kind = AgendaKind.TASK,
+            date = date,
+            startTime = null,
+            endTime = null,
+            recurrence = Recurrence.ONCE
+        ).applyingShorthand(
+            QuickAddParser.parse("focus 50m at 18:00", today = date)
+        )
+
+        assertEquals(AgendaKind.EVENT, focusDraft.kind)
+        assertEquals(FocusCycle.CUSTOM, focusDraft.focusCycle)
+        assertEquals(50, focusDraft.customFocusMinutes)
+        assertEquals(LocalTime.of(18, 0), focusDraft.startTime)
+        assertEquals(LocalTime.of(18, 50), focusDraft.endTime)
+        assertEquals("Focus", focusDraft.title)
+    }
+
+    @Test
     fun newCustomItemUsesDeterministicIdAndDateDayFallback() {
         val saved = QuickAddDraft(
             title = "  New item  ",

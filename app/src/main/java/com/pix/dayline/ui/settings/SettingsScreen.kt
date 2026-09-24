@@ -698,9 +698,9 @@ private fun UpdateSheet(release: BetaRelease, onDismiss: () -> Unit) {
         if (owner == null) {
             onDispose { }
         } else {
-            val observer = LifecycleEventObserver { _, event ->
+            fun continueInstallIfReady() {
                 if (
-                    event == Lifecycle.Event.ON_RESUME &&
+                    owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) &&
                     waitingForInstallPermission &&
                     context.packageManager.canRequestPackageInstalls()
                 ) {
@@ -710,7 +710,13 @@ private fun UpdateSheet(release: BetaRelease, onDismiss: () -> Unit) {
                     }
                 }
             }
+
+            val observer = LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) continueInstallIfReady()
+            }
             owner.lifecycle.addObserver(observer)
+            // If recomposition happens after ON_RESUME, do not miss the event.
+            continueInstallIfReady()
             onDispose { owner.lifecycle.removeObserver(observer) }
         }
     }

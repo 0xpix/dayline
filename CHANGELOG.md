@@ -3,14 +3,17 @@
 ## 0.18.1.beta — Safe Room migration
 
 ### Added
-- Added migration-source validation for legacy item/Space preference data.
+- Added migration-source validity flags and regression coverage for malformed legacy item/Space data.
+- Added an explicit migration-completion result from the Room repository so callers know whether the old source may be discarded safely.
 
 ### Changed
-- Started a focused fail-closed Room migration patch after freezing v0.18.0.beta.
+- Legacy SharedPreferences item/Space JSON is decoded strictly before Room migration can be marked complete.
+- Valid decodable legacy rows can still seed an empty Room table, but malformed source keeps the migration open for recovery.
+- Legacy active item/Space preference keys are removed only after Room confirms the migration marker.
 
 ### Fixed
+- Fixed a data-loss edge case where malformed legacy JSON could be partially skipped and then deleted after migration.
 - Bumped beta versionCode to **1801** and beta versionName to `0.18.1.beta`.
-
 
 ## 0.18.0.beta — Room + local Quick Add
 

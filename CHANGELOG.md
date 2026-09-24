@@ -3,14 +3,17 @@
 ## 0.18.2.beta — Non-blocking Room writes
 
 ### Added
-- Added ordered background persistence for ordinary item/Space Room writes.
+- Added ordered background persistence for ordinary event/task and Space Room writes.
+- Added explicit blocking Room replacement methods reserved for restore/rollback safety.
 
 ### Changed
-- Started a focused Room write-latency patch after freezing v0.18.1.beta.
+- Normal item/Space mutations update Dayline's in-memory snapshot immediately and queue disk persistence on the single Room executor.
+- Room writes remain ordered without making drag, resize, Quick Add, task completion or other UI mutations wait for disk I/O.
+- Backup restore and rollback continue to wait for Room writes before committing settings changes.
 
 ### Fixed
+- Fixed the v0.18 Room migration reintroducing synchronous disk waits into normal UI mutation paths.
 - Bumped beta versionCode to **1802** and beta versionName to `0.18.2.beta`.
-
 
 ## 0.18.1.beta — Safe Room migration
 

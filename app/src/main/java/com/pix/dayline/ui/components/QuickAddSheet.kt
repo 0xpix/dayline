@@ -118,7 +118,10 @@ fun QuickAddSheet(
         remember(title.text, date) {
             QuickAddParser.parse(title.text, today = date)
                 ?.takeIf { it.hasDirectives }
-                ?.previewLabel(today = date)
+                ?.previewLabel(
+                    today = date,
+                    currentStartTime = startTime
+                )
         }
     } else {
         null

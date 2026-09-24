@@ -14,8 +14,18 @@ data class ParsedQuickAdd(
     val startTime: LocalTime? = null,
     val durationMinutes: Int? = null,
     val deadlineDate: LocalDate? = null,
-    val focusMinutes: Int? = null
-)
+    val focusMinutes: Int? = null,
+    val kindExplicit: Boolean = false,
+    val dateExplicit: Boolean = false
+) {
+    val hasDirectives: Boolean
+        get() = kindExplicit ||
+            dateExplicit ||
+            startTime != null ||
+            durationMinutes != null ||
+            deadlineDate != null ||
+            focusMinutes != null
+}
 
 /**
  * Small deterministic parser for Dayline's local shorthand entry.
@@ -29,15 +39,18 @@ object QuickAddParser {
         if (working.isBlank()) return null
 
         var kind = AgendaKind.EVENT
+        var kindExplicit = false
         var focus = false
 
         when {
             working.startsWith("task ", ignoreCase = true) || working.equals("task", ignoreCase = true) -> {
                 kind = AgendaKind.TASK
+                kindExplicit = true
                 working = working.removePrefixIgnoreCase("task").trim()
             }
             working.startsWith("focus ", ignoreCase = true) || working.equals("focus", ignoreCase = true) -> {
                 kind = AgendaKind.EVENT
+                kindExplicit = true
                 focus = true
                 working = working.removePrefixIgnoreCase("focus").trim()
             }
@@ -50,9 +63,11 @@ object QuickAddParser {
         }
 
         var date = today
+        var dateExplicit = false
         DATE_REGEX.find(working)?.let { match ->
             resolveDateToken(match.value, today)?.let { resolved ->
                 date = resolved
+                dateExplicit = true
                 working = working.removeRange(match.range)
             }
         }
@@ -94,7 +109,9 @@ object QuickAddParser {
             startTime = startTime,
             durationMinutes = durationMinutes,
             deadlineDate = deadlineDate,
-            focusMinutes = durationMinutes.takeIf { focus }
+            focusMinutes = durationMinutes.takeIf { focus },
+            kindExplicit = kindExplicit,
+            dateExplicit = dateExplicit
         )
     }
 

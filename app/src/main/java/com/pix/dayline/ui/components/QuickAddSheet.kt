@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pix.dayline.data.QuickAddDraft
 import com.pix.dayline.data.QuickAddParser
+import com.pix.dayline.data.previewLabel
 import com.pix.dayline.model.*
 import com.pix.dayline.ui.theme.composeColor
 import java.time.DayOfWeek
@@ -112,6 +113,16 @@ fun QuickAddSheet(
     var priority by remember(editing?.id) { mutableStateOf(editing?.priority ?: TaskPriority.NORMAL) }
     var itemColor by remember(editing?.id) { mutableStateOf(editing?.color ?: ItemColor.MONO) }
     var spaceId by remember(editing?.id) { mutableStateOf(editing?.spaceId) }
+
+    val quickAddPreview = if (editing == null) {
+        remember(title.text, date) {
+            QuickAddParser.parse(title.text, today = date)
+                ?.takeIf { it.hasDirectives }
+                ?.previewLabel(today = date)
+        }
+    } else {
+        null
+    }
 
     fun applyTemplate(template: EventTemplate) {
         title = TextFieldValue(template.title)
@@ -248,6 +259,27 @@ fun QuickAddSheet(
                         }
                     }
                 )
+            }
+
+            if (editing == null) {
+                when {
+                    title.text.isBlank() -> {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "TRY · gym tomorrow 7:30 1h",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.68f)
+                        )
+                    }
+                    quickAddPreview != null -> {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "UNDERSTOOD · $quickAddPreview",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
 
             Section("Type") {

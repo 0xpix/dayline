@@ -43,6 +43,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pix.dayline.data.QuickAddDraft
+import com.pix.dayline.data.QuickAddParser
 import com.pix.dayline.model.*
 import com.pix.dayline.ui.theme.composeColor
 import java.time.DayOfWeek
@@ -483,21 +484,58 @@ fun QuickAddSheet(
                             date
                         }
 
+                        val shorthand = if (editing == null) {
+                            QuickAddParser.parse(title.text, today = resolvedDate)
+                                ?.takeIf { it.hasDirectives }
+                        } else {
+                            null
+                        }
+
+                        val effectiveKind = shorthand
+                            ?.takeIf { it.kindExplicit }
+                            ?.kind
+                            ?: kind
+                        val effectiveDate = shorthand
+                            ?.takeIf { it.dateExplicit }
+                            ?.date
+                            ?: resolvedDate
+                        val effectiveStart = shorthand?.startTime ?: startTime
+                        val effectiveDuration = shorthand?.durationMinutes
+                        val effectiveEnd = when {
+                            effectiveKind == AgendaKind.EVENT &&
+                                effectiveStart != null &&
+                                effectiveDuration != null ->
+                                effectiveStart.plusMinutes(effectiveDuration.toLong())
+                            else -> endTime
+                        }
+                        val shorthandFocus = shorthand?.focusMinutes
+                            ?.takeIf { effectiveKind == AgendaKind.EVENT && effectiveStart != null }
+
                         val saved = QuickAddDraft(
-                            title = title.text,
-                            kind = kind,
-                            date = resolvedDate,
-                            startTime = startTime,
-                            endTime = endTime,
+                            title = shorthand?.title ?: title.text,
+                            kind = effectiveKind,
+                            date = effectiveDate,
+                            startTime = effectiveStart,
+                            endTime = effectiveEnd,
                             recurrence = recurrence,
                             repeatDays = repeatDays,
                             reminderMinutes = reminderMinutes,
-                            focusCycle = focusCycle,
-                            customFocusMinutes = customFocus.toIntOrNull() ?: 25,
+                            focusCycle = if (shorthandFocus != null) {
+                                FocusCycle.CUSTOM
+                            } else {
+                                focusCycle
+                            },
+                            customFocusMinutes = shorthandFocus
+                                ?: customFocus.toIntOrNull()
+                                ?: 25,
                             customBreakMinutes = customBreak.toIntOrNull() ?: 5,
                             bufferBeforeMinutes = bufferBefore,
                             bufferAfterMinutes = bufferAfter,
                             priority = priority,
+                            estimatedDurationMinutes = effectiveDuration
+                                ?.takeIf { effectiveKind == AgendaKind.TASK },
+                            deadlineDate = shorthand?.deadlineDate
+                                ?.takeIf { effectiveKind == AgendaKind.TASK },
                             color = itemColor,
                             spaceId = spaceId
                         ).toItem(editing = editing)

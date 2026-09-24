@@ -396,6 +396,7 @@ feature_checks = {
     "backup schema validation": "BACKUP_FORMAT_VERSION = 2" in all_kotlin and "inspectBackup" in all_kotlin,
     "room data layer": "DaylineDatabase" in all_kotlin and "DaylineRoomRepository" in all_kotlin and "DaylineItemEntity" in all_kotlin and "DaylineSpaceEntity" in all_kotlin,
     "room legacy migration": "KEY_LEGACY_IMPORTED" in all_kotlin and "planLegacyRoomMigration" in all_kotlin and "legacyItemsValid" in all_kotlin and "legacySpacesValid" in all_kotlin and "migrationComplete" in all_kotlin and "itemsToLegacyJson" in all_kotlin and "spacesToLegacyJson" in all_kotlin,
+    "room ordered async writes": "io.execute { persistItems(snapshot) }" in all_kotlin and "io.execute { persistSpaces(snapshot) }" in all_kotlin and "replaceItemsBlocking" in all_kotlin and "replaceSpacesBlocking" in all_kotlin,
     "local quick add parser": "QuickAddParser" in all_kotlin and "ParsedQuickAdd" in all_kotlin and "applyingShorthand" in all_kotlin,
     "per-widget config": "WidgetInstancePrefs" in all_kotlin and "WidgetConfigActivity" in all_kotlin,
     "activity widget states": "liveWidgetLabel" in all_kotlin,

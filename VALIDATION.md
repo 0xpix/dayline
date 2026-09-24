@@ -1,13 +1,13 @@
-# Dayline v0.17.2.beta — Validation Report
+# Dayline v0.17.4.beta — Validation Report
 
-This report tracks the current **v0.17.2.beta / versionCode 1701** source. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current **v0.17.4.beta / versionCode 1704** source. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
-- Beta target: **0.17.2.beta / 1702**.
-- `docs/releases/v0.17.2.beta.md` contains concise **Added / Changed / Fixed** updater notes.
+- Beta target: **0.17.4.beta / 1704**.
+- `docs/releases/v0.17.4.beta.md` contains concise **Added / Changed / Fixed** updater notes.
 - Beta/Play flavor separation remains intact; Play stays on the stable base version and does not package the Nothing SDK.
-- Tagged builds must verify signed APK versionName/versionCode against tag `v0.17.2.beta`.
+- Tagged builds must verify signed APK versionName/versionCode against tag `v0.17.4.beta`.
 - Static validation, recurrence/planning unit tests, Beta debug compile and Play debug compile must all pass before tagging.
 
 ## Today Flow
@@ -76,6 +76,9 @@ CI runs pure JVM tests before Android assembly.
 - THIS + FOLLOWING keeps past/future exclusions on the correct series segment.
 - ENTIRE SERIES preserves mapped Calendar provider identity.
 - Beta version comparison/versionCode installability rules are covered.
+- Beta bump/version-guard helpers are covered by Python regression tests.
+- Updater release-note parsing preserves Added / Changed / Fixed content, stops at unsupported headings, strips unsupported source text and compacts Markdown spacing.
+- Planning regression coverage includes adjacent busy blocks, quarter-hour fitting, previous-slot selection and overlap calculations.
 - Glyph Center geometry stays symmetric and solid, Look left/right shift the full face by one column, removed legacy expressions fall back to Center, and Focus timer pixels stay inside the intended Matrix columns.
 
 ## Widgets
@@ -94,6 +97,8 @@ CI runs pure JVM tests before Android assembly.
 - Downloaded APK package, versionCode, byte size and SHA-256 checksum are verified before install.
 - The downloaded APK signing certificate is compared with the currently installed Dayline beta before Android's installer opens.
 - GitHub release-body cleanup preserves literal `## Added`, `## Changed`, `## Fixed` headings.
+- Unsupported `##` headings terminate the current supported section so unrelated release text is not pulled into the updater.
+- Source Markdown blank lines are removed during normalization; Settings supplies the visual spacing through its section cards.
 - Settings continues rendering each heading in a separate card.
 - APK size is retained in `BetaRelease`, shown as concise release metadata and verified against the downloaded file when GitHub reports a size.
 - Package/version/checksum verification remains mandatory before the installer opens.
@@ -108,6 +113,7 @@ CI runs pure JVM tests before Android assembly.
 - Saved event/task, Space, template and Calendar-rule loaders isolate malformed records instead of dropping the entire collection.
 - Item writes use asynchronous SharedPreferences disk persistence so interaction paths do not wait for synchronous disk I/O.
 - Transient updater state, sync-health timestamps and widget-instance cache entries are excluded from backup payloads.
+- Blank or duplicate event/task, Space and template IDs are rejected before restore can replace current local data.
 - Legacy version-1 backups remain accepted.
 
 ## Release discipline
@@ -129,6 +135,8 @@ CI runs pure JVM tests before Android assembly.
 ## Glyph reliability baseline
 
 - v0.17 adds no new eye expression, Focus checkpoint or recovery behavior.
+- Legacy/partial Glyph preference JSON is normalized to the current eyes-first defaults on load.
+- Enabled legacy EYES_AND_STATES becomes EYES_ONLY; app-state display and Rest animation legacy flags are disabled.
 - Conservative v0.15.3 recovery remains unchanged.
 - Instrumentation records transport outcomes without sending additional frames or creating a new heartbeat.
 - Focus timer remains the centered stacked minutes/seconds layout.
@@ -141,12 +149,14 @@ CI runs pure JVM tests before Android assembly.
 - Toggle rows expose one coherent Switch semantic target and can be activated from either the label or switch.
 - Calendar visibility exposes the calendar name plus Shown/Hidden state instead of an unlabeled filled/empty dot.
 - Compact Settings actions expose Button roles for accessibility services.
+- Timeline events, free gaps, conflict actions, task completion controls and resize handles expose spoken labels/state without changing visual layout.
+- Static release validation guards the presence of these timeline accessibility semantics.
 - The visual Glyph Matrix preview exposes one concise accessibility description instead of exposing 169 individual pixels.
 - Typography continues using Material hierarchy so larger Android font scales can expand without fixed-height text clipping where practical.
 
 ## Android compile gate
 
-Before tagging `v0.17.2.beta`, GitHub Actions must pass:
+Before tagging `v0.17.4.beta`, GitHub Actions must pass:
 
 ```text
 :app:testBetaDebugUnitTest

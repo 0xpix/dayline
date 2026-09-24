@@ -60,6 +60,26 @@ class BetaReleaseNotesTest {
     }
 
     @Test
+    fun unknownHeadingStopsThePreviousSection() {
+        val raw = """
+            ## Added
+            - Visible addition.
+
+            ## Security
+            - Internal-only note.
+
+            ## Fixed
+            - Visible fix.
+        """.trimIndent()
+
+        val cleaned = BetaReleaseNotes.clean(raw)
+
+        assertTrue(cleaned.contains("• Visible addition."))
+        assertTrue(cleaned.contains("• Visible fix."))
+        assertFalse(cleaned.contains("Internal-only note"))
+    }
+
+    @Test
     fun fallsBackForEmptyOrUnstructuredNotes() {
         val fallback = "## Changed\n• Bug fixes and Dayline polish."
         assertEquals(fallback, BetaReleaseNotes.clean(""))

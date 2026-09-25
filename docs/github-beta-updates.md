@@ -30,15 +30,13 @@ The existing Play secrets remain separate:
 
 ## Publishing a beta
 
-Use beta tags, for example:
+Do not create release tags manually. Bump the beta version/release notes and merge or push the finished change to `main`.
 
-```text
-v0.13.0.beta
-```
+After main-branch CI passes, the GitHub workflow automatically creates the matching beta tag, builds `assembleBetaRelease`, verifies the signed APK version/signature, creates a SHA-256 checksum, and publishes the APK/checksum as a GitHub **prerelease**.
 
-The GitHub workflow builds `assembleBetaRelease`, creates a SHA-256 checksum and publishes both as a GitHub **prerelease**.
+Inside Dayline β, **Settings → Beta updates** checks the GitHub Releases list, compares the installed version with published betas, downloads only the newest compatible APK, validates its checksum/package/version, then opens Android's package installer.
 
-Inside Dayline β, **Settings → Beta updates** checks the full GitHub Releases list (including prereleases), compares versions, downloads the newest compatible APK, validates its checksum/package/version, then opens Android's package installer.
+**What's new** keeps every exact release between the installed version and the target version instead of collapsing skipped betas into the newest release. **Settings → Beta updates → Changelog** exposes the release history at any time. Starting with v0.18.9.beta, Dayline also remembers the last launched version and shows the exact missed release notes once after a successful app upgrade; if history loading fails, the pending from-version is retained and retried on the next launch.
 
 On Android 8+, the first in-app installation requires granting **Install unknown apps** to Dayline β. Android shows the system confirmation screen; Dayline never bypasses it.
 

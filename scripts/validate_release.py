@@ -352,7 +352,7 @@ for token in (
     "BetaReleaseHistory.missedBetween",
     "releaseHistory",
     "missedReleases",
-    "DaylineVersion.compare",
+    "BetaReleaseHistory.newestInstallable",
     "DaylineVersion.isInstallableUpdate",
     "checksumUrl",
     "verifyApk",

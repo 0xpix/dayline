@@ -83,6 +83,52 @@ jobs:
           path: app/build/outputs/apk/beta/debug/app-beta-debug.apk
           if-no-files-found: error
 
+  auto_beta_tag:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Create beta tag automatically
+        shell: bash
+        run: |
+          VERSION="$(python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          text = Path("app/build.gradle.kts").read_text(encoding="utf-8")
+          block = re.search(r'create\("beta"\)\s*\{(?P<body>.*?)\n\s*\}', text, re.DOTALL)
+          if not block:
+              raise SystemExit("Could not find beta flavor in app/build.gradle.kts")
+          match = re.search(r'versionName\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"', block.group("body"))
+          if not match:
+              raise SystemExit("Could not read beta versionName")
+          print(match.group(1))
+          PY
+          )"
+          TAG="v${VERSION}.beta"
+          NOTES_FILE="docs/releases/${TAG}.md"
+
+          test -s "$NOTES_FILE" || {
+            echo "Missing release notes: $NOTES_FILE"
+            exit 1
+          }
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "$TAG already exists; nothing to tag."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" "$GITHUB_SHA" -m "Dayline $TAG"
+          git push origin "refs/tags/$TAG"
+          echo "Created $TAG from $GITHUB_SHA."
+
   beta_release:
     if: startsWith(github.ref, 'refs/tags/v') && contains(github.ref_name, 'beta')
     needs: ci

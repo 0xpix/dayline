@@ -40,6 +40,7 @@ import com.pix.dayline.ui.components.NavigationSheet
 import com.pix.dayline.ui.components.QuickAddSheet
 import com.pix.dayline.ui.onboarding.OnboardingScreen
 import com.pix.dayline.ui.search.SearchScreen
+import com.pix.dayline.ui.settings.PostUpdateWhatsNewSheet
 import com.pix.dayline.ui.settings.SettingsScreen
 import com.pix.dayline.ui.spaces.SpaceEditSheet
 import com.pix.dayline.ui.spaces.SpacesScreen
@@ -106,6 +107,17 @@ fun DaylineApp() {
     }
     var lastCalendarSyncAt by remember { mutableStateOf(store.loadLastCalendarSyncAt()) }
     var calendarSyncError by remember { mutableStateOf(store.loadLastCalendarSyncError()) }
+    var postUpdateFromVersion by remember { mutableStateOf<String?>(null) }
+    var postUpdateReleases by remember { mutableStateOf(emptyList<BetaRelease>()) }
+    val launchLastVersion = remember { store.loadLastLaunchedVersion() }
+    val launchPendingWhatsNewFrom = remember { store.loadPendingWhatsNewFromVersion() }
+    val launchWhatsNewFrom = remember(launchLastVersion, launchPendingWhatsNewFrom) {
+        BetaReleaseHistory.pendingFromVersion(
+            lastLaunchedVersion = launchLastVersion,
+            pendingFromVersion = launchPendingWhatsNewFrom,
+            currentVersion = BuildConfig.VERSION_NAME
+        )
+    }
     val glyphRuntime = remember(appContext) { GlyphRuntimeStore(appContext) }
     val glyphController = remember(appContext) { DaylineGlyphController(appContext) }
     var glyphHardwareStatus by remember { mutableStateOf(glyphController.status()) }
@@ -289,8 +301,47 @@ fun DaylineApp() {
         if (nowActivityEnabled) NowActivityScheduler.syncAll(appContext, items)
         refreshCalendarOverlay()
         BetaUpdateScheduler.sync(appContext)
+
+        if (BuildConfig.UPDATE_CHANNEL == "GitHub beta") {
+            launchWhatsNewFrom?.let(store::savePendingWhatsNewFromVersion)
+            store.saveLastLaunchedVersion(BuildConfig.VERSION_NAME)
+
+            if (launchWhatsNewFrom != null) {
+                val historyResult = withContext(Dispatchers.IO) {
+                    BetaUpdateChecker.check(BuildConfig.VERSION_NAME)
+                }
+                if (historyResult.status != UpdateStatus.ERROR && historyResult.releaseHistory.isNotEmpty()) {
+                    val changes = BetaReleaseHistory.missedBetween(
+                        releases = historyResult.releaseHistory,
+                        currentVersion = launchWhatsNewFrom,
+                        targetVersion = BuildConfig.VERSION_NAME
+                    )
+                    if (changes.isNotEmpty()) {
+                        postUpdateFromVersion = launchWhatsNewFrom
+                        postUpdateReleases = changes
+                    } else {
+                        store.savePendingWhatsNewFromVersion(null)
+                    }
+
+                    updateState = historyResult
+                    historyResult.checkedAtMillis?.let { store.saveUpdateCheckResult(it, historyResult.error) }
+                    store.saveAvailableBetaRelease(
+                        if (historyResult.status == UpdateStatus.AVAILABLE) historyResult.release else null
+                    )
+                }
+            }
+        } else {
+            store.saveLastLaunchedVersion(BuildConfig.VERSION_NAME)
+        }
+
         val lastCheck = store.loadLastUpdateCheckAt() ?: 0L
-        if (BuildConfig.UPDATE_CHANNEL == "GitHub beta" && autoBetaUpdates && System.currentTimeMillis() - lastCheck >= 86_400_000L) checkForUpdates(true)
+        if (
+            BuildConfig.UPDATE_CHANNEL == "GitHub beta" &&
+            autoBetaUpdates &&
+            System.currentTimeMillis() - lastCheck >= 86_400_000L
+        ) {
+            checkForUpdates(true)
+        }
     }
 
     DisposableEffect(calendarSyncEnabled, calendarPreferences) {
@@ -609,6 +660,18 @@ fun DaylineApp() {
                     saveSpaces(spaces.filterNot { it.id == doomed.id }); persistItems(items.map { if (it.spaceId == doomed.id) it.copy(spaceId = null) else it }); spaceEditing = null
                 },
                 onDismiss = { spaceEditing = null }
+            )
+        }
+
+        if (onboardingComplete && postUpdateReleases.isNotEmpty() && postUpdateFromVersion != null) {
+            PostUpdateWhatsNewSheet(
+                releases = postUpdateReleases,
+                fromVersion = postUpdateFromVersion!!,
+                onDismiss = {
+                    postUpdateReleases = emptyList()
+                    postUpdateFromVersion = null
+                    store.savePendingWhatsNewFromVersion(null)
+                }
             )
         }
     }

@@ -52,6 +52,40 @@ class BetaReleaseHistoryTest {
     }
 
     @Test
+    fun pendingPostUpdateRangeSurvivesFailedFetchesAndSkipsFirstInstall() {
+        assertEquals(
+            "0.18.9.beta",
+            BetaReleaseHistory.pendingFromVersion(
+                lastLaunchedVersion = "0.18.9.beta",
+                pendingFromVersion = null,
+                currentVersion = "0.18.10.beta"
+            )
+        )
+        assertEquals(
+            "0.18.8.beta",
+            BetaReleaseHistory.pendingFromVersion(
+                lastLaunchedVersion = "0.18.10.beta",
+                pendingFromVersion = "0.18.8.beta",
+                currentVersion = "0.18.10.beta"
+            )
+        )
+        assertNull(
+            BetaReleaseHistory.pendingFromVersion(
+                lastLaunchedVersion = null,
+                pendingFromVersion = null,
+                currentVersion = "0.18.10.beta"
+            )
+        )
+        assertNull(
+            BetaReleaseHistory.pendingFromVersion(
+                lastLaunchedVersion = "0.18.10.beta",
+                pendingFromVersion = null,
+                currentVersion = "0.18.10.beta"
+            )
+        )
+    }
+
+    @Test
     fun newestInstallableRespectsNameAndVersionCode() {
         val releases = listOf(release("0.18.8.beta"), release("0.18.7.beta"))
         assertEquals(

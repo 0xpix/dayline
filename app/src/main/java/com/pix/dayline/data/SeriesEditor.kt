@@ -12,6 +12,17 @@ data class SeriesEditResult(
 )
 
 object SeriesEditor {
+    fun editForGestureScope(
+        original: DaylineItem,
+        editedOccurrence: DaylineItem,
+        occurrenceDate: LocalDate,
+        scope: RecurrenceEditScope
+    ): DaylineItem = when (scope) {
+        RecurrenceEditScope.ENTIRE_SERIES -> editedOccurrence.copy(startDate = original.startDate)
+        RecurrenceEditScope.THIS_OCCURRENCE,
+        RecurrenceEditScope.THIS_AND_FOLLOWING -> editedOccurrence.copy(startDate = occurrenceDate)
+    }
+
     fun apply(
         existingItems: List<DaylineItem>,
         original: DaylineItem,

@@ -935,6 +935,43 @@ private fun UpdateSheet(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+fun PostUpdateWhatsNewSheet(
+    releases: List<BetaRelease>,
+    fromVersion: String,
+    onDismiss: () -> Unit
+) {
+    if (releases.isEmpty()) return
+
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.background) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                .padding(horizontal = 28.dp).padding(bottom = 34.dp)
+        ) {
+            Text("What\'s new", style = MaterialTheme.typography.displaySmall)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Updated from $fromVersion to ${BuildConfig.VERSION_NAME} · ${releases.size} release${if (releases.size == 1) "" else "s"}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(24.dp))
+            releases.forEachIndexed { index, release ->
+                ReleaseNotesBlock(release)
+                if (index != releases.lastIndex) Spacer(Modifier.height(26.dp))
+            }
+            Spacer(Modifier.height(26.dp))
+            androidx.compose.material3.Button(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth().height(54.dp)
+            ) {
+                Text("Got it", style = MaterialTheme.typography.titleMedium)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun ChangelogSheet(releases: List<BetaRelease>, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.background) {
         Column(

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.18.11.beta — Recurring drag scope
+
+### Added
+- Added a recurrence-scope prompt after dragging a recurring event to change its start time or end time: **Only this event** or **Every event**.
+- Added a shared gesture-scope helper so whole-series timeline edits preserve the series' original start date while applying the dragged time changes.
+
+### Changed
+- Timeline move and resize gestures no longer silently default recurring events to a single-occurrence edit.
+- Recurring drag changes are not persisted until a scope is selected.
+
+### Fixed
+- Fixed dragging the start time of a recurring event creating a detached occurrence without asking whether the whole series should change.
+- Fixed dragging the end time of a recurring event behaving like a duplicate/overlap edit instead of a scoped series edit.
+- Bumped beta versionCode to **1811** and beta versionName to `0.18.11.beta`.
+
+
 ## 0.18.10.beta — Recurring event edit scope
 
 ### Added

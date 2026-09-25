@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.18.10.beta — Recurring event edit scope
+
+### Added
+- Added an edit-scope prompt after saving a recurring event: **Only this event** or **Every event**.
+- Added explicit SeriesEditResult tracking so recurrence edits return the actual saved occurrence/master.
+
+### Changed
+- Removed the always-visible recurrence scope pills from the event form; the choice is now made only when saving a recurring event.
+- Whole-series edits keep the existing series identity and selected-occurrence edits create a detached one-off while excluding the original occurrence.
+
+### Fixed
+- Fixed editing one occurrence being reported as a conflict with the detached occurrence Dayline had just created.
+- Fixed recurring edits feeling like they added a duplicate instead of clearly asking whether to update one event or the whole series.
+- Bumped beta versionCode to **1810** and beta versionName to `0.18.10.beta`.
+
+
 ## 0.18.9.beta — Post-update What's new
 
 ### Added

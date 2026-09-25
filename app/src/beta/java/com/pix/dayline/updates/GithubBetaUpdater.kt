@@ -29,7 +29,7 @@ import java.util.Locale
 
 /** GitHub beta updater. The Play flavor supplies an offline stub. */
 object GithubBetaUpdater {
-    private const val RELEASES_API = "https://api.github.com/repos/0xpix/dayline/releases?per_page=30"
+    private const val RELEASES_API = "https://api.github.com/repos/0xpix/dayline/releases?per_page=100"
     private const val USER_AGENT_PREFIX = "Dayline-Beta-Updater/"
 
     // Legacy validator anchor only. Do not surface this old/misleading message to users:
@@ -113,8 +113,20 @@ object GithubBetaUpdater {
                 }
                 .maxWithOrNull(Comparator { left, right -> DaylineVersion.compare(left.versionName, right.versionName) })
 
-            if (newest == null) UpdateUiState(status = UpdateStatus.UP_TO_DATE, checkedAtMillis = checkedAt)
-            else UpdateUiState(status = UpdateStatus.AVAILABLE, release = newest, checkedAtMillis = checkedAt)
+            if (newest == null) {
+                UpdateUiState(status = UpdateStatus.UP_TO_DATE, checkedAtMillis = checkedAt)
+            } else {
+                val cumulativeNotes = BetaReleaseNotes.bundleBetween(
+                    currentVersion = currentVersion,
+                    targetVersion = newest.versionName,
+                    releases = parsed.map { it.versionName to it.notes }
+                )
+                UpdateUiState(
+                    status = UpdateStatus.AVAILABLE,
+                    release = newest.copy(notes = cumulativeNotes),
+                    checkedAtMillis = checkedAt
+                )
+            }
         }.getOrElse { error ->
             UpdateUiState(status = UpdateStatus.ERROR, error = friendlyError(error), checkedAtMillis = checkedAt)
         }

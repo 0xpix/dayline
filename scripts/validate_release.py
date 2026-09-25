@@ -387,7 +387,7 @@ for forbidden_action in (
 feature_checks = {
     "per-calendar controls": "CalendarPreferences" in all_kotlin and "CalendarControlsSheet" in all_kotlin,
     "recurrence edit scope": "RecurrenceEditScope" in all_kotlin and "THIS_AND_FOLLOWING" in all_kotlin,
-    "recurring edit prompt": "Edit recurring event" in all_kotlin and "Only this event" in all_kotlin and "Every event" in all_kotlin and "SeriesEditResult" in all_kotlin,
+    "recurring edit prompt": "Edit recurring event" in all_kotlin and "Only this event" in all_kotlin and "Every event" in all_kotlin and "Apply this drag" in all_kotlin and "SeriesEditResult" in all_kotlin and "editForGestureScope" in all_kotlin,
     "drag resize": "onResize" in all_kotlin and "shiftEnd" in all_kotlin and "detectDragGestures" in all_kotlin,
     "tap-to-create": "onCreateAt" in all_kotlin and "detectTapGestures" in all_kotlin,
     "focus modes": "FOCUS_50_10" in all_kotlin and "CUSTOM" in all_kotlin,

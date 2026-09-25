@@ -51,6 +51,8 @@ required = [
     "scripts/check_beta_bump.py",
     "scripts/test_bump_beta.py",
     "app/src/test/java/com/pix/dayline/data/DaylineVersionTest.kt",
+    "app/src/main/java/com/pix/dayline/data/BetaReleaseHistory.kt",
+    "app/src/test/java/com/pix/dayline/data/BetaReleaseHistoryTest.kt",
     "app/src/test/java/com/pix/dayline/data/SeriesEditorTest.kt",
     "app/src/test/java/com/pix/dayline/data/QuickAddDraftTest.kt",
     "app/src/test/java/com/pix/dayline/data/QuickAddParserTest.kt",
@@ -346,6 +348,10 @@ if "glyph-matrix-sdk-2.0.aar" in play:
 updater = read(APP / "src/beta/java/com/pix/dayline/updates/GithubBetaUpdater.kt")
 for token in (
     "api.github.com/repos/0xpix/dayline/releases",
+    "raw.githubusercontent.com/0xpix/dayline/main/CHANGELOG.md",
+    "BetaReleaseHistory.missedBetween",
+    "releaseHistory",
+    "missedReleases",
     "DaylineVersion.compare",
     "DaylineVersion.isInstallableUpdate",
     "checksumUrl",
@@ -407,6 +413,7 @@ feature_checks = {
     "haptics": "HapticFeedbackType.SegmentFrequentTick" in all_kotlin,
     "onboarding": "OnboardingScreen" in all_kotlin and "onboardingComplete" in all_kotlin,
     "update state": "UpdateStatus" in all_kotlin and "UpdateSheet" in all_kotlin,
+    "version-aware update history": "BetaReleaseHistory" in all_kotlin and "missedReleases" in all_kotlin and "releaseHistory" in all_kotlin and "ChangelogSheet" in all_kotlin,
     "automatic beta checks": "BetaUpdateScheduler" in all_kotlin and "24L * 60L * 60L" in all_kotlin,
     "build identity": "BuildConfig.GIT_COMMIT" in all_kotlin and "BuildConfig.VERSION_CODE" in all_kotlin,
     "calendar sync health": "saveCalendarSyncHealth" in all_kotlin and "Sync health" in all_kotlin,

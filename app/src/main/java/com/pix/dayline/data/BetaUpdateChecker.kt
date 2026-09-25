@@ -27,6 +27,8 @@ data class BetaRelease(
 data class UpdateUiState(
     val status: UpdateStatus = UpdateStatus.IDLE,
     val release: BetaRelease? = null,
+    val missedReleases: List<BetaRelease> = emptyList(),
+    val releaseHistory: List<BetaRelease> = emptyList(),
     val error: String? = null,
     val checkedAtMillis: Long? = null
 )

@@ -493,11 +493,12 @@ fun DaylineApp() {
                 }
 
                 val snapshot = items
-                val scopedEdit = if (recurrenceScope == RecurrenceEditScope.ENTIRE_SERIES) {
-                    updated.copy(startDate = previous.startDate)
-                } else {
-                    updated.copy(startDate = occurrenceDate)
-                }
+                val scopedEdit = SeriesEditor.editForGestureScope(
+                    original = previous,
+                    editedOccurrence = updated,
+                    occurrenceDate = occurrenceDate,
+                    scope = recurrenceScope
+                )
                 var next = SeriesEditor.applyWithSelection(
                     existingItems = snapshot,
                     original = previous,

@@ -27,9 +27,9 @@ android {
             dimension = "distribution"
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
-            // v0.18.9.beta: show exact missed release notes once after an app upgrade.
-            versionCode = 1809
-            versionName = "0.18.9"
+            // v0.18.10.beta: ask recurring edit scope on save and avoid self-conflicts.
+            versionCode = 1810
+            versionName = "0.18.10"
             // Nothing's Glyph Matrix SDK 2.0 declares minSdk 33. Keep this
             // requirement isolated to the beta/Glyph build so the normal Play
             // build continues to support Dayline's global minSdk 26.

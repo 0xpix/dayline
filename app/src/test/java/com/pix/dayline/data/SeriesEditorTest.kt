@@ -64,6 +64,56 @@ class SeriesEditorTest {
     }
 
     @Test
+    fun thisOccurrenceReturnsDetachedOccurrenceAsEditedItem() {
+        val original = series()
+        val occurrence = LocalDate.of(2026, 9, 10)
+        val edited = original.copy(
+            startDate = occurrence,
+            startTime = LocalTime.of(11, 0),
+            endTime = LocalTime.of(11, 30)
+        )
+
+        val result = SeriesEditor.applyWithSelection(
+            existingItems = listOf(original),
+            original = original,
+            edited = edited,
+            occurrenceDate = occurrence,
+            scope = RecurrenceEditScope.THIS_OCCURRENCE
+        )
+
+        val parent = result.items.first { it.id == original.id }
+        assertTrue(occurrence in parent.excludedDates)
+        assertNotEquals(original.id, result.editedItem.id)
+        assertEquals(Recurrence.ONCE, result.editedItem.recurrence)
+        assertEquals(occurrence, result.editedItem.startDate)
+        assertEquals(LocalTime.of(11, 0), result.editedItem.startTime)
+        assertEquals(original.id, result.editedItem.seriesParentId)
+    }
+
+    @Test
+    fun entireSeriesReturnsUpdatedMasterAsEditedItem() {
+        val original = series()
+        val edited = original.copy(
+            title = "Daily sync",
+            startTime = LocalTime.of(8, 30),
+            endTime = LocalTime.of(9, 0)
+        )
+
+        val result = SeriesEditor.applyWithSelection(
+            existingItems = listOf(original),
+            original = original,
+            edited = edited,
+            occurrenceDate = LocalDate.of(2026, 9, 10),
+            scope = RecurrenceEditScope.ENTIRE_SERIES
+        )
+
+        assertEquals(original.id, result.editedItem.id)
+        assertEquals("Daily sync", result.editedItem.title)
+        assertEquals(LocalTime.of(8, 30), result.editedItem.startTime)
+        assertEquals(result.items.single(), result.editedItem)
+    }
+
+    @Test
     fun thisAndFollowingSplitsSeriesAndKeepsExclusionsOnCorrectSide() {
         val occurrence = LocalDate.of(2026, 9, 15)
         val original = series().copy(

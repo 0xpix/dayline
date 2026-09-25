@@ -52,6 +52,7 @@ private enum class SettingsSheet {
     CALENDARS,
     GLYPH,
     UPDATE,
+    CHANGELOG,
     PRIVACY,
     DIAGNOSTICS
 }
@@ -101,6 +102,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     var openSheet by remember { mutableStateOf<SettingsSheet?>(null) }
+    var pendingChangelog by remember { mutableStateOf(false) }
     var buildTaps by remember { mutableIntStateOf(0) }
 
     @Suppress("UNUSED_VARIABLE")
@@ -113,8 +115,20 @@ fun SettingsScreen(
         onWidgetAutoSlide
     )
 
-    LaunchedEffect(updateState.status, updateState.release?.tagName) {
-        if (updateState.status == UpdateStatus.AVAILABLE && updateState.release != null) {
+    LaunchedEffect(
+        updateState.status,
+        updateState.release?.tagName,
+        updateState.missedReleases.size,
+        updateState.releaseHistory.size
+    ) {
+        if (pendingChangelog && updateState.status != UpdateStatus.CHECKING) {
+            if (updateState.releaseHistory.isNotEmpty()) openSheet = SettingsSheet.CHANGELOG
+            pendingChangelog = false
+        } else if (
+            updateState.status == UpdateStatus.AVAILABLE &&
+            updateState.release != null &&
+            updateState.missedReleases.isNotEmpty()
+        ) {
             openSheet = SettingsSheet.UPDATE
         }
     }
@@ -194,8 +208,26 @@ fun SettingsScreen(
                         if (updateState.status == UpdateStatus.AVAILABLE) "Update available" else "Check for updates",
                         updateActionLabel(updateState)
                     ) {
-                        if (updateState.status == UpdateStatus.AVAILABLE && updateState.release != null) openSheet = SettingsSheet.UPDATE
-                        else onCheckUpdates()
+                        if (
+                            updateState.status == UpdateStatus.AVAILABLE &&
+                            updateState.release != null &&
+                            updateState.missedReleases.isNotEmpty()
+                        ) {
+                            openSheet = SettingsSheet.UPDATE
+                        } else {
+                            onCheckUpdates()
+                        }
+                    }
+                    SelectorRow(
+                        "Changelog",
+                        if (updateState.releaseHistory.isEmpty()) "Load" else "${updateState.releaseHistory.size} releases"
+                    ) {
+                        if (updateState.releaseHistory.isNotEmpty()) {
+                            openSheet = SettingsSheet.CHANGELOG
+                        } else {
+                            pendingChangelog = true
+                            onCheckUpdates()
+                        }
                     }
                     updateState.checkedAtMillis?.let {
                         Text("Last checked ${relativeCheckTime(it)}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -274,8 +306,16 @@ fun SettingsScreen(
             onDismiss = { openSheet = null }
         )
         SettingsSheet.UPDATE -> updateState.release?.let { release ->
-            UpdateSheet(release = release, onDismiss = { openSheet = null })
+            UpdateSheet(
+                release = release,
+                missedReleases = updateState.missedReleases,
+                onDismiss = { openSheet = null }
+            )
         }
+        SettingsSheet.CHANGELOG -> ChangelogSheet(
+            releases = updateState.releaseHistory,
+            onDismiss = { openSheet = null }
+        )
         SettingsSheet.PRIVACY -> PrivacySheet { openSheet = null }
         SettingsSheet.DIAGNOSTICS -> BetaDiagnosticsSheet(
             calendarSyncEnabled = calendarSyncEnabled,
@@ -623,45 +663,27 @@ private fun TinyAction(label: String, onClick: () -> Unit) {
 }
 
 private data class UpdateNoteSection(val title: String, val items: List<String>)
-private data class UpdateVersionNotes(val version: String, val sections: List<UpdateNoteSection>)
 
 private fun cleanUpdateNoteLine(line: String): String =
     line.trim().trimStart('•', '-', '*', ' ').replace("**", "").replace("`", "").trim()
 
-private fun parseUpdateNotes(raw: String, fallbackVersion: String): List<UpdateVersionNotes> {
-    val groups = mutableListOf<UpdateVersionNotes>()
+private fun parseReleaseNotes(raw: String): List<UpdateNoteSection> {
     val sections = mutableListOf<UpdateNoteSection>()
     val allowed = listOf("Added", "Changed", "Fixed")
-    var version = fallbackVersion
     var title: String? = null
     var items = mutableListOf<String>()
 
-    fun flushSection() {
+    fun flush() {
         val currentTitle = title ?: return
         if (items.isNotEmpty()) sections += UpdateNoteSection(currentTitle, items.toList())
         items = mutableListOf()
     }
 
-    fun flushVersion() {
-        if (sections.isEmpty()) return
-        val ordered = allowed.mapNotNull { expected ->
-            sections.firstOrNull { it.title.equals(expected, ignoreCase = true) }
-        }
-        groups += UpdateVersionNotes(version, ordered.ifEmpty { sections.toList() })
-        sections.clear()
-    }
-
     raw.lines().forEach { rawLine ->
         val line = rawLine.trim()
         when {
-            line.startsWith("# ") && !line.startsWith("## ") -> {
-                flushSection()
-                flushVersion()
-                version = line.removePrefix("# ").trim().ifBlank { fallbackVersion }
-                title = null
-            }
             line.startsWith("## ") -> {
-                flushSection()
+                flush()
                 val candidate = line.removePrefix("## ").trim()
                 title = candidate.takeIf { heading -> allowed.any { it.equals(heading, ignoreCase = true) } }
             }
@@ -669,21 +691,17 @@ private fun parseUpdateNotes(raw: String, fallbackVersion: String): List<UpdateV
             title != null -> cleanUpdateNoteLine(line).takeIf { it.isNotBlank() }?.let(items::add)
         }
     }
-    flushSection()
-    flushVersion()
+    flush()
 
-    if (groups.isNotEmpty()) return groups
+    val ordered = allowed.mapNotNull { expected ->
+        sections.firstOrNull { it.title.equals(expected, ignoreCase = true) }
+    }
+    if (ordered.isNotEmpty()) return ordered
+
     val fallback = raw.lines()
         .map(::cleanUpdateNoteLine)
         .filter { it.isNotBlank() && !it.startsWith("#") }
-    return listOf(
-        UpdateVersionNotes(
-            version = fallbackVersion,
-            sections = listOf(
-                UpdateNoteSection("Changed", fallback.ifEmpty { listOf("Bug fixes and Dayline polish.") })
-            )
-        )
-    )
+    return listOf(UpdateNoteSection("Changed", fallback.ifEmpty { listOf("Bug fixes and Dayline polish.") }))
 }
 
 @Composable
@@ -718,12 +736,52 @@ private fun UpdateNoteSectionCard(section: UpdateNoteSection) {
     }
 }
 
+@Composable
+private fun ReleaseNotesBlock(release: BetaRelease, showState: Boolean = false) {
+    val sections = remember(release.versionName, release.notes) { parseReleaseNotes(release.notes) }
+    val comparison = DaylineVersion.compare(release.versionName, BuildConfig.VERSION_NAME)
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(release.versionName, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            if (showState) {
+                val state = when {
+                    comparison == 0 -> "CURRENT"
+                    comparison > 0 -> "NEW"
+                    else -> null
+                }
+                state?.let {
+                    Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        release.publishedAt?.let { published ->
+            Spacer(Modifier.height(3.dp))
+            Text(
+                DateTimeFormatter.ofPattern("MMM d, yyyy").withZone(ZoneId.systemDefault()).format(published),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        sections.forEachIndexed { index, section ->
+            UpdateNoteSectionCard(section)
+            if (index != sections.lastIndex) Spacer(Modifier.height(12.dp))
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun UpdateSheet(release: BetaRelease, onDismiss: () -> Unit) {
+private fun UpdateSheet(
+    release: BetaRelease,
+    missedReleases: List<BetaRelease>,
+    onDismiss: () -> Unit
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val noteGroups = remember(release.notes, release.versionName) { parseUpdateNotes(release.notes, release.versionName) }
+    val missed = remember(release.tagName, missedReleases) {
+        missedReleases.ifEmpty { listOf(release) }
+    }
     var downloading by remember(release.tagName) { mutableStateOf(false) }
     var downloadProgress by remember(release.tagName) { mutableIntStateOf(0) }
     var downloadProgressKnown by remember(release.tagName) { mutableStateOf(false) }
@@ -752,11 +810,8 @@ private fun UpdateSheet(release: BetaRelease, onDismiss: () -> Unit) {
         var current: Context? = context
         var owner: LifecycleOwner? = null
         while (current != null && owner == null) {
-            if (current is LifecycleOwner) {
-                owner = current
-            } else {
-                current = (current as? ContextWrapper)?.baseContext
-            }
+            if (current is LifecycleOwner) owner = current
+            else current = (current as? ContextWrapper)?.baseContext
         }
         owner
     }
@@ -778,57 +833,42 @@ private fun UpdateSheet(release: BetaRelease, onDismiss: () -> Unit) {
                     }
                 }
             }
-
             val observer = LifecycleEventObserver { _, event ->
                 if (event == Lifecycle.Event.ON_RESUME) continueInstallIfReady()
             }
             owner.lifecycle.addObserver(observer)
-            // If recomposition happens after ON_RESUME, do not miss the event.
             continueInstallIfReady()
             onDispose { owner.lifecycle.removeObserver(observer) }
         }
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.background) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp).padding(bottom = 32.dp)) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                .padding(horizontal = 28.dp).padding(bottom = 32.dp)
+        ) {
             Text("Update available", style = MaterialTheme.typography.displaySmall)
             Spacer(Modifier.height(8.dp))
-            Text(release.versionName, style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onBackground)
-            if (release.title.isNotBlank() && !release.title.contains(release.versionName, true)) {
-                Spacer(Modifier.height(4.dp))
-                Text(release.title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            Text(release.versionName, style = MaterialTheme.typography.headlineLarge)
             Spacer(Modifier.height(26.dp))
-            val cumulativeHistory = noteGroups.size > 1
             Text(
-                if (cumulativeHistory) "What's new since ${BuildConfig.VERSION_NAME}" else "What's new",
+                if (missed.size > 1) "What\'s new since ${BuildConfig.VERSION_NAME}" else "What\'s new",
                 style = MaterialTheme.typography.titleLarge
             )
-            if (cumulativeHistory) {
+            if (missed.size > 1) {
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "${noteGroups.size} beta updates included",
+                    "${missed.size} updates missed · shown oldest to newest",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Spacer(Modifier.height(16.dp))
-            noteGroups.forEachIndexed { groupIndex, group ->
-                if (cumulativeHistory) {
-                    Text(
-                        group.version,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Spacer(Modifier.height(10.dp))
-                }
-                group.sections.forEachIndexed { sectionIndex, section ->
-                    UpdateNoteSectionCard(section)
-                    if (sectionIndex != group.sections.lastIndex) Spacer(Modifier.height(14.dp))
-                }
-                if (groupIndex != noteGroups.lastIndex) Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(18.dp))
+            missed.forEachIndexed { index, missedRelease ->
+                ReleaseNotesBlock(missedRelease)
+                if (index != missed.lastIndex) Spacer(Modifier.height(24.dp))
             }
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(26.dp))
             val actionLabel = when {
                 release.apkUrl.isNullOrBlank() -> "View release"
                 downloading && downloadProgressKnown && downloadProgress >= 100 -> "Verifying update…"
@@ -876,21 +916,46 @@ private fun UpdateSheet(release: BetaRelease, onDismiss: () -> Unit) {
             ) { Text(actionLabel, style = MaterialTheme.typography.titleMedium) }
             message?.let {
                 Spacer(Modifier.height(10.dp))
-                Text(it, style = MaterialTheme.typography.bodyMedium, color = if (it.contains("failed", true) || it.contains("error", true)) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (it.contains("failed", true) || it.contains("error", true))
+                        MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             Spacer(Modifier.height(10.dp))
-            Text("Package, version and checksum are verified before Android opens the installer.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (release.htmlUrl.isNotBlank()) {
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "View on GitHub",
-                    modifier = Modifier
-                        .heightIn(min = 48.dp)
-                        .clickable { GithubBetaUpdater.openRelease(context, release) }
-                        .wrapContentHeight(Alignment.CenterVertically),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            Text(
+                "Package, version and checksum are verified before Android opens the installer.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ChangelogSheet(releases: List<BetaRelease>, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.background) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                .padding(horizontal = 28.dp).padding(bottom = 34.dp)
+        ) {
+            Text("Changelog", style = MaterialTheme.typography.displaySmall)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Current ${BuildConfig.VERSION_NAME} · exact notes by release",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(24.dp))
+            if (releases.isEmpty()) {
+                Text("Check for updates to load release history.", style = MaterialTheme.typography.bodyLarge)
+            } else {
+                releases.forEachIndexed { index, historyRelease ->
+                    ReleaseNotesBlock(historyRelease, showState = true)
+                    if (index != releases.lastIndex) Spacer(Modifier.height(26.dp))
+                }
             }
         }
     }

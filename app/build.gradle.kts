@@ -27,10 +27,9 @@ android {
             dimension = "distribution"
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
-            // v0.18.6.beta: prevent incomplete Focus shorthand from saving
-            // as an unintended all-day event.
-            versionCode = 1806
-            versionName = "0.18.6"
+            // v0.18.7.beta: accumulate every missed beta in the in-app What's new sheet.
+            versionCode = 1807
+            versionName = "0.18.7"
             // Nothing's Glyph Matrix SDK 2.0 declares minSdk 33. Keep this
             // requirement isolated to the beta/Glyph build so the normal Play
             // build continues to support Dayline's global minSdk 26.

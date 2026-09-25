@@ -6,6 +6,11 @@ import com.pix.dayline.model.RecurrenceEditScope
 import java.time.LocalDate
 import java.util.UUID
 
+data class SeriesEditResult(
+    val items: List<DaylineItem>,
+    val editedItem: DaylineItem
+)
+
 object SeriesEditor {
     fun apply(
         existingItems: List<DaylineItem>,
@@ -13,9 +18,27 @@ object SeriesEditor {
         edited: DaylineItem,
         occurrenceDate: LocalDate,
         scope: RecurrenceEditScope
-    ): List<DaylineItem> {
+    ): List<DaylineItem> = applyWithSelection(
+        existingItems = existingItems,
+        original = original,
+        edited = edited,
+        occurrenceDate = occurrenceDate,
+        scope = scope
+    ).items
+
+    fun applyWithSelection(
+        existingItems: List<DaylineItem>,
+        original: DaylineItem,
+        edited: DaylineItem,
+        occurrenceDate: LocalDate,
+        scope: RecurrenceEditScope
+    ): SeriesEditResult {
         if (original.recurrence == Recurrence.ONCE) {
-            return existingItems.map { if (it.id == original.id) edited.copy(id = original.id) else it }
+            val updated = edited.copy(id = original.id)
+            return SeriesEditResult(
+                items = existingItems.map { if (it.id == original.id) updated else it },
+                editedItem = updated
+            )
         }
 
         return when (scope) {
@@ -28,13 +51,13 @@ object SeriesEditor {
                     calendarName = original.calendarName,
                     calendarReadOnly = original.calendarReadOnly
                 )
-                existingItems.map { if (it.id == original.id) wholeSeries else it }
+                SeriesEditResult(
+                    items = existingItems.map { if (it.id == original.id) wholeSeries else it },
+                    editedItem = wholeSeries
+                )
             }
 
             RecurrenceEditScope.THIS_OCCURRENCE -> {
-                // The master keeps its original cadence and skips only the
-                // occurrence being edited. The detached item is a real one-off,
-                // so changing its date/time never shifts the whole series.
                 val parent = original.copy(
                     excludedDates = original.excludedDates + occurrenceDate
                 )
@@ -50,15 +73,13 @@ object SeriesEditor {
                     calendarName = original.calendarName,
                     calendarReadOnly = false
                 )
-                existingItems
-                    .map { if (it.id == original.id) parent else it } + oneOff
+                SeriesEditResult(
+                    items = existingItems.map { if (it.id == original.id) parent else it } + oneOff,
+                    editedItem = oneOff
+                )
             }
 
             RecurrenceEditScope.THIS_AND_FOLLOWING -> {
-                // Close the old master immediately before the selected
-                // occurrence, then start a new linked series using the edited
-                // values. Past exclusions stay with the old segment; future
-                // exclusions follow the new segment.
                 val pastExclusions = original.excludedDates.filterTo(mutableSetOf()) {
                     it.isBefore(occurrenceDate)
                 }
@@ -79,8 +100,10 @@ object SeriesEditor {
                     calendarName = original.calendarName,
                     calendarReadOnly = false
                 )
-                existingItems
-                    .map { if (it.id == original.id) before else it } + following
+                SeriesEditResult(
+                    items = existingItems.map { if (it.id == original.id) before else it } + following,
+                    editedItem = following
+                )
             }
         }
     }

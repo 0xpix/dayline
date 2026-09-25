@@ -99,11 +99,8 @@ fun QuickAddSheet(
     var recurrence by remember(editing?.id) { mutableStateOf(initialRecurrence) }
     var repeatDays by remember(editing?.id) { mutableStateOf(initialRepeatDays) }
     var showRepeatDayPicker by remember(editing?.id) { mutableStateOf(false) }
-    var editScope by remember(editing?.id, initialDate) {
-        mutableStateOf(
-            if (editingOccurrence) RecurrenceEditScope.THIS_OCCURRENCE
-            else RecurrenceEditScope.ENTIRE_SERIES
-        )
+    var showEditScopeDialog by remember(editing?.id, initialDate) {
+        mutableStateOf(false)
     }
     var reminderMinutes by remember(editing?.id) { mutableStateOf(editing?.reminderMinutes) }
     var focusCycle by remember(editing?.id) { mutableStateOf(editing?.focusCycle ?: FocusCycle.OFF) }
@@ -175,6 +172,46 @@ fun QuickAddSheet(
             initial.minute,
             true
         ).show()
+    }
+
+    fun savedItem(scope: RecurrenceEditScope): DaylineItem {
+        val resolvedDate = if (
+            editingOccurrence &&
+            scope == RecurrenceEditScope.ENTIRE_SERIES &&
+            !dateChanged
+        ) {
+            editing!!.startDate
+        } else {
+            date
+        }
+
+        val shorthand = if (editing == null) {
+            QuickAddParser.parse(title.text, today = resolvedDate)
+                ?.takeIf { it.hasDirectives }
+        } else {
+            null
+        }
+
+        return QuickAddDraft(
+            title = title.text,
+            kind = kind,
+            date = resolvedDate,
+            startTime = startTime,
+            endTime = endTime,
+            recurrence = recurrence,
+            repeatDays = repeatDays,
+            reminderMinutes = reminderMinutes,
+            focusCycle = focusCycle,
+            customFocusMinutes = customFocus.toIntOrNull() ?: 25,
+            customBreakMinutes = customBreak.toIntOrNull() ?: 5,
+            bufferBeforeMinutes = bufferBefore,
+            bufferAfterMinutes = bufferAfter,
+            priority = priority,
+            color = itemColor,
+            spaceId = spaceId
+        )
+            .applyingShorthand(shorthand)
+            .toItem(editing = editing)
     }
 
     ModalBottomSheet(
@@ -395,23 +432,6 @@ fun QuickAddSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            if (editingOccurrence) {
-                Section("Apply changes") {
-                    ChoicePill(
-                        "This occurrence",
-                        editScope == RecurrenceEditScope.THIS_OCCURRENCE
-                    ) { editScope = RecurrenceEditScope.THIS_OCCURRENCE }
-                    ChoicePill(
-                        "This + following",
-                        editScope == RecurrenceEditScope.THIS_AND_FOLLOWING
-                    ) { editScope = RecurrenceEditScope.THIS_AND_FOLLOWING }
-                    ChoicePill(
-                        "Entire series",
-                        editScope == RecurrenceEditScope.ENTIRE_SERIES
-                    ) { editScope = RecurrenceEditScope.ENTIRE_SERIES }
-                }
-            }
-
             if (kind == AgendaKind.EVENT && startTime != null && endTime != null) {
                 Section("Focus cycle") {
                     ChoicePill("Off", focusCycle == FocusCycle.OFF) { focusCycle = FocusCycle.OFF }
@@ -512,44 +532,14 @@ fun QuickAddSheet(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
                     ) {
-                        val resolvedDate = if (
-                            editingOccurrence &&
-                            editScope == RecurrenceEditScope.ENTIRE_SERIES &&
-                            !dateChanged
-                        ) {
-                            editing!!.startDate
+                        if (editingOccurrence) {
+                            showEditScopeDialog = true
                         } else {
-                            date
+                            onSave(
+                                savedItem(RecurrenceEditScope.ENTIRE_SERIES),
+                                RecurrenceEditScope.ENTIRE_SERIES
+                            )
                         }
-
-                        val shorthand = if (editing == null) {
-                            QuickAddParser.parse(title.text, today = resolvedDate)
-                                ?.takeIf { it.hasDirectives }
-                        } else {
-                            null
-                        }
-
-                        val saved = QuickAddDraft(
-                            title = title.text,
-                            kind = kind,
-                            date = resolvedDate,
-                            startTime = startTime,
-                            endTime = endTime,
-                            recurrence = recurrence,
-                            repeatDays = repeatDays,
-                            reminderMinutes = reminderMinutes,
-                            focusCycle = focusCycle,
-                            customFocusMinutes = customFocus.toIntOrNull() ?: 25,
-                            customBreakMinutes = customBreak.toIntOrNull() ?: 5,
-                            bufferBeforeMinutes = bufferBefore,
-                            bufferAfterMinutes = bufferAfter,
-                            priority = priority,
-                            color = itemColor,
-                            spaceId = spaceId
-                        )
-                            .applyingShorthand(shorthand)
-                            .toItem(editing = editing)
-                        onSave(saved, editScope)
                     },
                     shape = CircleShape,
                     color = if (canSave) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.surface,
@@ -575,6 +565,46 @@ fun QuickAddSheet(
                 showRepeatDayPicker = false
             },
             onDismiss = { showRepeatDayPicker = false }
+        )
+    }
+
+    if (showEditScopeDialog && editingOccurrence) {
+        AlertDialog(
+            onDismissRequest = { showEditScopeDialog = false },
+            title = {
+                Text(
+                    "Edit recurring event",
+                    style = MaterialTheme.typography.headlineSmall
+                )
+            },
+            text = {
+                Text(
+                    "Apply these changes only to this event, or to every event in this series?",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showEditScopeDialog = false
+                        onSave(
+                            savedItem(RecurrenceEditScope.ENTIRE_SERIES),
+                            RecurrenceEditScope.ENTIRE_SERIES
+                        )
+                    }
+                ) { Text("Every event") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showEditScopeDialog = false
+                        onSave(
+                            savedItem(RecurrenceEditScope.THIS_OCCURRENCE),
+                            RecurrenceEditScope.THIS_OCCURRENCE
+                        )
+                    }
+                ) { Text("Only this event") }
+            }
         )
     }
 }

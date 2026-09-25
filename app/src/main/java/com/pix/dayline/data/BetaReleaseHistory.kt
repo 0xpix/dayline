@@ -20,6 +20,18 @@ object BetaReleaseHistory {
         )
     }
 
+    fun pendingFromVersion(
+        lastLaunchedVersion: String?,
+        pendingFromVersion: String?,
+        currentVersion: String
+    ): String? {
+        val pending = pendingFromVersion?.takeIf { DaylineVersion.compare(currentVersion, it) > 0 }
+        if (pending != null) return pending
+
+        return lastLaunchedVersion
+            ?.takeIf { DaylineVersion.compare(currentVersion, it) > 0 }
+    }
+
     fun missedBetween(
         releases: List<BetaRelease>,
         currentVersion: String,

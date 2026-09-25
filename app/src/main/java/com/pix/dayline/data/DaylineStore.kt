@@ -193,6 +193,23 @@ class DaylineStore(context: Context) {
     fun loadAutoBetaUpdates(): Boolean = prefs.getBoolean(KEY_AUTO_BETA_UPDATES, false)
     fun saveAutoBetaUpdates(enabled: Boolean) { prefs.edit().putBoolean(KEY_AUTO_BETA_UPDATES, enabled).apply() }
 
+    fun loadLastLaunchedVersion(): String? =
+        prefs.getString(KEY_LAST_LAUNCHED_VERSION, null)?.takeIf { it.isNotBlank() }
+
+    fun saveLastLaunchedVersion(version: String) {
+        prefs.edit().putString(KEY_LAST_LAUNCHED_VERSION, version).apply()
+    }
+
+    fun loadPendingWhatsNewFromVersion(): String? =
+        prefs.getString(KEY_PENDING_WHATS_NEW_FROM_VERSION, null)?.takeIf { it.isNotBlank() }
+
+    fun savePendingWhatsNewFromVersion(version: String?) {
+        val editor = prefs.edit()
+        if (version.isNullOrBlank()) editor.remove(KEY_PENDING_WHATS_NEW_FROM_VERSION)
+        else editor.putString(KEY_PENDING_WHATS_NEW_FROM_VERSION, version)
+        editor.apply()
+    }
+
     fun loadLastUpdateCheckAt(): Long? = prefs.getLong(KEY_LAST_UPDATE_CHECK_AT, -1L).takeIf { it >= 0L }
     fun saveUpdateCheckResult(checkedAtMillis: Long, error: String?) {
         prefs.edit().putLong(KEY_LAST_UPDATE_CHECK_AT, checkedAtMillis)
@@ -698,6 +715,8 @@ class DaylineStore(context: Context) {
             "last_update_check_at",
             "last_update_check_error",
             "available_beta_release",
+            "pending_whats_new_from_version",
+            "last_launched_version",
             "last_calendar_sync_at",
             "last_calendar_sync_error",
             "last_widget_refresh_at",
@@ -711,7 +730,10 @@ class DaylineStore(context: Context) {
         private const val KEY_WIDGET_FONT = "widget_font"; private const val KEY_WIDGET_EMOJI = "widget_emoji"; private const val KEY_WIDGET_AUTO_SLIDE = "widget_auto_slide"
         private const val KEY_NOW_ACTIVITY = "now_activity"; private const val KEY_CALENDAR_SYNC = "calendar_sync"; private const val KEY_AUTO_BETA_UPDATES = "auto_beta_updates"
         private const val KEY_LAST_UPDATE_CHECK_AT = "last_update_check_at"; private const val KEY_LAST_UPDATE_CHECK_ERROR = "last_update_check_error"
-        private const val KEY_AVAILABLE_BETA_RELEASE = "available_beta_release"; private const val KEY_LAST_CALENDAR_SYNC_AT = "last_calendar_sync_at"
+        private const val KEY_AVAILABLE_BETA_RELEASE = "available_beta_release"
+        private const val KEY_LAST_LAUNCHED_VERSION = "last_launched_version"
+        private const val KEY_PENDING_WHATS_NEW_FROM_VERSION = "pending_whats_new_from_version"
+        private const val KEY_LAST_CALENDAR_SYNC_AT = "last_calendar_sync_at"
         private const val KEY_LAST_CALENDAR_SYNC_ERROR = "last_calendar_sync_error"; private const val KEY_GLYPH_PREFERENCES = "glyph_preferences"
         private const val KEY_LAST_WIDGET_REFRESH_AT = "last_widget_refresh_at"
         private const val KEY_PENDING_ROOM_ITEMS = "pending_room_items"

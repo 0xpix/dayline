@@ -9,6 +9,7 @@ import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.pix.dayline.BuildConfig
 import com.pix.dayline.data.BetaRelease
+import com.pix.dayline.data.BetaReleaseHistory
 import com.pix.dayline.data.BetaReleaseNotes
 import com.pix.dayline.data.DaylineVersion
 import com.pix.dayline.data.UpdateStatus
@@ -30,6 +31,7 @@ import java.util.Locale
 /** GitHub beta updater. The Play flavor supplies an offline stub. */
 object GithubBetaUpdater {
     private const val RELEASES_API = "https://api.github.com/repos/0xpix/dayline/releases?per_page=100"
+    private const val CHANGELOG_URL = "https://raw.githubusercontent.com/0xpix/dayline/main/CHANGELOG.md"
     private const val USER_AGENT_PREFIX = "Dayline-Beta-Updater/"
 
     // Legacy validator anchor only. Do not surface this old/misleading message to users:
@@ -47,6 +49,7 @@ object GithubBetaUpdater {
         val checkedAt = System.currentTimeMillis()
         runCatching {
             val releases = JSONArray(getText(RELEASES_API, currentVersion))
+            val changelogNotes = BetaReleaseNotes.fromChangelog(getText(CHANGELOG_URL, currentVersion))
             val parsed = buildList {
                 for (index in 0 until releases.length()) {
                     val json = releases.optJSONObject(index) ?: continue
@@ -91,7 +94,7 @@ object GithubBetaUpdater {
                             tagName = tag,
                             versionName = version,
                             title = releaseSubtitle(rawTitle, version, published, selected?.size),
-                            notes = BetaReleaseNotes.clean(json.optString("body")),
+                            notes = changelogNotes[version] ?: BetaReleaseNotes.clean(json.optString("body")),
                             publishedAt = published,
                             htmlUrl = json.optString("html_url"),
                             apkName = selected?.name,
@@ -103,27 +106,30 @@ object GithubBetaUpdater {
                 }
             }
 
-            val newest = parsed
-                .filter {
-                    DaylineVersion.isInstallableUpdate(
-                        candidateVersion = it.versionName,
-                        currentVersion = currentVersion,
-                        currentVersionCode = BuildConfig.VERSION_CODE.toLong()
-                    )
-                }
-                .maxWithOrNull(Comparator { left, right -> DaylineVersion.compare(left.versionName, right.versionName) })
+            val history = BetaReleaseHistory.newestFirst(parsed)
+            val newest = BetaReleaseHistory.newestInstallable(
+                releases = history,
+                currentVersion = currentVersion,
+                currentVersionCode = BuildConfig.VERSION_CODE.toLong()
+            )
 
             if (newest == null) {
-                UpdateUiState(status = UpdateStatus.UP_TO_DATE, checkedAtMillis = checkedAt)
+                UpdateUiState(
+                    status = UpdateStatus.UP_TO_DATE,
+                    releaseHistory = history,
+                    checkedAtMillis = checkedAt
+                )
             } else {
-                val cumulativeNotes = BetaReleaseNotes.bundleBetween(
+                val missed = BetaReleaseHistory.missedBetween(
+                    releases = history,
                     currentVersion = currentVersion,
-                    targetVersion = newest.versionName,
-                    releases = parsed.map { it.versionName to it.notes }
+                    targetVersion = newest.versionName
                 )
                 UpdateUiState(
                     status = UpdateStatus.AVAILABLE,
-                    release = newest.copy(notes = cumulativeNotes),
+                    release = newest,
+                    missedReleases = missed,
+                    releaseHistory = history,
                     checkedAtMillis = checkedAt
                 )
             }

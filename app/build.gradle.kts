@@ -27,9 +27,9 @@ android {
             dimension = "distribution"
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
-            // v0.18.10.beta: ask recurring edit scope on save and avoid self-conflicts.
-            versionCode = 1810
-            versionName = "0.18.10"
+            // v0.18.11.beta: ask recurring edit scope after timeline move/resize gestures.
+            versionCode = 1811
+            versionName = "0.18.11"
             // Nothing's Glyph Matrix SDK 2.0 declares minSdk 33. Keep this
             // requirement isolated to the beta/Glyph build so the normal Play
             // build continues to support Dayline's global minSdk 26.

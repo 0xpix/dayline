@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.18.8.beta — Version-aware update history
+
+### Added
+- Added a Settings → Beta updates → Changelog sheet with exact Added / Changed / Fixed notes for each published beta.
+- Added pure release-history selection so Dayline retains both the latest installable release and every version missed since the installed build.
+- Added regression coverage for exact missed-release selection and repository changelog parsing.
+
+### Changed
+- What's new now checks the installed version and renders each missed beta separately, oldest to newest, instead of merging notes into the newest release.
+- GitHub Releases provide APK/date metadata while Dayline's repository CHANGELOG.md provides the authoritative per-version notes.
+- Cached update cards are refreshed before opening What's new when their missed-release history is unavailable.
+
+### Fixed
+- Fixed skipped beta versions being represented as one synthetic cumulative release.
+- Fixed historical release notes becoming inaccurate when a GitHub release body was written as a catch-up summary.
+- Bumped beta versionCode to **1808** and beta versionName to `0.18.8.beta`.
+
+
 ## 0.18.7.beta — Cumulative What's new
 
 ### Added

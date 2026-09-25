@@ -64,6 +64,35 @@ class SeriesEditorTest {
     }
 
     @Test
+    fun gestureScopeKeepsSeriesStartDateForEveryEvent() {
+        val original = series()
+        val occurrence = LocalDate.of(2026, 9, 10)
+        val dragged = original.copy(
+            startDate = occurrence,
+            startTime = LocalTime.of(10, 15),
+            endTime = LocalTime.of(10, 45)
+        )
+
+        val wholeSeries = SeriesEditor.editForGestureScope(
+            original = original,
+            editedOccurrence = dragged,
+            occurrenceDate = occurrence,
+            scope = RecurrenceEditScope.ENTIRE_SERIES
+        )
+        val oneOccurrence = SeriesEditor.editForGestureScope(
+            original = original,
+            editedOccurrence = dragged,
+            occurrenceDate = occurrence,
+            scope = RecurrenceEditScope.THIS_OCCURRENCE
+        )
+
+        assertEquals(original.startDate, wholeSeries.startDate)
+        assertEquals(LocalTime.of(10, 15), wholeSeries.startTime)
+        assertEquals(LocalTime.of(10, 45), wholeSeries.endTime)
+        assertEquals(occurrence, oneOccurrence.startDate)
+    }
+
+    @Test
     fun thisOccurrenceReturnsDetachedOccurrenceAsEditedItem() {
         val original = series()
         val occurrence = LocalDate.of(2026, 9, 10)

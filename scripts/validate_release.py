@@ -414,6 +414,7 @@ feature_checks = {
     "onboarding": "OnboardingScreen" in all_kotlin and "onboardingComplete" in all_kotlin,
     "update state": "UpdateStatus" in all_kotlin and "UpdateSheet" in all_kotlin,
     "version-aware update history": "BetaReleaseHistory" in all_kotlin and "missedReleases" in all_kotlin and "releaseHistory" in all_kotlin and "ChangelogSheet" in all_kotlin,
+    "post-update whats new": "PostUpdateWhatsNewSheet" in all_kotlin and "KEY_PENDING_WHATS_NEW_FROM_VERSION" in all_kotlin and "loadLastLaunchedVersion" in all_kotlin and "pendingFromVersion" in all_kotlin,
     "automatic beta checks": "BetaUpdateScheduler" in all_kotlin and "24L * 60L * 60L" in all_kotlin,
     "build identity": "BuildConfig.GIT_COMMIT" in all_kotlin and "BuildConfig.VERSION_CODE" in all_kotlin,
     "calendar sync health": "saveCalendarSyncHealth" in all_kotlin and "Sync health" in all_kotlin,

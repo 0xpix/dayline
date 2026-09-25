@@ -49,7 +49,9 @@ object GithubBetaUpdater {
         val checkedAt = System.currentTimeMillis()
         runCatching {
             val releases = JSONArray(getText(RELEASES_API, currentVersion))
-            val changelogNotes = runCatching {\n                BetaReleaseNotes.fromChangelog(getText(CHANGELOG_URL, currentVersion))\n            }.getOrDefault(emptyMap())
+            val changelogNotes = runCatching {
+                BetaReleaseNotes.fromChangelog(getText(CHANGELOG_URL, currentVersion))
+            }.getOrDefault(emptyMap())
             val parsed = buildList {
                 for (index in 0 until releases.length()) {
                     val json = releases.optJSONObject(index) ?: continue
@@ -57,7 +59,11 @@ object GithubBetaUpdater {
 
                     val tag = json.optString("tag_name").trim()
                     val version = tag.removePrefix("v").removePrefix("V")
-                    if (\n                        version.isBlank() ||\n                        !version.contains("beta", ignoreCase = true) ||\n                        !DaylineVersion.hasNumericVersion(version)\n                    ) continue
+                    if (
+                        version.isBlank() ||
+                        !version.contains("beta", ignoreCase = true) ||
+                        !DaylineVersion.hasNumericVersion(version)
+                    ) continue
 
                     val assets = json.optJSONArray("assets") ?: JSONArray()
                     val apkCandidates = buildList {

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.18.9.beta — Post-update What's new
+
+### Added
+- Added a one-time post-update What's new sheet that appears after a successful app version upgrade.
+- Added persisted previous-version and pending-What's-New state so skipped releases can be reconstructed exactly after installation.
+- Added retry-safe post-update history loading: failed note fetches keep the original from-version until the sheet can be shown.
+
+### Changed
+- Post-update notes reuse the same exact per-release Added / Changed / Fixed cards used by the updater and Settings changelog.
+- First installs do not show an upgrade sheet, and dismissing What's new marks that upgrade history as seen.
+
+### Fixed
+- Fixed upgrade notes being lost once the newly installed APK replaced the old version and no longer knew where the user upgraded from.
+- Bumped beta versionCode to **1809** and beta versionName to `0.18.9.beta`.
+
+
 ## 0.18.8.beta — Version-aware update history
 
 ### Added

@@ -413,19 +413,50 @@ fun DaylineApp() {
             }
             val original = items.firstOrNull { it.id == item.id }
             val occurrenceDate = editingDate ?: item.startDate
+            var conflictItem = item
             var next = if (original != null && original.recurrence != Recurrence.ONCE) {
-                SeriesEditor.apply(items, original, item, occurrenceDate, scopeValue)
-            } else if (items.any { it.id == item.id }) items.map { if (it.id == item.id) item else it } else items + item
+                val editResult = SeriesEditor.applyWithSelection(
+                    existingItems = items,
+                    original = original,
+                    edited = item,
+                    occurrenceDate = occurrenceDate,
+                    scope = scopeValue
+                )
+                conflictItem = editResult.editedItem
+                editResult.items
+            } else if (items.any { it.id == item.id }) {
+                items.map { if (it.id == item.id) item else it }
+            } else {
+                items + item
+            }
             if (calendarSyncEnabled && AndroidCalendarSync.hasWritePermission(appContext)) {
                 next = next.map { candidate ->
                     if (candidate.kind == AgendaKind.EVENT && !candidate.calendarReadOnly && (candidate.id == item.id || candidate.seriesParentId == item.id)) publishIfNeeded(candidate) else candidate
                 }
             }
             persistItems(next)
-            if (item.kind == AgendaKind.EVENT && item.startTime != null && next.any { other ->
-                    other.id != item.id && other.kind == AgendaKind.EVENT && other.occursOn(occurrenceDate) && item.overlaps(other)
-                }) emitGlyph(DaylineGlyphSignal.CONFLICT)
-            requestNotificationIfNeeded(item)
+            val conflictDate = if (
+                original != null &&
+                original.recurrence != Recurrence.ONCE &&
+                scopeValue == RecurrenceEditScope.ENTIRE_SERIES
+            ) {
+                occurrenceDate
+            } else {
+                conflictItem.startDate
+            }
+            if (
+                conflictItem.kind == AgendaKind.EVENT &&
+                conflictItem.startTime != null &&
+                next.any { other ->
+                    other.id != conflictItem.id &&
+                        other.kind == AgendaKind.EVENT &&
+                        other.occursOn(conflictDate) &&
+                        conflictItem.overlaps(other)
+                }
+            ) {
+                emitGlyph(DaylineGlyphSignal.CONFLICT)
+            }
+            requestNotificationIfNeeded(conflictItem)
             if (calendarSyncEnabled) refreshCalendarOverlay()
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             editing = null; editingDate = null; addRequest = null

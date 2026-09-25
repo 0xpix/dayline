@@ -1,34 +1,59 @@
 package com.pix.dayline.data
 
 /**
- * Normalizes GitHub beta release notes into the compact Added / Changed / Fixed
- * structure rendered by the in-app updater.
+ * Normalizes updater-facing release notes and extracts exact per-version notes
+ * from Dayline's repository changelog.
  */
 object BetaReleaseNotes {
-    fun bundleBetween(
-        currentVersion: String,
-        targetVersion: String,
-        releases: List<Pair<String, String>>
-    ): String {
-        val missed = releases
-            .filter { (version, _) ->
-                DaylineVersion.compare(version, currentVersion) > 0 &&
-                    DaylineVersion.compare(version, targetVersion) <= 0
-            }
-            .distinctBy { it.first.lowercase() }
-            .sortedWith(Comparator { left, right ->
-                DaylineVersion.compare(right.first, left.first)
-            })
+    fun fromChangelog(value: String): Map<String, String> {
+        if (value.isBlank()) return emptyMap()
 
-        if (missed.isEmpty()) return clean("")
+        val result = linkedMapOf<String, String>()
+        val allowed = setOf("Added", "Changed", "Fixed")
+        var version: String? = null
+        var section: String? = null
+        val lines = mutableListOf<String>()
 
-        return missed.joinToString("\n\n") { (version, notes) ->
-            "# $version\n${clean(notes)}"
+        fun flushVersion() {
+            val currentVersion = version ?: return
+            val compact = lines.joinToString("\n").trim()
+            if (compact.isNotBlank()) result[currentVersion] = clean(compact)
+            lines.clear()
         }
+
+        value.lineSequence().forEach { raw ->
+            val line = raw.trim()
+            when {
+                line.startsWith("## ") && !line.startsWith("### ") -> {
+                    flushVersion()
+                    val heading = line.removePrefix("## ").trim()
+                    version = heading
+                        .substringBefore(" — ")
+                        .substringBefore(" - ")
+                        .trim()
+                        .removePrefix("v")
+                        .removePrefix("V")
+                        .takeIf(DaylineVersion::hasNumericVersion)
+                    section = null
+                }
+                line.startsWith("### ") -> {
+                    val candidate = line.removePrefix("### ").trim()
+                    section = candidate.takeIf { it in allowed }
+                    if (version != null && section != null) lines += "## $section"
+                }
+                line.isBlank() -> Unit
+                version != null && section != null -> {
+                    val clean = cleanBullet(line)
+                    if (clean.isNotBlank()) lines += "• $clean"
+                }
+            }
+        }
+        flushVersion()
+        return result
     }
 
     fun clean(value: String): String {
-        if (value.isBlank()) return "## Changed\n• Bug fixes and Dayline polish."
+        if (value.isBlank()) return FALLBACK
 
         val allowed = setOf("Added", "Changed", "Fixed")
         val output = mutableListOf<String>()
@@ -43,18 +68,11 @@ object BetaReleaseNotes {
                 }
                 line.startsWith("## ") -> current = null
                 line.startsWith("#") -> Unit
-                // The updater renders sections as separate cards, so source
-                // Markdown spacing should not create extra blank rows in the
-                // normalized note payload.
                 line.isBlank() -> Unit
                 line.contains("Full Changelog", ignoreCase = true) -> Unit
                 line.startsWith("http://") || line.startsWith("https://") -> Unit
                 current != null -> {
-                    val clean = line
-                        .trimStart('-', '*', '•', ' ')
-                        .replace("**", "")
-                        .replace("`", "")
-                        .trim()
+                    val clean = cleanBullet(line)
                     if (clean.isNotBlank()) output += "• $clean"
                 }
             }
@@ -65,12 +83,15 @@ object BetaReleaseNotes {
             compact.contains("## Added") ||
             compact.contains("## Changed") ||
             compact.contains("## Fixed")
-        ) {
-            compact
-        } else {
-            "## Changed\n• Bug fixes and Dayline polish."
-        }
+        ) compact else FALLBACK
     }
 
+    private fun cleanBullet(value: String): String = value
+        .trimStart('-', '*', '•', ' ')
+        .replace("**", "")
+        .replace("`", "")
+        .trim()
+
+    private const val FALLBACK = "## Changed\n• Bug fixes and Dayline polish."
     private const val MAX_NOTES_LENGTH = 3_000
 }

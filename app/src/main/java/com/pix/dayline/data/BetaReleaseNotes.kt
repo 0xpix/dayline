@@ -5,6 +5,28 @@ package com.pix.dayline.data
  * structure rendered by the in-app updater.
  */
 object BetaReleaseNotes {
+    fun bundleBetween(
+        currentVersion: String,
+        targetVersion: String,
+        releases: List<Pair<String, String>>
+    ): String {
+        val missed = releases
+            .filter { (version, _) ->
+                DaylineVersion.compare(version, currentVersion) > 0 &&
+                    DaylineVersion.compare(version, targetVersion) <= 0
+            }
+            .distinctBy { it.first.lowercase() }
+            .sortedWith(Comparator { left, right ->
+                DaylineVersion.compare(right.first, left.first)
+            })
+
+        if (missed.isEmpty()) return clean("")
+
+        return missed.joinToString("\n\n") { (version, notes) ->
+            "# $version\n${clean(notes)}"
+        }
+    }
+
     fun clean(value: String): String {
         if (value.isBlank()) return "## Changed\n• Bug fixes and Dayline polish."
 

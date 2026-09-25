@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.18.7.beta — Cumulative What's new
+
+### Added
+- Added cumulative beta update history so the in-app What's new sheet includes every release newer than the installed version.
+- Added regression coverage for upgrading directly from 0.17.0.beta through the current beta.
+
+### Changed
+- Missed update notes are now grouped version by version, newest first, instead of showing only the latest release.
+- The beta updater now reads up to 100 GitHub releases when building the missed-update history.
+
+### Fixed
+- Fixed skipped beta releases disappearing from What's new when several versions are installed at once.
+- Bumped beta versionCode to **1807** and beta versionName to `0.18.7.beta`.
+
+
 ## 0.18.6.beta — Safe Focus shorthand
 
 ### Added

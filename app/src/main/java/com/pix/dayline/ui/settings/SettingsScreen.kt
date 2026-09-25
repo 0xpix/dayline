@@ -623,23 +623,67 @@ private fun TinyAction(label: String, onClick: () -> Unit) {
 }
 
 private data class UpdateNoteSection(val title: String, val items: List<String>)
-private fun cleanUpdateNoteLine(line: String): String = line.trim().trimStart('•', '-', '*', ' ').replace("**", "").replace("`", "").trim()
-private fun parseUpdateNotes(raw: String): List<UpdateNoteSection> {
-    val sections = mutableListOf<UpdateNoteSection>(); var title: String? = null; var items = mutableListOf<String>()
-    fun flush() { val currentTitle = title ?: return; if (items.isNotEmpty()) sections += UpdateNoteSection(currentTitle, items.toList()); items = mutableListOf() }
+private data class UpdateVersionNotes(val version: String, val sections: List<UpdateNoteSection>)
+
+private fun cleanUpdateNoteLine(line: String): String =
+    line.trim().trimStart('•', '-', '*', ' ').replace("**", "").replace("`", "").trim()
+
+private fun parseUpdateNotes(raw: String, fallbackVersion: String): List<UpdateVersionNotes> {
+    val groups = mutableListOf<UpdateVersionNotes>()
+    val sections = mutableListOf<UpdateNoteSection>()
+    val allowed = listOf("Added", "Changed", "Fixed")
+    var version = fallbackVersion
+    var title: String? = null
+    var items = mutableListOf<String>()
+
+    fun flushSection() {
+        val currentTitle = title ?: return
+        if (items.isNotEmpty()) sections += UpdateNoteSection(currentTitle, items.toList())
+        items = mutableListOf()
+    }
+
+    fun flushVersion() {
+        if (sections.isEmpty()) return
+        val ordered = allowed.mapNotNull { expected ->
+            sections.firstOrNull { it.title.equals(expected, ignoreCase = true) }
+        }
+        groups += UpdateVersionNotes(version, ordered.ifEmpty { sections.toList() })
+        sections.clear()
+    }
+
     raw.lines().forEach { rawLine ->
         val line = rawLine.trim()
         when {
-            line.startsWith("## ") -> { flush(); title = line.removePrefix("## ").trim() }
+            line.startsWith("# ") && !line.startsWith("## ") -> {
+                flushSection()
+                flushVersion()
+                version = line.removePrefix("# ").trim().ifBlank { fallbackVersion }
+                title = null
+            }
+            line.startsWith("## ") -> {
+                flushSection()
+                val candidate = line.removePrefix("## ").trim()
+                title = candidate.takeIf { heading -> allowed.any { it.equals(heading, ignoreCase = true) } }
+            }
             line.isBlank() -> Unit
             title != null -> cleanUpdateNoteLine(line).takeIf { it.isNotBlank() }?.let(items::add)
         }
     }
-    flush()
-    val ordered = listOf("Added", "Changed", "Fixed").mapNotNull { expected -> sections.firstOrNull { it.title.equals(expected, true) } }
-    if (ordered.isNotEmpty()) return ordered
-    val fallback = raw.lines().map(::cleanUpdateNoteLine).filter { it.isNotBlank() && !it.startsWith("#") }
-    return listOf(UpdateNoteSection("Changed", fallback.ifEmpty { listOf("Bug fixes and Dayline polish.") }))
+    flushSection()
+    flushVersion()
+
+    if (groups.isNotEmpty()) return groups
+    val fallback = raw.lines()
+        .map(::cleanUpdateNoteLine)
+        .filter { it.isNotBlank() && !it.startsWith("#") }
+    return listOf(
+        UpdateVersionNotes(
+            version = fallbackVersion,
+            sections = listOf(
+                UpdateNoteSection("Changed", fallback.ifEmpty { listOf("Bug fixes and Dayline polish.") })
+            )
+        )
+    )
 }
 
 @Composable
@@ -679,7 +723,7 @@ private fun UpdateNoteSectionCard(section: UpdateNoteSection) {
 private fun UpdateSheet(release: BetaRelease, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val sections = remember(release.notes) { parseUpdateNotes(release.notes) }
+    val noteGroups = remember(release.notes, release.versionName) { parseUpdateNotes(release.notes, release.versionName) }
     var downloading by remember(release.tagName) { mutableStateOf(false) }
     var downloadProgress by remember(release.tagName) { mutableIntStateOf(0) }
     var downloadProgressKnown by remember(release.tagName) { mutableStateOf(false) }
@@ -755,11 +799,34 @@ private fun UpdateSheet(release: BetaRelease, onDismiss: () -> Unit) {
                 Text(release.title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.height(26.dp))
-            Text("What's new", style = MaterialTheme.typography.titleLarge)
+            val cumulativeHistory = noteGroups.size > 1
+            Text(
+                if (cumulativeHistory) "What's new since ${BuildConfig.VERSION_NAME}" else "What's new",
+                style = MaterialTheme.typography.titleLarge
+            )
+            if (cumulativeHistory) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "${noteGroups.size} beta updates included",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             Spacer(Modifier.height(16.dp))
-            sections.forEachIndexed { index, section ->
-                UpdateNoteSectionCard(section)
-                if (index != sections.lastIndex) Spacer(Modifier.height(14.dp))
+            noteGroups.forEachIndexed { groupIndex, group ->
+                if (cumulativeHistory) {
+                    Text(
+                        group.version,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(Modifier.height(10.dp))
+                }
+                group.sections.forEachIndexed { sectionIndex, section ->
+                    UpdateNoteSectionCard(section)
+                    if (sectionIndex != group.sections.lastIndex) Spacer(Modifier.height(14.dp))
+                }
+                if (groupIndex != noteGroups.lastIndex) Spacer(Modifier.height(22.dp))
             }
             Spacer(Modifier.height(24.dp))
             val actionLabel = when {

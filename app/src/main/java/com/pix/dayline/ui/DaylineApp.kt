@@ -16,10 +16,13 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,6 +63,11 @@ import java.util.UUID
 
 enum class DaylineScreen { TODAY, CALENDAR, UPCOMING, TASKS, SEARCH, SPACES, SETTINGS }
 private data class AddRequest(val date: LocalDate, val kind: AgendaKind, val time: LocalTime? = null)
+private data class PendingRecurringGestureEdit(
+    val updated: DaylineItem,
+    val message: String,
+    val occurrenceDate: LocalDate
+)
 
 @Composable
 fun DaylineApp() {
@@ -380,6 +388,9 @@ fun DaylineApp() {
         var addRequest by remember { mutableStateOf<AddRequest?>(null) }
         var editing by remember { mutableStateOf<DaylineItem?>(null) }
         var editingDate by remember { mutableStateOf<LocalDate?>(null) }
+        var pendingRecurringGestureEdit by remember {
+            mutableStateOf<PendingRecurringGestureEdit?>(null)
+        }
         var eventDetail by remember { mutableStateOf<Pair<DaylineItem, LocalDate>?>(null) }
         var taskDetail by remember { mutableStateOf<DaylineItem?>(null) }
         var spaceEditing by remember { mutableStateOf<DaylineSpace?>(null) }
@@ -462,33 +473,88 @@ fun DaylineApp() {
             editing = null; editingDate = null; addRequest = null
         }
 
-        fun changeWithUndo(updated: DaylineItem, message: String, occurrenceDate: LocalDate? = null) {
+        fun changeWithUndo(
+            updated: DaylineItem,
+            message: String,
+            occurrenceDate: LocalDate? = null,
+            recurrenceScope: RecurrenceEditScope? = null
+        ) {
             val previous = items.firstOrNull { it.id == updated.id } ?: return
             if (updated.calendarReadOnly) return
+
             if (previous.recurrence != Recurrence.ONCE && occurrenceDate != null) {
+                if (recurrenceScope == null) {
+                    pendingRecurringGestureEdit = PendingRecurringGestureEdit(
+                        updated = updated,
+                        message = message,
+                        occurrenceDate = occurrenceDate
+                    )
+                    return
+                }
+
                 val snapshot = items
-                var next = SeriesEditor.apply(snapshot, previous, updated.copy(startDate = occurrenceDate), occurrenceDate, RecurrenceEditScope.THIS_OCCURRENCE)
-                if (calendarSyncEnabled && AndroidCalendarSync.hasWritePermission(appContext)) next = next.map { candidate ->
-                    if (candidate.kind == AgendaKind.EVENT && !candidate.calendarReadOnly && (candidate.id == previous.id || candidate.seriesParentId == previous.id)) publishIfNeeded(candidate) else candidate
+                val scopedEdit = SeriesEditor.editForGestureScope(
+                    original = previous,
+                    editedOccurrence = updated,
+                    occurrenceDate = occurrenceDate,
+                    scope = recurrenceScope
+                )
+                var next = SeriesEditor.applyWithSelection(
+                    existingItems = snapshot,
+                    original = previous,
+                    edited = scopedEdit,
+                    occurrenceDate = occurrenceDate,
+                    scope = recurrenceScope
+                ).items
+                if (calendarSyncEnabled && AndroidCalendarSync.hasWritePermission(appContext)) {
+                    next = next.map { candidate ->
+                        if (
+                            candidate.kind == AgendaKind.EVENT &&
+                            !candidate.calendarReadOnly &&
+                            (candidate.id == previous.id || candidate.seriesParentId == previous.id)
+                        ) {
+                            publishIfNeeded(candidate)
+                        } else {
+                            candidate
+                        }
+                    }
                 }
                 val published = next
-                persistItems(published); emitGlyph(DaylineGlyphSignal.MOVED, 2); if (calendarSyncEnabled) refreshCalendarOverlay()
+                persistItems(published)
+                emitGlyph(DaylineGlyphSignal.MOVED, 2)
+                if (calendarSyncEnabled) refreshCalendarOverlay()
                 scope.launch {
-                    val result = snackbarHostState.showSnackbar(message, "UNDO", duration = SnackbarDuration.Short)
+                    val result = snackbarHostState.showSnackbar(
+                        message,
+                        "UNDO",
+                        duration = SnackbarDuration.Short
+                    )
                     if (result == SnackbarResult.ActionPerformed) {
                         val oldIds = snapshot.map { it.id }.toSet()
-                        published.filterNot { it.id in oldIds }.forEach { AndroidCalendarSync.deleteMappedEvent(appContext, it) }
-                        persistItems(snapshot.map { if (it.id == previous.id) publishIfNeeded(it) else it })
+                        published.filterNot { it.id in oldIds }.forEach {
+                            AndroidCalendarSync.deleteMappedEvent(appContext, it)
+                        }
+                        persistItems(
+                            snapshot.map {
+                                if (it.id == previous.id) publishIfNeeded(it) else it
+                            }
+                        )
                         if (calendarSyncEnabled) refreshCalendarOverlay()
                     }
                 }
                 return
             }
+
             val saved = publishIfNeeded(updated)
             persistItems(items.map { if (it.id == updated.id) saved else it })
-            emitGlyph(DaylineGlyphSignal.MOVED, 2); if (calendarSyncEnabled) refreshCalendarOverlay()
+            emitGlyph(DaylineGlyphSignal.MOVED, 2)
+            if (calendarSyncEnabled) refreshCalendarOverlay()
             scope.launch {
-                val result = snackbarHostState.showSnackbar(message, "UNDO", duration = SnackbarDuration.Short)
+                val result = snackbarHostState.showSnackbar(
+                    message,
+                    "UNDO",
+                    duration = SnackbarDuration.Short
+                )
                 if (result == SnackbarResult.ActionPerformed) {
                     val restored = publishIfNeeded(previous)
                     persistItems(items.map { if (it.id == previous.id) restored else it })
@@ -548,12 +614,14 @@ fun DaylineApp() {
             if (item.kind == AgendaKind.TASK && !item.id.startsWith("android:")) taskDetail = item else eventDetail = item to occurrenceDate
         }
 
-        val hasOverlay = menuOpen || addRequest != null || editing != null || eventDetail != null || newSpace || spaceEditing != null || taskDetail != null
+        val hasOverlay = menuOpen || addRequest != null || editing != null || eventDetail != null || newSpace || spaceEditing != null || taskDetail != null || pendingRecurringGestureEdit != null
         BackHandler(enabled = hasOverlay || screen != DaylineScreen.TODAY) {
             when {
                 menuOpen -> menuOpen = false; eventDetail != null -> eventDetail = null; editing != null -> editing = null
                 addRequest != null -> addRequest = null; newSpace -> newSpace = false; spaceEditing != null -> spaceEditing = null
-                taskDetail != null -> taskDetail = null; else -> goBack()
+                taskDetail != null -> taskDetail = null
+                pendingRecurringGestureEdit != null -> pendingRecurringGestureEdit = null
+                else -> goBack()
             }
         }
 
@@ -658,6 +726,42 @@ fun DaylineApp() {
         }
 
         if (menuOpen) NavigationSheet(current = screen, onSelect = { navigateTo(it); menuOpen = false }, onDismiss = { menuOpen = false })
+
+        pendingRecurringGestureEdit?.let { pending ->
+            AlertDialog(
+                onDismissRequest = { pendingRecurringGestureEdit = null },
+                title = { Text("Edit recurring event") },
+                text = {
+                    Text("Apply this drag only to this event, or to every event in this series?")
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            pendingRecurringGestureEdit = null
+                            changeWithUndo(
+                                updated = pending.updated,
+                                message = pending.message,
+                                occurrenceDate = pending.occurrenceDate,
+                                recurrenceScope = RecurrenceEditScope.ENTIRE_SERIES
+                            )
+                        }
+                    ) { Text("Every event") }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            pendingRecurringGestureEdit = null
+                            changeWithUndo(
+                                updated = pending.updated,
+                                message = pending.message,
+                                occurrenceDate = pending.occurrenceDate,
+                                recurrenceScope = RecurrenceEditScope.THIS_OCCURRENCE
+                            )
+                        }
+                    ) { Text("Only this event") }
+                }
+            )
+        }
 
         eventDetail?.let { (shown, date) ->
             val live = visibleItems.firstOrNull { it.id == shown.id } ?: shown

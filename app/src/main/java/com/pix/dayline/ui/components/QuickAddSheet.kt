@@ -240,7 +240,7 @@ fun QuickAddSheet(
                 )
                 if (editing != null && onDelete != null) {
                     Text(
-                        if (editingOccurrence) "Delete series" else "Delete",
+                        "Delete",
                         modifier = Modifier.clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null

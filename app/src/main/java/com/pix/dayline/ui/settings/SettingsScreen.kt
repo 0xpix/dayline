@@ -429,11 +429,16 @@ private fun GlyphSettingsSheet(
     var brightness by remember { mutableIntStateOf(visualStore.loadBrightness()) }
 
     fun update(next: GlyphPreferences) {
-        onChange(next.copy(
-            mode = if (next.mode == GlyphMode.OFF) GlyphMode.OFF else GlyphMode.EYES_ONLY,
-            showAppStates = false,
-            restAnimation = false
-        ))
+        onChange(
+            next.copy(
+                mode = when {
+                    next.mode == GlyphMode.OFF -> GlyphMode.OFF
+                    next.showAppStates -> GlyphMode.EYES_AND_STATES
+                    else -> GlyphMode.EYES_ONLY
+                },
+                restAnimation = false
+            )
+        )
     }
     fun test(signal: DaylineGlyphSignal) { preview = signal; onTest(signal) }
     fun changeBrightness(delta: Int) {
@@ -442,7 +447,12 @@ private fun GlyphSettingsSheet(
     }
 
     LaunchedEffect(preferences.mode, preferences.showAppStates, preferences.restAnimation) {
-        if (preferences.mode == GlyphMode.EYES_AND_STATES || preferences.showAppStates || preferences.restAnimation) update(preferences)
+        val expectedMode = when {
+            preferences.mode == GlyphMode.OFF -> GlyphMode.OFF
+            preferences.showAppStates -> GlyphMode.EYES_AND_STATES
+            else -> GlyphMode.EYES_ONLY
+        }
+        if (preferences.mode != expectedMode || preferences.restAnimation) update(preferences)
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.background) {
@@ -451,7 +461,7 @@ private fun GlyphSettingsSheet(
         ) {
             Text("Dayline Glyph", style = MaterialTheme.typography.displaySmall)
             Spacer(Modifier.height(7.dp))
-            Text("Eyes first. Focus time appears only at checkpoints.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Eyes stay dominant. Optional app states appear briefly, then return to the face.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(22.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                 GlyphMatrixPreview(signal = preview, modifier = Modifier.size(156.dp))
@@ -461,7 +471,13 @@ private fun GlyphSettingsSheet(
             SettingsSubhead("Glyph")
             Spacer(Modifier.height(6.dp))
             ToggleSettingRow("Enabled", preferences.enabled) {
-                update(preferences.copy(mode = if (it) GlyphMode.EYES_ONLY else GlyphMode.OFF))
+                update(
+                    preferences.copy(
+                        mode = if (it) {
+                            if (preferences.showAppStates) GlyphMode.EYES_AND_STATES else GlyphMode.EYES_ONLY
+                        } else GlyphMode.OFF
+                    )
+                )
             }
             InfoRow("Hardware", if (hardware.available) hardware.deviceLabel else "Unavailable")
             if (!hardware.available && !hardware.detail.isNullOrBlank()) {
@@ -490,6 +506,9 @@ private fun GlyphSettingsSheet(
             }
             ToggleSettingRow("Blink", preferences.blinkEnabled) { update(preferences.copy(blinkEnabled = it)) }
             ToggleSettingRow("Expressions", preferences.randomGlancesEnabled) { update(preferences.copy(randomGlancesEnabled = it)) }
+            ToggleSettingRow("Brief app states", preferences.showAppStates) {
+                update(preferences.copy(showAppStates = it))
+            }
             if (preferences.randomGlancesEnabled) {
                 SelectorRow("Motion", preferences.glanceFrequency.name.lowercase().replaceFirstChar { it.titlecase() }) {
                     val entries = GlyphGlanceFrequency.entries
@@ -526,7 +545,6 @@ private fun GlyphSettingsSheet(
                 "CENTER" to DaylineGlyphSignal.CENTER, "LEFT" to DaylineGlyphSignal.LOOK_LEFT,
                 "RIGHT" to DaylineGlyphSignal.LOOK_RIGHT, "BLINK" to DaylineGlyphSignal.BLINK,
                 "HAPPY" to DaylineGlyphSignal.HAPPY, "WINK" to DaylineGlyphSignal.WINK,
-                "HEARTS" to DaylineGlyphSignal.HEARTS, "SQUINT" to DaylineGlyphSignal.SQUINT,
                 "SLEEPY" to DaylineGlyphSignal.SLEEPY
             )
             tests.chunked(3).forEach { row ->

@@ -425,20 +425,6 @@ fun DaylineApp(
         fun discardLastUndo() {
             if (undoHistory.isNotEmpty()) undoHistory = undoHistory.dropLast(1)
         }
-        fun undoLastChange() {
-            val snapshot = undoHistory.lastOrNull() ?: return
-            val current = items
-            undoHistory = undoHistory.dropLast(1)
-            val snapshotIds = snapshot.map { it.id }.toSet()
-            current.filterNot { it.id in snapshotIds }.forEach {
-                AndroidCalendarSync.deleteMappedEvent(appContext, it)
-            }
-            val restored = snapshot.map(::publishIfNeeded)
-            persistItems(restored)
-            if (calendarSyncEnabled) refreshCalendarOverlay()
-            scope.launch { snackbarHostState.showSnackbar("Last change undone") }
-        }
-
         fun navigateTo(next: DaylineScreen) {
             if (next == screen) return
             history = history + screen; screen = next; taskDetail = null
@@ -460,6 +446,20 @@ fun DaylineApp(
             if (!calendarSyncEnabled || !AndroidCalendarSync.hasWritePermission(appContext) || item.kind != AgendaKind.EVENT || item.calendarReadOnly) return item
             return AndroidCalendarSync.upsert(appContext, item, calendarPreferences, spaces)
         }
+        fun undoLastChange() {
+            val snapshot = undoHistory.lastOrNull() ?: return
+            val current = items
+            undoHistory = undoHistory.dropLast(1)
+            val snapshotIds = snapshot.map { it.id }.toSet()
+            current.filterNot { it.id in snapshotIds }.forEach {
+                AndroidCalendarSync.deleteMappedEvent(appContext, it)
+            }
+            val restored = snapshot.map(::publishIfNeeded)
+            persistItems(restored)
+            if (calendarSyncEnabled) refreshCalendarOverlay()
+            scope.launch { snackbarHostState.showSnackbar("Last change undone") }
+        }
+
         fun saveItem(item: DaylineItem, scopeValue: RecurrenceEditScope = RecurrenceEditScope.ENTIRE_SERIES) {
             if (item.id.startsWith("android:") && item.calendarEventId != null) {
                 AndroidCalendarSync.upsert(appContext, item.copy(calendarReadOnly = false), calendarPreferences, spaces)

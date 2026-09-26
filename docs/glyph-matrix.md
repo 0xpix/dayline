@@ -1,8 +1,8 @@
 # Dayline Glyph Matrix integration
 
-Dayline v0.19.0.beta provides an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
+Dayline v0.19.1.beta provides an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
 
-The conservative transport recovery and centered stacked Focus timer from v0.15.3–v0.15.4 remain the hardware baseline. v0.19.0 simplifies the live expression set and restores the optional brief app-state mode without making those states the permanent face.
+The conservative transport recovery and centered stacked Focus timer from v0.15.3–v0.15.4 remain the hardware baseline. v0.19.1 simplifies the live expression set and restores the optional brief app-state mode without making those states the permanent face.
 
 ## Dayline behavior
 
@@ -44,7 +44,7 @@ A Focus time such as `14:54` is rendered as two centered lines:
 54
 ```
 
-The compact timer layout remains unchanged in v0.19.0:
+The compact timer layout remains unchanged in v0.19.1:
 
 - **Minutes** use two 4×5 digits in rows 1–5.
 - **Seconds** use two 4×5 digits in rows 7–11.
@@ -55,7 +55,7 @@ The compact timer layout remains unchanged in v0.19.0:
 
 ## Reliability / freeze recovery
 
-The conservative v0.15.3 transport remains the v0.19.0 baseline.
+The conservative v0.15.3 transport remains the v0.19.1 baseline.
 
 Nothing's Matrix SDK owns a bound proxy service, so Dayline follows a conservative lifecycle:
 
@@ -114,7 +114,7 @@ Dayline's own Glyph patterns, settings, diagnostics and reflection bridge are pa
 
 For GitHub beta CI, `.github/workflows/build-apk.yml` first validates that the AAR is absent and then downloads the official binary from `Nothing-Developer-Programme/GlyphMatrix-Developer-Kit` before compiling the beta flavor. `app/build.gradle.kts` only attaches the AAR to `betaImplementation` when the file exists.
 
-The Play flavor does not include the SDK in v0.19.0.beta. Nothing's Glyph SDK license restricts commercial use without written permission, so Play distribution should stay disabled for Glyph hardware until the appropriate permission/license is obtained.
+The Play flavor does not include the SDK in v0.19.1.beta. Nothing's Glyph SDK license restricts commercial use without written permission, so Play distribution should stay disabled for Glyph hardware until the appropriate permission/license is obtained.
 
 ## Release safety
 

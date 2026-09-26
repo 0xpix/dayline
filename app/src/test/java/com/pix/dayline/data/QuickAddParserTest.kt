@@ -102,4 +102,23 @@ class QuickAddParserTest {
             QuickAddParser.parse("marathon 99h", today = thursday)!!.durationMinutes
         )
     }
+    @Test
+    fun parsesTimeRangeRecurrenceReminderAndTonight() {
+        val work = QuickAddParser.parse("work 6-9:30 every weekday", today = thursday)!!
+        assertEquals("work", work.title)
+        assertEquals(LocalTime.of(6, 0), work.startTime)
+        assertEquals(210, work.durationMinutes)
+        assertEquals(com.pix.dayline.model.Recurrence.WEEKDAYS, work.recurrence)
+
+        val dentist = QuickAddParser.parse("dentist Monday 14:00 remind 30m", today = thursday)!!
+        assertEquals(LocalDate.of(2026, 9, 28), dentist.date)
+        assertEquals(LocalTime.of(14, 0), dentist.startTime)
+        assertEquals(30, dentist.reminderMinutes)
+
+        val study = QuickAddParser.parse("study 2h tonight", today = thursday)!!
+        assertEquals("study", study.title)
+        assertEquals(LocalTime.of(19, 0), study.startTime)
+        assertEquals(120, study.durationMinutes)
+    }
+
 }

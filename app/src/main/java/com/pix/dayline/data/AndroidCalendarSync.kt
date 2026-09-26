@@ -230,14 +230,18 @@ object AndroidCalendarSync {
         if (!hasReadPermission(context)) return local
 
         val cache = mutableMapOf<Long, ProviderState>()
+        val baselines = CalendarSyncBaselineStore(context)
         return local.mapNotNull { item ->
             val eventId = item.calendarEventId ?: return@mapNotNull item
             when (val state = cache.getOrPut(eventId) { providerState(context, eventId) }) {
-                ProviderState.Missing -> null
+                ProviderState.Missing -> {
+                    baselines.remove(eventId)
+                    null
+                }
                 ProviderState.Unknown -> item
                 is ProviderState.Present -> {
                     val snapshot = state.snapshot
-                    item.copy(
+                    val providerCandidate = item.copy(
                         title = snapshot.title,
                         startDate = snapshot.startDate,
                         startTime = snapshot.startTime,
@@ -257,6 +261,37 @@ object AndroidCalendarSync {
                         calendarId = snapshot.calendarId,
                         calendarName = snapshot.calendarName
                     )
+                    val localFingerprint = syncFingerprint(item)
+                    val providerFingerprint = syncFingerprint(providerCandidate)
+                    val baseline = baselines.load(eventId)
+
+                    when {
+                        baseline == null -> {
+                            baselines.save(eventId, providerFingerprint)
+                            providerCandidate
+                        }
+                        providerFingerprint == localFingerprint -> {
+                            baselines.save(eventId, providerFingerprint)
+                            item
+                        }
+                        providerFingerprint == baseline && localFingerprint != baseline -> {
+                            // Dayline has a local change the provider has not echoed.
+                            // Never replace it with the older provider baseline.
+                            baselines.markConflict(eventId)
+                            item
+                        }
+                        localFingerprint == baseline && providerFingerprint != baseline -> {
+                            // Only Android Calendar changed since the last shared state.
+                            baselines.save(eventId, providerFingerprint)
+                            providerCandidate
+                        }
+                        else -> {
+                            // Both sides changed independently. Preserve the Dayline
+                            // edit and surface the conflict in sync diagnostics.
+                            baselines.markConflict(eventId)
+                            item
+                        }
+                    }
                 }
             }
         }
@@ -484,7 +519,7 @@ object AndroidCalendarSync {
         val resolvedAllDay = item.allDay || item.startTime == null
         val resolvedZone = if (resolvedAllDay) ZoneOffset.UTC else resolveZone(item.timeZoneId)
 
-        return item.copy(
+        val synced = item.copy(
             allDay = resolvedAllDay,
             timeZoneId = if (resolvedAllDay) "UTC" else resolvedZone.id,
             calendarEventId = eventId,
@@ -492,6 +527,8 @@ object AndroidCalendarSync {
             calendarName = calendarName(context, resolvedCalendarId),
             calendarReadOnly = false
         )
+        CalendarSyncBaselineStore(context).save(eventId, syncFingerprint(synced))
+        return synced
     }
 
     fun publishExisting(
@@ -521,7 +558,22 @@ object AndroidCalendarSync {
                 null
             )
         }
+        CalendarSyncBaselineStore(context).remove(eventId)
     }
+
+    private fun syncFingerprint(item: DaylineItem): String = listOf(
+        item.title,
+        item.startDate.toString(),
+        item.startTime?.toString().orEmpty(),
+        item.endTime?.toString().orEmpty(),
+        item.recurrence.name,
+        item.repeatDays.sorted().joinToString(","),
+        item.recurrenceEndDate?.toString().orEmpty(),
+        item.excludedDates.sorted().joinToString(","),
+        item.allDay.toString(),
+        item.timeZoneId.orEmpty(),
+        item.calendarId?.toString().orEmpty()
+    ).joinToString("\u001F")
 
     private fun firstWritableCalendar(context: Context): Long? =
         listCalendars(context)

@@ -69,6 +69,11 @@ private data class PendingRecurringGestureEdit(
     val occurrenceDate: LocalDate
 )
 
+private data class PendingRecurringDelete(
+    val item: DaylineItem,
+    val occurrenceDate: LocalDate
+)
+
 @Composable
 fun DaylineApp() {
     val context = LocalContext.current
@@ -391,6 +396,9 @@ fun DaylineApp() {
         var pendingRecurringGestureEdit by remember {
             mutableStateOf<PendingRecurringGestureEdit?>(null)
         }
+        var pendingRecurringDelete by remember {
+            mutableStateOf<PendingRecurringDelete?>(null)
+        }
         var eventDetail by remember { mutableStateOf<Pair<DaylineItem, LocalDate>?>(null) }
         var taskDetail by remember { mutableStateOf<DaylineItem?>(null) }
         var spaceEditing by remember { mutableStateOf<DaylineSpace?>(null) }
@@ -600,11 +608,88 @@ fun DaylineApp() {
             )
         }
 
+        fun deleteRecurring(item: DaylineItem, occurrenceDate: LocalDate, scopeValue: RecurrenceEditScope) {
+            val original = items.firstOrNull { it.id == item.id } ?: return
+            val snapshot = items
+            var next = when (scopeValue) {
+                RecurrenceEditScope.THIS_OCCURRENCE -> snapshot.map {
+                    if (it.id == original.id) {
+                        original.copy(excludedDates = original.excludedDates + occurrenceDate)
+                    } else it
+                }
+                RecurrenceEditScope.THIS_AND_FOLLOWING -> {
+                    if (!occurrenceDate.isAfter(original.startDate)) {
+                        snapshot.filterNot { it.id == original.id }
+                    } else {
+                        snapshot.map {
+                            if (it.id == original.id) {
+                                val cutoff = occurrenceDate.minusDays(1)
+                                original.copy(
+                                    recurrenceEndDate = original.recurrenceEndDate
+                                        ?.takeIf { existing -> existing.isBefore(cutoff) }
+                                        ?: cutoff
+                                )
+                            } else it
+                        }
+                    }
+                }
+                RecurrenceEditScope.ENTIRE_SERIES ->
+                    snapshot.filterNot { it.id == original.id }
+            }
+
+            rememberUndo(snapshot)
+
+            if (
+                scopeValue != RecurrenceEditScope.ENTIRE_SERIES &&
+                next.any { it.id == original.id }
+            ) {
+                next = next.map { candidate ->
+                    if (candidate.id == original.id) publishIfNeeded(candidate) else candidate
+                }
+            } else {
+                AndroidCalendarSync.deleteMappedEvent(appContext, original)
+            }
+
+            persistItems(next)
+            if (calendarSyncEnabled) refreshCalendarOverlay()
+            editing = null
+            editingDate = null
+            eventDetail = null
+            pendingRecurringDelete = null
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    when (scopeValue) {
+                        RecurrenceEditScope.THIS_OCCURRENCE -> "Deleted this event"
+                        RecurrenceEditScope.THIS_AND_FOLLOWING -> "Deleted this and following events"
+                        RecurrenceEditScope.ENTIRE_SERIES -> "Deleted recurring series"
+                    },
+                    "UNDO",
+                    duration = SnackbarDuration.Short
+                ).also { result ->
+                    if (result == SnackbarResult.ActionPerformed) {
+                        discardLastUndo()
+                        persistItems(snapshot.map(::publishIfNeeded))
+                        if (calendarSyncEnabled) refreshCalendarOverlay()
+                    }
+                }
+            }
+        }
+
         fun deleteItem(item: DaylineItem) {
             if (item.id.startsWith("android:")) {
                 if (!item.calendarReadOnly) { AndroidCalendarSync.deleteMappedEvent(appContext, item.copy(calendarReadOnly = false)); refreshCalendarOverlay() }
                 editing = null; eventDetail = null; return
             }
+            if (item.recurrence != Recurrence.ONCE) {
+                pendingRecurringDelete = PendingRecurringDelete(
+                    item = item,
+                    occurrenceDate = editingDate ?: eventDetail?.second ?: item.startDate
+                )
+                editing = null
+                eventDetail = null
+                return
+            }
+
             val snapshot = item
             val beforeDelete = items
             rememberUndo(beforeDelete)
@@ -637,13 +722,14 @@ fun DaylineApp() {
             if (item.kind == AgendaKind.TASK && !item.id.startsWith("android:")) taskDetail = item else eventDetail = item to occurrenceDate
         }
 
-        val hasOverlay = menuOpen || addRequest != null || editing != null || eventDetail != null || newSpace || spaceEditing != null || taskDetail != null || pendingRecurringGestureEdit != null
+        val hasOverlay = menuOpen || addRequest != null || editing != null || eventDetail != null || newSpace || spaceEditing != null || taskDetail != null || pendingRecurringGestureEdit != null || pendingRecurringDelete != null
         BackHandler(enabled = hasOverlay || screen != DaylineScreen.TODAY) {
             when {
                 menuOpen -> menuOpen = false; eventDetail != null -> eventDetail = null; editing != null -> editing = null
                 addRequest != null -> addRequest = null; newSpace -> newSpace = false; spaceEditing != null -> spaceEditing = null
                 taskDetail != null -> taskDetail = null
                 pendingRecurringGestureEdit != null -> pendingRecurringGestureEdit = null
+                pendingRecurringDelete != null -> pendingRecurringDelete = null
                 else -> goBack()
             }
         }
@@ -802,6 +888,52 @@ fun DaylineApp() {
                 },
                 dismissButton = {
                     TextButton(onClick = { pendingRecurringGestureEdit = null }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        pendingRecurringDelete?.let { pending ->
+            AlertDialog(
+                onDismissRequest = { pendingRecurringDelete = null },
+                title = { Text("Delete recurring event") },
+                text = { Text("Choose how much of this series should be deleted.") },
+                confirmButton = {
+                    androidx.compose.foundation.layout.Column(
+                        horizontalAlignment = Alignment.End
+                    ) {
+                        TextButton(
+                            onClick = {
+                                deleteRecurring(
+                                    pending.item,
+                                    pending.occurrenceDate,
+                                    RecurrenceEditScope.THIS_OCCURRENCE
+                                )
+                            }
+                        ) { Text("This event") }
+                        TextButton(
+                            onClick = {
+                                deleteRecurring(
+                                    pending.item,
+                                    pending.occurrenceDate,
+                                    RecurrenceEditScope.THIS_AND_FOLLOWING
+                                )
+                            }
+                        ) { Text("This and following") }
+                        TextButton(
+                            onClick = {
+                                deleteRecurring(
+                                    pending.item,
+                                    pending.occurrenceDate,
+                                    RecurrenceEditScope.ENTIRE_SERIES
+                                )
+                            }
+                        ) { Text("All events") }
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingRecurringDelete = null }) {
                         Text("Cancel")
                     }
                 }

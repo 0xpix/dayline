@@ -58,6 +58,9 @@ data class QuickAddDraft(
             date = nextDate,
             startTime = nextStart,
             endTime = nextEnd,
+            recurrence = parsed.recurrence ?: recurrence,
+            repeatDays = parsed.repeatDays.takeIf { parsed.recurrence == Recurrence.CUSTOM } ?: repeatDays,
+            reminderMinutes = parsed.reminderMinutes ?: reminderMinutes,
             focusCycle = if (shorthandFocus != null) FocusCycle.CUSTOM else focusCycle,
             customFocusMinutes = shorthandFocus ?: customFocusMinutes,
             estimatedDurationMinutes = if (nextKind == AgendaKind.TASK) {

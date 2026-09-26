@@ -7,7 +7,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -63,13 +66,27 @@ fun FloatingControls(
         }
 
         if (showAdd) {
-            CircleAction(
-                label = "+",
-                filled = true,
-                size = 50,
-                textSize = 28,
-                onClick = onAdd
-            )
+            Surface(
+                modifier = Modifier
+                    .widthIn(min = 116.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onAdd
+                    ),
+                shape = RoundedCornerShape(999.dp),
+                color = MaterialTheme.colorScheme.onBackground,
+                contentColor = MaterialTheme.colorScheme.background,
+                tonalElevation = 0.dp,
+                shadowElevation = 2.dp
+            ) {
+                Text(
+                    text = "+  QUICK ADD",
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
     }
 }

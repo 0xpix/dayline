@@ -1,16 +1,16 @@
 # Dayline Glyph Matrix integration
 
-Dayline v0.17.0.beta provides an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
+Dayline v0.19.0.beta provides an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
 
-v0.17.0 is a daily-flow release and deliberately adds **no new Glyph expression, Focus timing or aggressive reconnect behavior**. The conservative transport recovery and centered stacked timer from v0.15.3–v0.15.4 remain the Glyph baseline while they continue real-device soak testing. v0.17 only adds local diagnostic instrumentation so freezes can be investigated without changing the animation contract.
+The conservative transport recovery and centered stacked Focus timer from v0.15.3–v0.15.4 remain the hardware baseline. v0.19.0 simplifies the live expression set and restores the optional brief app-state mode without making those states the permanent face.
 
 ## Dayline behavior
 
-Dayline is intentionally eyes-first. The live idle face keeps only the expressions that read cleanly on the 13×13 matrix: Center, Look left, Look right, Blink, Wink, Happy, Hearts, Squint and rare Sleepy.
+Dayline is intentionally eyes-first. The live idle face keeps only the expressions that read most clearly on the 13×13 matrix: Center, Look left, Look right, Blink, Wink, Happy and rare Sleepy.
 
 Every non-center animation is isolated by Center on both sides. The runtime follows `CENTER → animation → CENTER → next animation`, including Blink. A dedicated ~700 ms Center recovery is enforced before any due blink or motion can start.
 
-Automatic calendar/app-state symbols do not interrupt the face. Focus Mode is the only automatic Dayline timing behavior.
+When **Brief app states** is enabled, queued Dayline states can interrupt the face for a few seconds and then expire back to the eyes. With that option off, the idle face remains uninterrupted.
 
 ## Focus time announcements
 
@@ -33,7 +33,7 @@ Examples:
 - 50-minute Focus: `50:00`, `45:00`, `40:00`, `35:00`, `30:00`, `25:00`, `20:00`, `15:00`, `10:00`, `05:00`, `01:00`.
 - Custom 12-minute Focus: `12:00`, `10:00`, `05:00`, `01:00`.
 
-Outside those 30-second windows, Focus does not alter the face. The normal Center / left / right / blink / wink / happy / hearts / squint / sleepy animation state machine continues unchanged.
+Outside those 30-second windows, Focus does not alter the face. The normal Center / left / right / blink / wink / happy / rare sleepy animation state machine continues.
 
 ### Timer layout
 
@@ -44,7 +44,7 @@ A Focus time such as `14:54` is rendered as two centered lines:
 54
 ```
 
-The compact timer layout remains unchanged in v0.17.0:
+The compact timer layout remains unchanged in v0.19.0:
 
 - **Minutes** use two 4×5 digits in rows 1–5.
 - **Seconds** use two 4×5 digits in rows 7–11.
@@ -55,7 +55,7 @@ The compact timer layout remains unchanged in v0.17.0:
 
 ## Reliability / freeze recovery
 
-The conservative v0.15.3 transport remains the v0.17.0 baseline.
+The conservative v0.15.3 transport remains the v0.19.0 baseline.
 
 Nothing's Matrix SDK owns a bound proxy service, so Dayline follows a conservative lifecycle:
 
@@ -72,9 +72,9 @@ The AOD render loop is exception-protected so one unexpected render failure cann
 
 This design deliberately favors a stable long-lived SDK binding over frequent proactive reconnects.
 
-## v0.17 diagnostics
+## v0.19 diagnostics
 
-v0.17 adds **local instrumentation only**. `GlyphDiagnosticsStore` records:
+v0.19 adds **local instrumentation only**. `GlyphDiagnosticsStore` records:
 
 - time of the last frame successfully accepted by the bridge;
 - Matrix service disconnect count;
@@ -89,16 +89,16 @@ These counters are shown in the hidden beta diagnostics sheet and can be include
 The compact Glyph configuration introduced in v0.14.8 remains unchanged. The main Settings page contains one **Dayline Glyph** row. Opening it shows five groups:
 
 - **Glyph** — enable state, hardware status and shortcut to Nothing Settings.
-- **Look** — brightness, Blink, Expressions, Motion and Reduce motion.
+- **Look** — brightness, Blink, Expressions, optional Brief app states, Motion and Reduce motion.
 - **Focus** — the 30-second checkpoint rule summarized as `Start · every 5 min · 1 min left`.
 - **Night** — quiet hours, start/end time and optional dimming.
-- **Test expressions** — Center, Left, Right, Blink, Happy, Wink, Hearts, Squint and Sleepy.
+- **Test expressions** — Center, Left, Right, Blink, Happy, Wink and Sleepy.
 
 Dayline keeps a simple 0–100% brightness control and suppresses duplicate raw frames before they reach Nothing's SDK to reduce unnecessary Matrix traffic.
 
 ## Beta diagnostics
 
-The hidden beta diagnostics sheet is available under **Settings → About → tap Build five times**. v0.17 expands it with widget refresh, next-reminder, Focus runtime and Glyph transport counters alongside Calendar/updater/build information. Hardware availability and transport counters are reported separately; Dayline still does **not** invent a live SDK connection state that Nothing's API does not expose authoritatively.
+Beta diagnostics is available directly from **Settings → Calendar → Sync diagnostics**. v0.19 expands it with widget refresh, next-reminder, Focus runtime and Glyph transport counters alongside Calendar/updater/build information. Hardware availability and transport counters are reported separately; Dayline still does **not** invent a live SDK connection state that Nothing's API does not expose authoritatively.
 
 ## Activating the AOD toy
 
@@ -114,7 +114,7 @@ Dayline's own Glyph patterns, settings, diagnostics and reflection bridge are pa
 
 For GitHub beta CI, `.github/workflows/build-apk.yml` first validates that the AAR is absent and then downloads the official binary from `Nothing-Developer-Programme/GlyphMatrix-Developer-Kit` before compiling the beta flavor. `app/build.gradle.kts` only attaches the AAR to `betaImplementation` when the file exists.
 
-The Play flavor does not include the SDK in v0.17.0.beta. Nothing's Glyph SDK license restricts commercial use without written permission, so Play distribution should stay disabled for Glyph hardware until the appropriate permission/license is obtained.
+The Play flavor does not include the SDK in v0.19.0.beta. Nothing's Glyph SDK license restricts commercial use without written permission, so Play distribution should stay disabled for Glyph hardware until the appropriate permission/license is obtained.
 
 ## Release safety
 

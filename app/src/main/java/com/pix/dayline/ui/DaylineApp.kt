@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.pix.dayline.BuildConfig
+import com.pix.dayline.MainActivity
 import com.pix.dayline.data.*
 import com.pix.dayline.glyph.*
 import com.pix.dayline.model.*
@@ -75,7 +76,10 @@ private data class PendingRecurringDelete(
 )
 
 @Composable
-fun DaylineApp() {
+fun DaylineApp(
+    externalAction: String? = null,
+    onExternalActionConsumed: () -> Unit = {}
+) {
     val context = LocalContext.current
     val appContext = context.applicationContext
     val haptics = LocalHapticFeedback.current
@@ -404,6 +408,16 @@ fun DaylineApp() {
         var spaceEditing by remember { mutableStateOf<DaylineSpace?>(null) }
         var newSpace by remember { mutableStateOf(false) }
         var undoHistory by remember { mutableStateOf(emptyList<List<DaylineItem>>()) }
+
+        LaunchedEffect(externalAction, onboardingComplete, displayedDate) {
+            if (
+                onboardingComplete &&
+                externalAction == MainActivity.ACTION_QUICK_ADD
+            ) {
+                addRequest = AddRequest(displayedDate, AgendaKind.EVENT)
+                onExternalActionConsumed()
+            }
+        }
 
         fun rememberUndo(snapshot: List<DaylineItem>) {
             undoHistory = (undoHistory + listOf(snapshot)).takeLast(10)

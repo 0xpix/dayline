@@ -1,5 +1,6 @@
 package com.pix.dayline.data
 
+import com.pix.dayline.model.Recurrence
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -49,6 +50,24 @@ fun ParsedQuickAdd.previewLabel(
         durationMinutes?.let { add(formatQuickAddDuration(it)) }
 
         if (focusNeedsTime) add("Needs time")
+
+        recurrence?.let { repeat ->
+            add(
+                when (repeat) {
+                    Recurrence.DAILY -> "Every day"
+                    Recurrence.WEEKDAYS -> "Weekdays"
+                    Recurrence.WEEKENDS -> "Weekends"
+                    Recurrence.WEEKLY -> "Weekly"
+                    Recurrence.MONTHLY -> "Monthly"
+                    Recurrence.CUSTOM -> repeatDays
+                        .sorted()
+                        .joinToString("/") { java.time.DayOfWeek.of(it).name.take(3).lowercase().replaceFirstChar(Char::titlecase) }
+                    Recurrence.ONCE -> "Once"
+                }
+            )
+        }
+
+        reminderMinutes?.let { add("Remind ${formatQuickAddDuration(it)} before") }
 
         deadlineDate?.let { deadline ->
             add("Due ${deadline.format(DateTimeFormatter.ofPattern("EEE, MMM d", locale))}")

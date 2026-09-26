@@ -9,13 +9,13 @@
 **Dayline is a minimal, local-first calendar and daily planner for Android.**  
 It brings events, tasks, free time, Focus, widgets and Android Calendar sync into one calm Today-first timeline.
 
-[![Beta](https://img.shields.io/badge/status-beta-111111?style=flat-square)](https://github.com/0xpix/dayline/releases/tag/v0.18.12.beta)
-[![Release](https://img.shields.io/badge/version-v0.18.12.beta-111111?style=flat-square)](https://github.com/0xpix/dayline/releases/tag/v0.18.12.beta)
+[![Beta](https://img.shields.io/badge/status-beta-111111?style=flat-square)](https://github.com/0xpix/dayline/releases/tag/v0.19.0.beta)
+[![Release](https://img.shields.io/badge/version-v0.19.0.beta-111111?style=flat-square)](https://github.com/0xpix/dayline/releases/tag/v0.19.0.beta)
 [![Android](https://img.shields.io/badge/Android-13%2B-111111?style=flat-square&logo=android)](#install-the-beta)
 [![Kotlin](https://img.shields.io/badge/Kotlin-Compose-111111?style=flat-square&logo=kotlin)](#build-from-source)
 [![License](https://img.shields.io/badge/license-MIT-111111?style=flat-square)](LICENSE)
 
-[**Download the latest beta**](https://github.com/0xpix/dayline/releases/tag/v0.18.12.beta) · [Report a bug](https://github.com/0xpix/dayline/issues) · [Privacy](docs/privacy-policy.md)
+[**Download the latest beta**](https://github.com/0xpix/dayline/releases/tag/v0.19.0.beta) · [Report a bug](https://github.com/0xpix/dayline/issues) · [Privacy](docs/privacy-policy.md)
 
 </div>
 
@@ -57,8 +57,8 @@ It is intentionally geometric and monochrome so it remains readable as an Androi
 
 | | |
 |---|---|
-| **Release** | `v0.18.12.beta` |
-| **Android versionCode** | `1812` |
+| **Release** | `v0.19.0.beta` |
+| **Android versionCode** | `1900` |
 | **Status** | Public beta |
 | **Beta package** | `com.pix.dayline.beta` |
 | **GitHub beta minimum Android** | Android 13 / API 33 |
@@ -78,9 +78,9 @@ The Today screen is the center of the app.
 - Past items fade quietly so upcoming time remains prominent.
 - **FREE** blocks show usable gaps between commitments.
 - Tap a free block to create an event, schedule a task or start Focus.
-- Drag events to move them.
-- Resize them from the bottom edge.
-- Move/resize snaps in 5-minute steps with stronger 15-minute haptic landmarks.
+- Drag an event to move the whole block while preserving its exact duration.
+- Drag the top edge to change only the start; drag the bottom edge to change only the end.
+- Move/resize snaps in 5-minute steps with stronger 15-minute haptic landmarks and live time/duration feedback.
 - All-day items stay in their own strip instead of pretending to occupy a time slot.
 
 ### Planning
@@ -98,8 +98,10 @@ Dayline includes a small local planning engine rather than an AI planner.
 
 New items can use a small deterministic shorthand grammar directly in the title field:
 
-- `gym tomorrow 7:30 1h`
-- `dentist Friday 14:00`
+- `gym tomorrow 18:30-20:00`
+- `work 6-9:30 every weekday`
+- `dentist Monday 14:00 remind 30m`
+- `study 2h tonight`
 - `task report 45m due Monday`
 - `focus 50m at 18:00`
 
@@ -124,6 +126,8 @@ Dayline works with Android's Calendar Provider.
 - Multiple calendars.
 - Per-calendar visibility and write behavior.
 - External deletions and edits reconcile back into Dayline.
+- Three-way sync baselines protect newer local changes when Dayline and the provider diverge.
+- Event details identify Dayline-only, Dayline-synced and external Calendar items.
 - Recurring events and occurrence exceptions are supported.
 - Timed events preserve their provider timezone through Dayline edits.
 - All-day events remain all-day.
@@ -150,6 +154,8 @@ Focus can also be started directly from a free block.
 Dayline includes minimalist home-screen widgets designed to stay visually close to the app:
 
 - current / next event information
+- direct task completion
+- Quick Add shortcuts
 - task state
 - Focus / Rest state
 - system-aware light and dark appearance
@@ -160,7 +166,7 @@ Dayline includes minimalist home-screen widgets designed to stay visually close 
 
 The GitHub beta includes optional support for the **Nothing Phone (4a) Pro 13×13 Glyph Matrix**.
 
-Dayline Eyes can show expressive idle animations such as Center, Look Left, Look Right, Blink, Wink, Happy, Hearts, Squint and Sleepy. During Focus, the Glyph can temporarily show the remaining time before returning to the eyes.
+Dayline Eyes keeps the face dominant with Center, Look Left, Look Right, Blink, Wink, Happy and rare Sleepy motion. Optional app states appear only briefly before returning to the eyes. During Focus, the Glyph can temporarily show the remaining time before returning to the face.
 
 Glyph support is deliberately optional and does not change normal calendar behavior.
 
@@ -188,10 +194,10 @@ That is the basic philosophy of Dayline: **show the day clearly, then help you u
 
 ## Install the beta
 
-The current public release is **v0.18.12.beta**.
+The current public release is **v0.19.0.beta**.
 
-1. Open the [v0.18.12.beta release](https://github.com/0xpix/dayline/releases/tag/v0.18.12.beta).
-2. Download `dayline-v0.18.12.beta.apk`.
+1. Open the [v0.19.0.beta release](https://github.com/0xpix/dayline/releases/tag/v0.19.0.beta).
+2. Download `dayline-v0.19.0.beta.apk`.
 3. Allow installation from your browser/file manager when Android asks.
 4. Install Dayline.
 
@@ -280,6 +286,6 @@ Bug reports, testing feedback and focused pull requests are welcome. See [CONTRI
 
 **Dayline** · A quieter way to plan your day.
 
-`v0.18.12.beta`
+`v0.19.0.beta`
 
 </div>

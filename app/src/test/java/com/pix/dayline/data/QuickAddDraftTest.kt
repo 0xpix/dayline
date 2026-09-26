@@ -2,6 +2,7 @@ package com.pix.dayline.data
 
 import com.pix.dayline.model.AgendaKind
 import com.pix.dayline.model.DaylineItem
+import com.pix.dayline.model.DaylineSpace
 import com.pix.dayline.model.FocusCycle
 import com.pix.dayline.model.Recurrence
 import org.junit.Assert.assertEquals
@@ -192,6 +193,32 @@ class QuickAddDraftTest {
         assertEquals(180, saved.customFocusMinutes)
         assertEquals(1, saved.customBreakMinutes)
     }
+    @Test
+    fun compactShorthandAppliesSpaceRepeatAndReminder() {
+        val personal = DaylineSpace(id = "personal", name = "Personal")
+        val parsed = QuickAddParser.parse(
+            "Lumen project.11:00-14:00.personal.daily.5min",
+            today = date,
+            spaces = listOf(personal)
+        )!!
+
+        val resolved = QuickAddDraft(
+            title = "Lumen project.11:00-14:00.personal.daily.5min",
+            kind = AgendaKind.EVENT,
+            date = date,
+            startTime = null,
+            endTime = null,
+            recurrence = Recurrence.ONCE
+        ).applyingShorthand(parsed)
+
+        assertEquals("Lumen project", resolved.title)
+        assertEquals(LocalTime.of(11, 0), resolved.startTime)
+        assertEquals(LocalTime.of(14, 0), resolved.endTime)
+        assertEquals(Recurrence.DAILY, resolved.recurrence)
+        assertEquals(5, resolved.reminderMinutes)
+        assertEquals("personal", resolved.spaceId)
+    }
+
     @Test
     fun shorthandAppliesRepeatAndReminder() {
         val resolved = QuickAddDraft(

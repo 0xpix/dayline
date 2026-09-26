@@ -19,9 +19,13 @@ import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
+import androidx.glance.action.ActionParameters
+import androidx.glance.action.actionParametersOf
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.AndroidRemoteViews
+import androidx.glance.appwidget.action.ActionCallback
+import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.GlanceAppWidgetManager
@@ -68,6 +72,43 @@ import java.util.Locale
 
 private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 private val WidgetRefreshKey = longPreferencesKey("dayline_refresh_token")
+private val WidgetTaskIdKey = ActionParameters.Key<String>("dayline_widget_task_id")
+private val WidgetTaskDateKey = ActionParameters.Key<String>("dayline_widget_task_date")
+private val WidgetLaunchActionKey = ActionParameters.Key<String>(MainActivity.EXTRA_ACTION)
+
+class ToggleWidgetTaskAction : ActionCallback {
+    override suspend fun onAction(
+        context: Context,
+        glanceId: GlanceId,
+        parameters: ActionParameters
+    ) {
+        val taskId = parameters[WidgetTaskIdKey] ?: return
+        val date = parameters[WidgetTaskDateKey]
+            ?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+            ?: LocalDate.now()
+
+        val store = DaylineStore(context)
+        val items = store.loadItems()
+        val task = items.firstOrNull {
+            it.id == taskId &&
+                it.kind == AgendaKind.TASK &&
+                !it.calendarReadOnly
+        } ?: return
+
+        val updated = task.copy(
+            completedDates = if (date in task.completedDates) {
+                task.completedDates - date
+            } else {
+                task.completedDates + date
+            }
+        )
+
+        store.saveItems(
+            items.map { if (it.id == task.id) updated else it }
+        )
+        DaylineWidgetUpdater.updateAll(context)
+    }
+}
 
 
 
@@ -510,7 +551,8 @@ private fun SystemEventPill(
     fontChoice: WidgetFontChoice,
     autoSlide: Boolean,
     width: Int? = null,
-    overrideText: String? = null
+    overrideText: String? = null,
+    occurrenceDate: LocalDate = LocalDate.now()
 ) {
     val isTask = item.kind == AgendaKind.TASK
 
@@ -526,12 +568,25 @@ private fun SystemEventPill(
             vertical = 5.dp
         )
 
-    val modifier =
+    val sizedModifier =
         if (width != null) {
             base.width(width.dp)
         } else {
             base.fillMaxWidth()
         }
+
+    val modifier = if (isTask && !item.calendarReadOnly) {
+        sizedModifier.clickable(
+            actionRunCallback<ToggleWidgetTaskAction>(
+                actionParametersOf(
+                    WidgetTaskIdKey to item.id,
+                    WidgetTaskDateKey to occurrenceDate.toString()
+                )
+            )
+        )
+    } else {
+        sizedModifier
+    }
 
     val complete =
         overrideText
@@ -707,6 +762,30 @@ class DaylineCompactWidget : GlanceAppWidget() {
 
                             Spacer(GlanceModifier.width(4.dp))
 
+                            Box(
+                                modifier = GlanceModifier
+                                    .clickable(
+                                        actionStartActivity<MainActivity>(
+                                            actionParametersOf(
+                                                WidgetLaunchActionKey to MainActivity.ACTION_QUICK_ADD
+                                            )
+                                        )
+                                    )
+                                    .background(ColorProvider(R.color.widget_event_surface))
+                                    .cornerRadius(30.dp)
+                                    .padding(horizontal = 7.dp, vertical = 2.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                WidgetText(
+                                    "+ ADD",
+                                    widgetFont,
+                                    scale = 0.52f,
+                                    color = GlanceTheme.colors.onSurface
+                                )
+                            }
+
+                            Spacer(GlanceModifier.width(4.dp))
+
                             SystemPill(strong = true, horizontalPadding = 6, verticalPadding = 2) {
                                 WidgetText(
                                     nextStatus(next, now),
@@ -758,7 +837,8 @@ class DaylineCompactWidget : GlanceAppWidget() {
                                     strong = true,
                                     fontChoice = widgetFont,
                                     autoSlide = widgetAutoSlide,
-                                    width = null
+                                    width = null,
+                                    occurrenceDate = next.date
                                 )
                             }
                         }
@@ -865,6 +945,30 @@ class DaylineSquareWidget : GlanceAppWidget() {
 
                         Spacer(GlanceModifier.width(7.dp))
 
+                        Box(
+                            modifier = GlanceModifier
+                                .clickable(
+                                    actionStartActivity<MainActivity>(
+                                        actionParametersOf(
+                                            WidgetLaunchActionKey to MainActivity.ACTION_QUICK_ADD
+                                        )
+                                    )
+                                )
+                                .background(ColorProvider(R.color.widget_event_surface))
+                                .cornerRadius(30.dp)
+                                .padding(horizontal = 7.dp, vertical = 3.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            WidgetText(
+                                "+",
+                                widgetFont,
+                                scale = 0.66f,
+                                color = GlanceTheme.colors.onSurface
+                            )
+                        }
+
+                        Spacer(GlanceModifier.width(5.dp))
+
                         SystemPill(strong = busyHours > 0) {
                             WidgetText(
                                 "$freeHours H FREE",
@@ -925,7 +1029,8 @@ class DaylineSquareWidget : GlanceAppWidget() {
                                     strong = index == 0,
                                     fontChoice = widgetFont,
                                     autoSlide = widgetAutoSlide,
-                                    overrideText = if (index == 0 && live != null) live.second else null
+                                    overrideText = if (index == 0 && live != null) live.second else null,
+                                    occurrenceDate = today
                                 )
                                 if (index != agenda.lastIndex) {
                                     Spacer(GlanceModifier.height(6.dp))

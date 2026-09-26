@@ -1,6 +1,8 @@
 package com.pix.dayline.data
 
 import com.pix.dayline.model.AgendaKind
+import com.pix.dayline.model.DaylineSpace
+import com.pix.dayline.model.Recurrence
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -102,6 +104,48 @@ class QuickAddParserTest {
             QuickAddParser.parse("marathon 99h", today = thursday)!!.durationMinutes
         )
     }
+    @Test
+    fun parsesDotSeparatedTimeSpaceRepeatReminderAndCleanTitle() {
+        val personal = DaylineSpace(id = "personal", name = "Personal")
+        val parsed = QuickAddParser.parse(
+            "Lumen project.11:00-14:00.personal.daily.5min",
+            today = thursday,
+            spaces = listOf(personal)
+        )!!
+
+        assertEquals("Lumen project", parsed.title)
+        assertEquals(LocalTime.of(11, 0), parsed.startTime)
+        assertEquals(180, parsed.durationMinutes)
+        assertEquals(Recurrence.DAILY, parsed.recurrence)
+        assertEquals(5, parsed.reminderMinutes)
+        assertEquals("personal", parsed.spaceId)
+        assertEquals("Personal", parsed.spaceName)
+    }
+
+    @Test
+    fun dotShorthandPreservesPeriodsInEventNames() {
+        val personal = DaylineSpace(id = "personal", name = "Personal")
+        val parsed = QuickAddParser.parse(
+            "Dr. appointment.14:00.personal.daily.10min",
+            today = thursday,
+            spaces = listOf(personal)
+        )!!
+
+        assertEquals("Dr. appointment", parsed.title)
+        assertEquals(LocalTime.of(14, 0), parsed.startTime)
+        assertEquals(Recurrence.DAILY, parsed.recurrence)
+        assertEquals(10, parsed.reminderMinutes)
+        assertEquals("personal", parsed.spaceId)
+    }
+
+    @Test
+    fun plainDailyTitleIsNotTreatedAsDotDirective() {
+        val parsed = QuickAddParser.parse("daily", today = thursday)!!
+        assertEquals("daily", parsed.title)
+        assertNull(parsed.recurrence)
+        assertEquals(false, parsed.hasDirectives)
+    }
+
     @Test
     fun parsesTimeRangeRecurrenceReminderAndTonight() {
         val work = QuickAddParser.parse("work 6-9:30 every weekday", today = thursday)!!

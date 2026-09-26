@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.19.0.beta — Timeline 2.0
+
+### Added
+- Added a clearly labeled **Quick Add** primary action plus local shorthand for time ranges, dayparts, recurrence and reminders.
+- Added top-edge event resizing so the start can change independently from the end, while whole-block dragging preserves exact duration.
+- Added all three recurring edit scopes — **This event**, **This and following**, and **All events** — across form saves, timeline gestures, Quick Move and deletion.
+- Added a short local Undo history available from Dayline navigation after edits, moves, deletes and task completion.
+- Added widget Quick Add shortcuts and direct task completion actions.
+- Added three-way Calendar sync baselines so concurrent Dayline/provider changes are detected instead of silently overwriting a newer local edit.
+- Added visible Calendar sync diagnostics, reconciliation conflict counts and explicit Dayline/external Calendar ownership labels.
+
+### Changed
+- Timed events now share one duration invariant across planning, timeline movement and resizing.
+- Today gives longer events stronger visual height, labels EVENT/TASK/FOCUS directly and uses a clear **OVERLAP** action.
+- Settings is consolidated around Appearance, Calendar, Widgets, Glyph, Notifications, Data and About.
+- Glyph idle motion now focuses on left/right glances, Happy, Wink and rare Sleepy; optional brief app states return to the eyes automatically.
+- Quick Add preview now shows recurrence and reminder directives before saving.
+
+### Fixed
+- Fixed Quick Add being easy to miss behind an unlabeled floating plus button.
+- Fixed timeline start changes requiring whole-event movement instead of independent top-edge resizing.
+- Fixed recurring Quick Move and deletion using inconsistent scope behavior.
+- Fixed Calendar reconciliation being able to replace a local unsynced change when the provider still held the previous shared state.
+- Bumped beta versionCode to **1900** and beta versionName to `0.19.0.beta`.
+
+
 ## 0.18.12.beta — Stable event duration
 
 ### Added

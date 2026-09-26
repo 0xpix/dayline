@@ -146,9 +146,30 @@ fun SettingsScreen(
             Text("Settings", style = MaterialTheme.typography.displayLarge)
             Spacer(Modifier.height(40.dp))
 
-            SettingsGroup("General") {
-                SelectorRow("Appearance", appearanceLabel(appearance)) { openSheet = SettingsSheet.APPEARANCE }
-                SelectorRow("App font", fontLabel(fontChoice)) { openSheet = SettingsSheet.APP_FONT }
+            SettingsGroup("Appearance") {
+                SelectorRow("Theme", appearanceLabel(appearance)) { openSheet = SettingsSheet.APPEARANCE }
+                SelectorRow("Font", fontLabel(fontChoice)) { openSheet = SettingsSheet.APP_FONT }
+                ToggleSettingRow("24-hour horizon", showOrb, onShowOrb)
+            }
+
+            SectionGap()
+            SettingsGroup("Calendar") {
+                ToggleSettingRow("Android Calendar sync", calendarSyncEnabled, onCalendarSyncEnabled)
+                SelectorRow(
+                    "Sync diagnostics",
+                    calendarHealthLabel(calendarSyncEnabled, lastCalendarSyncAt, calendarSyncError)
+                ) { openSheet = SettingsSheet.DIAGNOSTICS }
+                SelectorRow("Calendars", if (deviceCalendars.isEmpty()) "None" else "${deviceCalendars.size} found") {
+                    openSheet = SettingsSheet.CALENDARS
+                }
+                ToggleSettingRow("Week starts Monday", weekStartsMonday, onWeekStart)
+            }
+
+            SectionGap()
+            SettingsGroup("Widgets") {
+                InfoRow("Setup", "Long-press home screen")
+                InfoRow("Filters", "Per widget")
+                InfoRow("Actions", "Quick Add · complete tasks")
             }
 
             SectionGap()
@@ -157,12 +178,7 @@ fun SettingsScreen(
             }
 
             SectionGap()
-            SettingsGroup("Today") {
-                ToggleSettingRow("24-hour horizon", showOrb, onShowOrb)
-            }
-
-            SectionGap()
-            SettingsGroup("Focus & reminders") {
+            SettingsGroup("Notifications") {
                 ToggleSettingRow("Now activity", nowActivityEnabled, onNowActivityEnabled)
                 SelectorRow("Notifications", "Open") {
                     context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
@@ -177,22 +193,6 @@ fun SettingsScreen(
             }
 
             SectionGap()
-            SettingsGroup("Calendar") {
-                ToggleSettingRow("Android Calendar sync", calendarSyncEnabled, onCalendarSyncEnabled)
-                if (calendarSyncEnabled) {
-                    InfoRow("Sync", calendarHealthLabel(calendarSyncEnabled, lastCalendarSyncAt, calendarSyncError))
-                }
-                if (!calendarSyncError.isNullOrBlank()) {
-                    Text(calendarSyncError, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
-                    Spacer(Modifier.height(6.dp))
-                }
-                SelectorRow("Calendars", if (deviceCalendars.isEmpty()) "None" else "${deviceCalendars.size} found") {
-                    openSheet = SettingsSheet.CALENDARS
-                }
-                ToggleSettingRow("Week starts Monday", weekStartsMonday, onWeekStart)
-            }
-
-            SectionGap()
             SettingsGroup("Data") {
                 SelectorRow("Backup", "JSON") { onBackup() }
                 SelectorRow("Restore", "JSON") { onRestore() }
@@ -200,10 +200,10 @@ fun SettingsScreen(
                 SelectorRow("Import calendar", ".ics") { onImportIcs() }
             }
 
-            if (BuildConfig.UPDATE_CHANNEL == "GitHub beta") {
-                SectionGap()
-                SettingsGroup("Beta updates") {
-                    ToggleSettingRow("Automatic daily check", autoBetaUpdates, onAutoBetaUpdates)
+            SectionGap()
+            SettingsGroup("About") {
+                if (BuildConfig.UPDATE_CHANNEL == "GitHub beta") {
+                    ToggleSettingRow("Automatic beta checks", autoBetaUpdates, onAutoBetaUpdates)
                     SelectorRow(
                         if (updateState.status == UpdateStatus.AVAILABLE) "Update available" else "Check for updates",
                         updateActionLabel(updateState)
@@ -229,36 +229,13 @@ fun SettingsScreen(
                             onCheckUpdates()
                         }
                     }
-                    updateState.checkedAtMillis?.let {
-                        Text("Last checked ${relativeCheckTime(it)}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    if (updateState.status == UpdateStatus.ERROR && !updateState.error.isNullOrBlank()) {
-                        Spacer(Modifier.height(6.dp))
-                        Text(updateState.error, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
-                    }
                 }
-            }
-
-            SectionGap()
-            SettingsGroup("About") {
                 SelectorRow("Privacy", "On-device") { openSheet = SettingsSheet.PRIVACY }
                 SelectorRow("Source code", "GitHub") {
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/0xpix/dayline")))
                 }
                 InfoRow("Version", BuildConfig.VERSION_NAME)
-                InfoRow(
-                    "Build",
-                    "${BuildConfig.VERSION_CODE} · ${BuildConfig.GIT_COMMIT}",
-                    onClick = if (BuildConfig.UPDATE_CHANNEL == "GitHub beta") {
-                        {
-                            buildTaps += 1
-                            if (buildTaps >= 5) {
-                                buildTaps = 0
-                                openSheet = SettingsSheet.DIAGNOSTICS
-                            }
-                        }
-                    } else null
-                )
+                InfoRow("Build", "${BuildConfig.VERSION_CODE} · ${BuildConfig.GIT_COMMIT}")
             }
 
             Spacer(Modifier.height(38.dp))

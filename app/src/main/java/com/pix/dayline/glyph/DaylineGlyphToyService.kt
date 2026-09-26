@@ -128,11 +128,16 @@ class DaylineGlyphToyService : Service() {
         val phase = focusPhase(nowMillis)
         val presentation = focusPresentation(phase, nowMillis)
 
-        // Manual expression previews from Settings are allowed, but all
-        // priority > 0 app-state signals remain intentionally ignored.
-        val preview = runtime.current(nowMillis)?.takeIf { it.priority == 0 }
+        val queuedSignal = runtime.current(nowMillis)
+        val appState = queuedSignal?.takeIf {
+            it.priority > 0 &&
+                prefs.showAppStates &&
+                prefs.mode == GlyphMode.EYES_AND_STATES
+        }
+        val preview = queuedSignal?.takeIf { it.priority == 0 }
         val expression = when {
             presentation.forceCenter -> DaylineGlyphSignal.CENTER
+            appState != null -> appState
             preview != null -> preview
             prefs.reduceMotion -> DaylineGlyphSignal.CENTER
             else -> naturalExpression(prefs, nowMillis)
@@ -205,13 +210,13 @@ class DaylineGlyphToyService : Service() {
     }
 
     private fun randomExpression(): DaylineGlyphSignal {
+        // Keep the live face legible on 13×13: glances dominate, then happy
+        // and wink, with sleepy remaining deliberately rare.
         return when (Random.nextInt(100)) {
-            in 0..21 -> DaylineGlyphSignal.LOOK_LEFT
-            in 22..43 -> DaylineGlyphSignal.LOOK_RIGHT
-            in 44..74 -> DaylineGlyphSignal.HAPPY
-            in 75..89 -> DaylineGlyphSignal.WINK
-            in 90..96 -> DaylineGlyphSignal.HEARTS
-            in 97..98 -> DaylineGlyphSignal.SQUINT
+            in 0..29 -> DaylineGlyphSignal.LOOK_LEFT
+            in 30..59 -> DaylineGlyphSignal.LOOK_RIGHT
+            in 60..84 -> DaylineGlyphSignal.HAPPY
+            in 85..97 -> DaylineGlyphSignal.WINK
             else -> DaylineGlyphSignal.SLEEPY
         }
     }

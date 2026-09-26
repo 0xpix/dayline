@@ -1,6 +1,7 @@
 package com.pix.dayline.data
 
 import com.pix.dayline.model.AgendaKind
+import com.pix.dayline.model.DaylineSpace
 import com.pix.dayline.model.Recurrence
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -19,6 +20,8 @@ data class ParsedQuickAdd(
     val recurrence: Recurrence? = null,
     val repeatDays: Set<Int> = emptySet(),
     val reminderMinutes: Int? = null,
+    val spaceId: String? = null,
+    val spaceName: String? = null,
     val kindExplicit: Boolean = false,
     val dateExplicit: Boolean = false
 ) {
@@ -30,7 +33,8 @@ data class ParsedQuickAdd(
             deadlineDate != null ||
             focusMinutes != null ||
             recurrence != null ||
-            reminderMinutes != null
+            reminderMinutes != null ||
+            spaceId != null
 }
 
 /**
@@ -44,9 +48,16 @@ data class ParsedQuickAdd(
  * - task report 45m due monday
  */
 object QuickAddParser {
-    fun parse(input: String, today: LocalDate = LocalDate.now()): ParsedQuickAdd? {
+    fun parse(
+        input: String,
+        today: LocalDate = LocalDate.now(),
+        spaces: List<DaylineSpace> = emptyList()
+    ): ParsedQuickAdd? {
         var working = input.trim()
         if (working.isBlank()) return null
+
+        val compact = extractCompactDirectives(working, spaces)
+        working = compact.working
 
         var kind = AgendaKind.EVENT
         var kindExplicit = false
@@ -72,7 +83,7 @@ object QuickAddParser {
             working = working.removeRange(match.range)
         }
 
-        var reminderMinutes: Int? = null
+        var reminderMinutes: Int? = compact.reminderMinutes
         REMINDER_REGEX.find(working)?.let { match ->
             val amount = match.groupValues[1].toIntOrNull() ?: 0
             val multiplier = if (match.groupValues[2].equals("h", true)) 60 else 1
@@ -80,8 +91,8 @@ object QuickAddParser {
             working = working.removeRange(match.range)
         }
 
-        var recurrence: Recurrence? = null
-        var repeatDays = emptySet<Int>()
+        var recurrence: Recurrence? = compact.recurrence
+        var repeatDays = compact.repeatDays
         RECURRENCE_REGEX.find(working)?.let { match ->
             val token = match.groupValues[1].lowercase(Locale.ROOT)
             recurrence = when {
@@ -163,7 +174,7 @@ object QuickAddParser {
 
         val title = working
             .replace(Regex("""\s+"""), " ")
-            .trim(' ', ',', '-', '–', '—', '·')
+            .trim(' ', ',', '.', '-', '–', '—', '·')
             .ifBlank { if (focus) "Focus" else "" }
 
         if (title.isBlank()) return null
@@ -179,9 +190,87 @@ object QuickAddParser {
             recurrence = recurrence,
             repeatDays = repeatDays,
             reminderMinutes = reminderMinutes,
+            spaceId = compact.spaceId,
+            spaceName = compact.spaceName,
             kindExplicit = kindExplicit,
             dateExplicit = dateExplicit
         )
+    }
+
+    private data class CompactDirectives(
+        val working: String,
+        val recurrence: Recurrence? = null,
+        val repeatDays: Set<Int> = emptySet(),
+        val reminderMinutes: Int? = null,
+        val spaceId: String? = null,
+        val spaceName: String? = null
+    )
+
+    /**
+     * Dot shorthand is intentionally opt-in: a plain title such as "Daily"
+     * remains a title, while "Planning.daily.5min" treats the dot-delimited
+     * segments as directives. Unknown segments stay in the title so periods in
+     * names such as "Dr. appointment" are preserved.
+     */
+    private fun extractCompactDirectives(
+        input: String,
+        spaces: List<DaylineSpace>
+    ): CompactDirectives {
+        if ('.' !in input) return CompactDirectives(working = input)
+
+        var recurrence: Recurrence? = null
+        var reminderMinutes: Int? = null
+        var matchedSpace: DaylineSpace? = null
+
+        val kept = input.split('.').filter { raw ->
+            val token = raw.trim()
+            if (token.isBlank()) return@filter false
+
+            compactRecurrence(token)?.let {
+                recurrence = it
+                return@filter false
+            }
+
+            compactReminderMinutes(token)?.let {
+                reminderMinutes = it
+                return@filter false
+            }
+
+            spaces.firstOrNull { space ->
+                space.name.trim().equals(token, ignoreCase = true)
+            }?.let { space ->
+                matchedSpace = space
+                return@filter false
+            }
+
+            true
+        }
+
+        return CompactDirectives(
+            working = kept.joinToString("."),
+            recurrence = recurrence,
+            reminderMinutes = reminderMinutes,
+            spaceId = matchedSpace?.id,
+            spaceName = matchedSpace?.name
+        )
+    }
+
+    private fun compactRecurrence(token: String): Recurrence? =
+        when (token.lowercase(Locale.ROOT)) {
+            "day", "daily" -> Recurrence.DAILY
+            "weekday", "weekdays" -> Recurrence.WEEKDAYS
+            "weekend", "weekends" -> Recurrence.WEEKENDS
+            "week", "weekly" -> Recurrence.WEEKLY
+            "month", "monthly" -> Recurrence.MONTHLY
+            else -> null
+        }
+
+    private fun compactReminderMinutes(token: String): Int? {
+        val match = COMPACT_REMINDER_REGEX.matchEntire(token) ?: return null
+        val amount = match.groupValues[1].toIntOrNull() ?: return null
+        val unit = match.groupValues[2].lowercase(Locale.ROOT)
+        val minutes = if (unit.startsWith("h")) amount * 60 else amount
+        return minutes.takeIf { it > 0 }?.coerceAtMost(24 * 60)
     }
 
     private fun parseClock(hourRaw: String, minuteRaw: String): LocalTime? {
@@ -219,6 +308,9 @@ object QuickAddParser {
 
     private val DUE_REGEX = Regex("""(?i)\bdue\s+($DATE_TOKEN)\b""")
     private val REMINDER_REGEX = Regex("""(?i)\bremind(?:\s+me)?\s+(\d{1,3})\s*([mh])\b""")
+    private val COMPACT_REMINDER_REGEX = Regex(
+        """(?i)^(\d{1,3})\s*(m|min|mins|minute|minutes|h|hr|hrs|hour|hours)$"""
+    )
     private val RECURRENCE_REGEX = Regex(
         """(?i)\bevery\s+(day|daily|weekday|weekdays|weekend|weekends|week|weekly|month|monthly|monday|mon|tuesday|tue|wednesday|wed|thursday|thu|friday|fri|saturday|sat|sunday|sun)\b"""
     )

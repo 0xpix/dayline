@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.19.1.beta — Quick Add finalization
+
+### Added
+- Added **Quick Add** directly to the navigation sheet so event creation remains reachable from every destination, even when a screen does not show its floating action.
+
+### Changed
+- Kept the v0.19 Timeline 2.0 feature set intact while making Quick Add a permanent primary navigation action as well as a labeled floating action.
+
+### Fixed
+- Fixed Quick Add being able to feel absent depending on which Dayline screen was open.
+- Bumped beta versionCode to **1901** and beta versionName to `0.19.1.beta`.
+
+
 ## 0.19.0.beta — Timeline 2.0
 
 ### Added

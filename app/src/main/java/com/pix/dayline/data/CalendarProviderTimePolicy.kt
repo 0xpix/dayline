@@ -33,7 +33,9 @@ object CalendarProviderTimePolicy {
 
         return totalSeconds
             .takeIf { it > 0L }
-            ?.let { Math.multiplyExact(it, 1000L) }
+            ?.let { seconds ->
+                runCatching { Math.multiplyExact(seconds, 1000L) }.getOrNull()
+            }
     }
 
     fun reconciledEndTime(

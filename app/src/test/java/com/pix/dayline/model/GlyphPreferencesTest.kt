@@ -2,6 +2,7 @@ package com.pix.dayline.model
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GlyphPreferencesTest {
@@ -16,7 +17,7 @@ class GlyphPreferencesTest {
     }
 
     @Test
-    fun legacyEnabledModeNormalizesToEyesOnly() {
+    fun enabledAppStateModeRemainsOptIn() {
         val legacy = GlyphPreferences(
             mode = GlyphMode.EYES_AND_STATES,
             showAppStates = true,
@@ -25,8 +26,8 @@ class GlyphPreferencesTest {
 
         val normalized = legacy.normalizedForCurrentGlyph()
 
-        assertEquals(GlyphMode.EYES_ONLY, normalized.mode)
-        assertFalse(normalized.showAppStates)
+        assertEquals(GlyphMode.EYES_AND_STATES, normalized.mode)
+        assertTrue(normalized.showAppStates)
         assertFalse(normalized.restAnimation)
     }
 
@@ -41,7 +42,7 @@ class GlyphPreferencesTest {
         val normalized = disabled.normalizedForCurrentGlyph()
 
         assertEquals(GlyphMode.OFF, normalized.mode)
-        assertFalse(normalized.showAppStates)
+        assertTrue(normalized.showAppStates)
         assertFalse(normalized.restAnimation)
     }
 

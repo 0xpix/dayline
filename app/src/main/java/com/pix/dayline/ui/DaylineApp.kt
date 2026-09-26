@@ -395,6 +395,27 @@ fun DaylineApp() {
         var taskDetail by remember { mutableStateOf<DaylineItem?>(null) }
         var spaceEditing by remember { mutableStateOf<DaylineSpace?>(null) }
         var newSpace by remember { mutableStateOf(false) }
+        var undoHistory by remember { mutableStateOf(emptyList<List<DaylineItem>>()) }
+
+        fun rememberUndo(snapshot: List<DaylineItem>) {
+            undoHistory = (undoHistory + listOf(snapshot)).takeLast(10)
+        }
+        fun discardLastUndo() {
+            if (undoHistory.isNotEmpty()) undoHistory = undoHistory.dropLast(1)
+        }
+        fun undoLastChange() {
+            val snapshot = undoHistory.lastOrNull() ?: return
+            val current = items
+            undoHistory = undoHistory.dropLast(1)
+            val snapshotIds = snapshot.map { it.id }.toSet()
+            current.filterNot { it.id in snapshotIds }.forEach {
+                AndroidCalendarSync.deleteMappedEvent(appContext, it)
+            }
+            val restored = snapshot.map(::publishIfNeeded)
+            persistItems(restored)
+            if (calendarSyncEnabled) refreshCalendarOverlay()
+            scope.launch { snackbarHostState.showSnackbar("Last change undone") }
+        }
 
         fun navigateTo(next: DaylineScreen) {
             if (next == screen) return
@@ -445,6 +466,7 @@ fun DaylineApp() {
                     if (candidate.kind == AgendaKind.EVENT && !candidate.calendarReadOnly && (candidate.id == item.id || candidate.seriesParentId == item.id)) publishIfNeeded(candidate) else candidate
                 }
             }
+            rememberUndo(items)
             persistItems(next)
             val conflictDate = if (
                 original != null &&
@@ -520,6 +542,7 @@ fun DaylineApp() {
                     }
                 }
                 val published = next
+                rememberUndo(snapshot)
                 persistItems(published)
                 emitGlyph(DaylineGlyphSignal.MOVED, 2)
                 if (calendarSyncEnabled) refreshCalendarOverlay()
@@ -534,6 +557,7 @@ fun DaylineApp() {
                         published.filterNot { it.id in oldIds }.forEach {
                             AndroidCalendarSync.deleteMappedEvent(appContext, it)
                         }
+                        discardLastUndo()
                         persistItems(
                             snapshot.map {
                                 if (it.id == previous.id) publishIfNeeded(it) else it
@@ -546,7 +570,9 @@ fun DaylineApp() {
             }
 
             val saved = publishIfNeeded(updated)
-            persistItems(items.map { if (it.id == updated.id) saved else it })
+            val snapshot = items
+            rememberUndo(snapshot)
+            persistItems(snapshot.map { if (it.id == updated.id) saved else it })
             emitGlyph(DaylineGlyphSignal.MOVED, 2)
             if (calendarSyncEnabled) refreshCalendarOverlay()
             scope.launch {
@@ -557,6 +583,7 @@ fun DaylineApp() {
                 )
                 if (result == SnackbarResult.ActionPerformed) {
                     val restored = publishIfNeeded(previous)
+                    discardLastUndo()
                     persistItems(items.map { if (it.id == previous.id) restored else it })
                     if (calendarSyncEnabled) refreshCalendarOverlay()
                 }
@@ -566,22 +593,11 @@ fun DaylineApp() {
         fun quickMoveWithUndo(updated: DaylineItem, occurrenceDate: LocalDate) {
             val previous = items.firstOrNull { it.id == updated.id } ?: return
             if (updated.calendarReadOnly) return
-            if (previous.recurrence == Recurrence.ONCE) { changeWithUndo(updated, "Moved ${updated.title} to ${updated.startDate} ${updated.startTime}"); return }
-            val snapshot = items
-            var next = SeriesEditor.apply(snapshot, previous, updated, occurrenceDate, RecurrenceEditScope.THIS_OCCURRENCE)
-            if (calendarSyncEnabled && AndroidCalendarSync.hasWritePermission(appContext)) next = next.map { candidate ->
-                if (candidate.kind == AgendaKind.EVENT && !candidate.calendarReadOnly && (candidate.id == previous.id || candidate.seriesParentId == previous.id)) publishIfNeeded(candidate) else candidate
-            }
-            val published = next
-            persistItems(published); if (calendarSyncEnabled) refreshCalendarOverlay()
-            scope.launch {
-                val result = snackbarHostState.showSnackbar("Moved ${updated.title}", "UNDO", duration = SnackbarDuration.Short)
-                if (result == SnackbarResult.ActionPerformed) {
-                    val oldIds = snapshot.map { it.id }.toSet()
-                    published.filterNot { it.id in oldIds }.forEach { AndroidCalendarSync.deleteMappedEvent(appContext, it) }
-                    persistItems(snapshot); if (calendarSyncEnabled) refreshCalendarOverlay()
-                }
-            }
+            changeWithUndo(
+                updated = updated,
+                message = "Moved ${updated.title}",
+                occurrenceDate = occurrenceDate.takeIf { previous.recurrence != Recurrence.ONCE }
+            )
         }
 
         fun deleteItem(item: DaylineItem) {
@@ -590,12 +606,17 @@ fun DaylineApp() {
                 editing = null; eventDetail = null; return
             }
             val snapshot = item
+            val beforeDelete = items
+            rememberUndo(beforeDelete)
             NotificationScheduler.cancel(appContext, item); NowActivityScheduler.cancel(appContext, item)
-            persistItems(items.filterNot { it.id == item.id })
+            persistItems(beforeDelete.filterNot { it.id == item.id })
             editing = null; taskDetail = null; eventDetail = null
             scope.launch {
                 val result = snackbarHostState.showSnackbar("Deleted ${item.title}", "UNDO", duration = SnackbarDuration.Short)
-                if (result == SnackbarResult.ActionPerformed) persistItems(items + snapshot)
+                if (result == SnackbarResult.ActionPerformed) {
+                    discardLastUndo()
+                    persistItems(beforeDelete)
+                }
                 else if (calendarSyncEnabled) { AndroidCalendarSync.deleteMappedEvent(appContext, snapshot); refreshCalendarOverlay() }
             }
         }
@@ -603,7 +624,9 @@ fun DaylineApp() {
             if (item.calendarReadOnly) return
             val updated = item.copy(completedDates = if (date in item.completedDates) item.completedDates - date else item.completedDates + date)
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-            persistItems(items.map { if (it.id == item.id) updated else it })
+            val snapshot = items
+            rememberUndo(snapshot)
+            persistItems(snapshot.map { if (it.id == item.id) updated else it })
             if (date in updated.completedDates) emitGlyph(DaylineGlyphSignal.TASK_DONE, 2)
             if (taskDetail?.id == item.id) taskDetail = updated
         }
@@ -725,40 +748,62 @@ fun DaylineApp() {
             SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 92.dp))
         }
 
-        if (menuOpen) NavigationSheet(current = screen, onSelect = { navigateTo(it); menuOpen = false }, onDismiss = { menuOpen = false })
+        if (menuOpen) NavigationSheet(
+            current = screen,
+            onSelect = { navigateTo(it); menuOpen = false },
+            onDismiss = { menuOpen = false },
+            canUndo = undoHistory.isNotEmpty(),
+            onUndo = { menuOpen = false; undoLastChange() }
+        )
 
         pendingRecurringGestureEdit?.let { pending ->
             AlertDialog(
                 onDismissRequest = { pendingRecurringGestureEdit = null },
                 title = { Text("Edit recurring event") },
-                text = {
-                    Text("Apply this drag only to this event, or to every event in this series?")
-                },
+                text = { Text("Choose how much of this series should change.") },
                 confirmButton = {
-                    TextButton(
-                        onClick = {
-                            pendingRecurringGestureEdit = null
-                            changeWithUndo(
-                                updated = pending.updated,
-                                message = pending.message,
-                                occurrenceDate = pending.occurrenceDate,
-                                recurrenceScope = RecurrenceEditScope.ENTIRE_SERIES
-                            )
-                        }
-                    ) { Text("Every event") }
+                    androidx.compose.foundation.layout.Column(
+                        horizontalAlignment = Alignment.End
+                    ) {
+                        TextButton(
+                            onClick = {
+                                pendingRecurringGestureEdit = null
+                                changeWithUndo(
+                                    updated = pending.updated,
+                                    message = pending.message,
+                                    occurrenceDate = pending.occurrenceDate,
+                                    recurrenceScope = RecurrenceEditScope.THIS_OCCURRENCE
+                                )
+                            }
+                        ) { Text("This event") }
+                        TextButton(
+                            onClick = {
+                                pendingRecurringGestureEdit = null
+                                changeWithUndo(
+                                    updated = pending.updated,
+                                    message = pending.message,
+                                    occurrenceDate = pending.occurrenceDate,
+                                    recurrenceScope = RecurrenceEditScope.THIS_AND_FOLLOWING
+                                )
+                            }
+                        ) { Text("This and following") }
+                        TextButton(
+                            onClick = {
+                                pendingRecurringGestureEdit = null
+                                changeWithUndo(
+                                    updated = pending.updated,
+                                    message = pending.message,
+                                    occurrenceDate = pending.occurrenceDate,
+                                    recurrenceScope = RecurrenceEditScope.ENTIRE_SERIES
+                                )
+                            }
+                        ) { Text("All events") }
+                    }
                 },
                 dismissButton = {
-                    TextButton(
-                        onClick = {
-                            pendingRecurringGestureEdit = null
-                            changeWithUndo(
-                                updated = pending.updated,
-                                message = pending.message,
-                                occurrenceDate = pending.occurrenceDate,
-                                recurrenceScope = RecurrenceEditScope.THIS_OCCURRENCE
-                            )
-                        }
-                    ) { Text("Only this event") }
+                    TextButton(onClick = { pendingRecurringGestureEdit = null }) {
+                        Text("Cancel")
+                    }
                 }
             )
         }

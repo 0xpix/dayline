@@ -31,6 +31,7 @@ fun NavigationSheet(
     current: DaylineScreen,
     onSelect: (DaylineScreen) -> Unit,
     onDismiss: () -> Unit,
+    onQuickAdd: () -> Unit = {},
     canUndo: Boolean = false,
     onUndo: () -> Unit = {}
 ) {
@@ -66,6 +67,8 @@ fun NavigationSheet(
             Spacer(Modifier.height(24.dp))
 
             NavigationGroup("PLAN") {
+                PrimaryActionRow("Quick Add", onQuickAdd)
+                Spacer(Modifier.height(4.dp))
                 NavigationRow("Today", DaylineScreen.TODAY, current, onSelect)
                 NavigationRow("Calendar", DaylineScreen.CALENDAR, current, onSelect)
                 NavigationRow("Upcoming", DaylineScreen.UPCOMING, current, onSelect)
@@ -191,6 +194,44 @@ private fun ActionRow(
     ) {
         Box(modifier = Modifier.size(16.dp), contentAlignment = Alignment.Center) {
             Text("↶", style = MaterialTheme.typography.labelLarge)
+        }
+        Spacer(Modifier.size(12.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium.copy(fontSize = 21.sp, lineHeight = 25.sp),
+            color = MaterialTheme.colorScheme.onBackground
+        )
+    }
+}
+
+
+@Composable
+private fun PrimaryActionRow(
+    label: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(16.dp)
+                .background(MaterialTheme.colorScheme.onBackground, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "+",
+                color = MaterialTheme.colorScheme.background,
+                style = MaterialTheme.typography.labelMedium
+            )
         }
         Spacer(Modifier.size(12.dp))
         Text(

@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.18.12.beta — Stable event duration
+
+### Added
+- Added a calendar-provider time policy with RFC 2445 duration parsing and regression coverage for multi-hour events.
+- Added explicit preservation of the existing local duration when Android Calendar temporarily returns no trustworthy event end.
+
+### Changed
+- Calendar reconciliation now treats missing or malformed provider end data as unknown instead of inventing a one-hour duration.
+- If the provider moves an event start but omits its end, Dayline preserves the event's existing duration relative to the new start.
+
+### Fixed
+- Fixed multi-hour events such as **06:00–09:30** randomly collapsing to **06:00–07:00** after calendar synchronization.
+- Fixed invalid or missing recurring-event duration data overwriting a valid Dayline end time.
+- Bumped beta versionCode to **1812** and beta versionName to `0.18.12.beta`.
+
+
+
 ## 0.18.11.beta — Recurring drag scope
 
 ### Added

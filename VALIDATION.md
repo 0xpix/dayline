@@ -1,13 +1,13 @@
-# Dayline v0.19.1.beta — Validation Report
+# Dayline v0.19.2.beta — Validation Report
 
-This report tracks the current **v0.19.1.beta / versionCode 1901** source. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current **v0.19.2.beta / versionCode 1902** source. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
-- Beta target: **0.19.1.beta / 1901**.
-- `docs/releases/v0.19.1.beta.md` contains concise **Added / Changed / Fixed** updater notes.
+- Beta target: **0.19.2.beta / 1902**.
+- `docs/releases/v0.19.2.beta.md` contains concise **Added / Changed / Fixed** updater notes.
 - Beta/Play flavor separation remains intact; Play stays on the stable base version and does not package the Nothing SDK.
-- Tagged builds must verify signed APK versionName/versionCode against tag `v0.19.1.beta`.
+- Tagged builds must verify signed APK versionName/versionCode against tag `v0.19.2.beta`.
 - Calendar sync regression coverage must preserve a 06:00–09:30 local event when provider end data is temporarily unavailable.
 - Static validation, recurrence/planning unit tests, Beta debug compile and Play debug compile must all pass before tagging.
 
@@ -50,6 +50,8 @@ This report tracks the current **v0.19.1.beta / versionCode 1901** source. GitHu
 - Supported durations include `45m`, `1h`, `1h30m` and dayparts such as morning/afternoon/tonight.
 - Deterministic recurrence directives include every day/weekday/weekend/week/month and named weekdays.
 - Deterministic reminder directives include forms such as `remind 30m` and `remind me 1h`.
+- Compact dot shorthand recognizes time ranges, existing Space names, recurrence and reminders, e.g. `Lumen project.11:00-14:00.personal.daily.5min`.
+- Dot shorthand strips recognized directives from the saved title while preserving genuine title periods such as `Dr. appointment`.
 - New-item Quick Add shows a compact example while empty and an `UNDERSTOOD` line only when a documented shorthand directive is recognized.
 - The preview describes only parsed directives (type/date/time/duration/recurrence/reminder/deadline); plain titles remain visually quiet and manual form choices are not falsely represented.
 - Preview-label formatting is pure and covered by JVM tests for plain titles, relative/named dates, tasks, Focus, times and mixed durations.
@@ -203,7 +205,7 @@ CI runs pure JVM tests before Android assembly.
 
 ## Android compile gate
 
-Before tagging `v0.19.1.beta`, GitHub Actions must pass:
+Before tagging `v0.19.2.beta`, GitHub Actions must pass:
 
 ```text
 :app:testBetaDebugUnitTest

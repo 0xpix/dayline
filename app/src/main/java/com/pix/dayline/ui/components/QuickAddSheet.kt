@@ -113,8 +113,8 @@ fun QuickAddSheet(
     var spaceId by remember(editing?.id) { mutableStateOf(editing?.spaceId) }
 
     val quickAddInterpretation = if (editing == null) {
-        remember(title.text, date) {
-            QuickAddParser.parse(title.text, today = date)
+        remember(title.text, date, spaces) {
+            QuickAddParser.parse(title.text, today = date, spaces = spaces)
                 ?.takeIf { it.hasDirectives }
         }
     } else {
@@ -186,7 +186,7 @@ fun QuickAddSheet(
         }
 
         val shorthand = if (editing == null) {
-            QuickAddParser.parse(title.text, today = resolvedDate)
+            QuickAddParser.parse(title.text, today = resolvedDate, spaces = spaces)
                 ?.takeIf { it.hasDirectives }
         } else {
             null

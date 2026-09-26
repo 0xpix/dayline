@@ -54,6 +54,11 @@ data class DaylineItem(
 ) {
     val time: LocalTime? get() = startTime
 
+    /**
+     * Canonical timed duration. Dayline treats a valid start/end pair as one
+     * block instead of two unrelated fields. This is the shared source used by
+     * timeline gestures, planning and calendar reconciliation.
+     */
     val durationMinutes: Long?
         get() = if (
             startTime != null &&
@@ -65,13 +70,15 @@ data class DaylineItem(
             null
         }
 
+    val resolvedDurationMinutes: Int
+        get() = when (kind) {
+            AgendaKind.TASK -> estimatedDurationMinutes.coerceIn(15, 8 * 60)
+            AgendaKind.EVENT -> (durationMinutes ?: 60L).toInt().coerceIn(5, 24 * 60)
+        }
+
     /** Duration Dayline should reserve when fitting this item into a free slot. */
     val planningDurationMinutes: Int
-        get() = if (kind == AgendaKind.TASK) {
-            estimatedDurationMinutes.coerceIn(15, 8 * 60)
-        } else {
-            (durationMinutes ?: 60L).toInt().coerceIn(15, 24 * 60)
-        }
+        get() = resolvedDurationMinutes
 
     val focusMinutes: Int
         get() = when (focusCycle) {
@@ -119,4 +126,33 @@ fun DaylineItem.overlaps(other: DaylineItem): Boolean {
     val bEnd = other.endTime?.takeIf { it.isAfter(bStart) }
         ?: bStart.plusMinutes(if (other.kind == AgendaKind.TASK) other.estimatedDurationMinutes.toLong() else 60L)
     return aStart < bEnd && bStart < aEnd
+}
+
+
+/** Move a timed item without changing how long it lasts. */
+fun DaylineItem.withStartPreservingDuration(newStart: LocalTime): DaylineItem {
+    val duration = resolvedDurationMinutes
+    val latestStartMinutes = (24 * 60 - duration).coerceAtLeast(0)
+    val requested = newStart.hour * 60 + newStart.minute
+    val safeStart = LocalTime.ofSecondOfDay(requested.coerceAtMost(latestStartMinutes) * 60L)
+    return copy(
+        startTime = safeStart,
+        endTime = safeStart.plusMinutes(duration.toLong())
+    )
+}
+
+/** Resize only the start edge; the current end stays fixed. */
+fun DaylineItem.withStartEdge(newStart: LocalTime, minimumMinutes: Int = 5): DaylineItem {
+    val currentEnd = endTime ?: startTime?.plusMinutes(resolvedDurationMinutes.toLong()) ?: return this
+    val latest = currentEnd.minusMinutes(minimumMinutes.coerceAtLeast(5).toLong())
+    val safeStart = if (newStart.isAfter(latest)) latest else newStart
+    return copy(startTime = safeStart, endTime = currentEnd)
+}
+
+/** Resize only the end edge; the current start stays fixed. */
+fun DaylineItem.withEndEdge(newEnd: LocalTime, minimumMinutes: Int = 5): DaylineItem {
+    val currentStart = startTime ?: return this
+    val earliest = currentStart.plusMinutes(minimumMinutes.coerceAtLeast(5).toLong())
+    val safeEnd = if (newEnd.isBefore(earliest)) earliest else newEnd
+    return copy(endTime = safeEnd)
 }

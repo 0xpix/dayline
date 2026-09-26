@@ -58,10 +58,19 @@ fun EventDetailSheet(
             Text(eventTimeLine(item), style = MaterialTheme.typography.titleMedium)
 
             val meta = buildList {
+                add(
+                    when {
+                        item.id.startsWith("android:") ->
+                            "EXTERNAL CALENDAR" + (item.calendarName?.let { " · $it" } ?: "")
+                        item.calendarEventId != null ->
+                            "DAYLINE + CALENDAR" + (item.calendarName?.let { " · $it" } ?: "")
+                        else -> "DAYLINE"
+                    }
+                )
                 spaceName?.let(::add)
-                item.calendarName?.let(::add)
                 if (item.recurrence != Recurrence.ONCE) add(item.recurrence.name.lowercase().replace('_', ' '))
                 item.timeZoneId?.takeIf { it != ZoneId.systemDefault().id }?.let { add(it) }
+                if (item.calendarReadOnly) add("READ ONLY")
             }.joinToString(" · ")
             if (meta.isNotBlank()) {
                 Spacer(Modifier.height(7.dp))

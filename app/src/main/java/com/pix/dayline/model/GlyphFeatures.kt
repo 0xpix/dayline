@@ -8,9 +8,9 @@ enum class GlyphGlanceFrequency { RARE, NORMAL, FREQUENT }
 enum class GlyphFocusStyle { SUBTLE, ACTIVE }
 
 data class GlyphPreferences(
-    // EYES_AND_STATES is kept only for backwards-compatible preference loading.
-    // The Glyph runtime is eyes-first; Focus only interrupts them briefly with
-    // 30-second MM:SS announcements at start / 5-minute / 1-minute checkpoints.
+    // Eyes remain the permanent face. EYES_AND_STATES allows short, optional
+    // schedule/status interruptions before the runtime returns to the eyes.
+    // Focus also uses brief MM:SS announcements at defined checkpoints.
     val mode: GlyphMode = GlyphMode.EYES_ONLY,
     val idleExpression: GlyphIdleExpression = GlyphIdleExpression.CENTER,
     val blinkEnabled: Boolean = true,
@@ -81,7 +81,10 @@ data class GlyphHardwareStatus(
  * current eyes-only behavior.
  */
 fun GlyphPreferences.normalizedForCurrentGlyph(): GlyphPreferences = copy(
-    mode = if (mode == GlyphMode.OFF) GlyphMode.OFF else GlyphMode.EYES_ONLY,
-    showAppStates = false,
+    mode = when {
+        mode == GlyphMode.OFF -> GlyphMode.OFF
+        showAppStates -> GlyphMode.EYES_AND_STATES
+        else -> GlyphMode.EYES_ONLY
+    },
     restAnimation = false
 )

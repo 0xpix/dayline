@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.19.2.beta — Compact Quick Add shorthand
+
+### Added
+- Added compact dot-separated Quick Add directives such as `Lumen project.11:00-14:00.personal.daily.5min`.
+- Added dynamic Space-name matching for dot shorthand, so any existing Dayline Space can be selected without hardcoded names.
+- Added live preview output for recognized Space, recurrence and reminder directives.
+
+### Changed
+- Compact dot shorthand is parsed deterministically on-device while preserving periods that are genuinely part of an event title.
+- Plain titles such as `daily` remain plain titles unless dot shorthand is actually being used.
+
+### Fixed
+- Fixed `.daily` being left inside the event title instead of setting Daily recurrence.
+- Fixed `.5min` being left inside the title instead of setting a 5-minute reminder.
+- Fixed `.personal`-style Space tokens being ignored even when a matching Space exists.
+- Fixed recognized shorthand leaving punctuation attached to the saved event name.
+- Bumped beta versionCode to **1902** and beta versionName to `0.19.2.beta`.
+
+
+
 ## 0.19.1.beta — Quick Add finalization
 
 ### Added

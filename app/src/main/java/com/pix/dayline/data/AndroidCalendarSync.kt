@@ -241,7 +241,13 @@ object AndroidCalendarSync {
                         title = snapshot.title,
                         startDate = snapshot.startDate,
                         startTime = snapshot.startTime,
-                        endTime = snapshot.endTime,
+                        endTime = CalendarProviderTimePolicy.reconciledEndTime(
+                            localStart = item.startTime,
+                            localEnd = item.endTime,
+                            providerStart = snapshot.startTime,
+                            providerEnd = snapshot.endTime,
+                            allDay = snapshot.allDay
+                        ),
                         recurrence = snapshot.recurrence,
                         repeatDays = snapshot.repeatDays,
                         recurrenceEndDate = snapshot.recurrenceEndDate,
@@ -295,15 +301,25 @@ object AndroidCalendarSync {
             val eventZone = if (allDay) ZoneOffset.UTC else resolveZone(rawTimeZone)
 
             val startZoned = Instant.ofEpochMilli(startMillis).atZone(eventZone)
-            val endMillis = when {
-                dtEndIx >= 0 && !cursor.isNull(dtEndIx) -> cursor.getLong(dtEndIx)
-                durationIx >= 0 && !cursor.isNull(durationIx) -> {
-                    val duration = runCatching { Duration.parse(cursor.getString(durationIx)) }.getOrNull()
-                    startMillis + (duration?.toMillis() ?: if (allDay) 86_400_000L else 3_600_000L)
-                }
-                else -> startMillis + if (allDay) 86_400_000L else 3_600_000L
+            val explicitEndMillis = if (
+                dtEndIx >= 0 &&
+                !cursor.isNull(dtEndIx)
+            ) {
+                cursor.getLong(dtEndIx).takeIf { it > startMillis }
+            } else {
+                null
             }
-            val endZoned = Instant.ofEpochMilli(endMillis).atZone(eventZone)
+            val durationMillis = if (
+                durationIx >= 0 &&
+                !cursor.isNull(durationIx)
+            ) {
+                CalendarProviderTimePolicy.durationMillis(cursor.getString(durationIx))
+            } else {
+                null
+            }
+            val endMillis = explicitEndMillis
+                ?: durationMillis?.let { duration -> startMillis + duration }
+            val endZoned = endMillis?.let { Instant.ofEpochMilli(it).atZone(eventZone) }
             val recurrenceInfo = parseRecurrence(rrule, startZoned.toLocalDate())
 
             ProviderState.Present(
@@ -311,7 +327,7 @@ object AndroidCalendarSync {
                     title = title,
                     startDate = startZoned.toLocalDate(),
                     startTime = if (allDay) null else startZoned.toLocalTime(),
-                    endTime = if (allDay) null else endZoned.toLocalTime(),
+                    endTime = if (allDay) null else endZoned?.toLocalTime(),
                     recurrence = recurrenceInfo.first,
                     repeatDays = recurrenceInfo.second,
                     recurrenceEndDate = parseUntil(rrule, eventZone, allDay),

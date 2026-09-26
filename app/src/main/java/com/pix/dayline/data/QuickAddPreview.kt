@@ -49,6 +49,8 @@ fun ParsedQuickAdd.previewLabel(
 
         durationMinutes?.let { add(formatQuickAddDuration(it)) }
 
+        spaceName?.let { add(it) }
+
         if (focusNeedsTime) add("Needs time")
 
         recurrence?.let { repeat ->

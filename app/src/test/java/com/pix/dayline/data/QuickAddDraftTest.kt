@@ -192,4 +192,23 @@ class QuickAddDraftTest {
         assertEquals(180, saved.customFocusMinutes)
         assertEquals(1, saved.customBreakMinutes)
     }
+    @Test
+    fun shorthandAppliesRepeatAndReminder() {
+        val resolved = QuickAddDraft(
+            title = "work 6-9:30 every weekday remind 15m",
+            kind = AgendaKind.EVENT,
+            date = date,
+            startTime = null,
+            endTime = null,
+            recurrence = Recurrence.ONCE
+        ).applyingShorthand(
+            QuickAddParser.parse("work 6-9:30 every weekday remind 15m", today = date)
+        )
+
+        assertEquals(LocalTime.of(6, 0), resolved.startTime)
+        assertEquals(LocalTime.of(9, 30), resolved.endTime)
+        assertEquals(Recurrence.WEEKDAYS, resolved.recurrence)
+        assertEquals(15, resolved.reminderMinutes)
+    }
+
 }

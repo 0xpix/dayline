@@ -27,9 +27,9 @@ android {
             dimension = "distribution"
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
-            // v0.19.0.beta: Timeline 2.0, visible Quick Add, safer sync and direct widget actions.
-            versionCode = 1900
-            versionName = "0.19.0"
+            // v0.19.1.beta: Timeline 2.0 finalization with permanently visible Quick Add.
+            versionCode = 1901
+            versionName = "0.19.1"
             // Nothing's Glyph Matrix SDK 2.0 declares minSdk 33. Keep this
             // requirement isolated to the beta/Glyph build so the normal Play
             // build continues to support Dayline's global minSdk 26.

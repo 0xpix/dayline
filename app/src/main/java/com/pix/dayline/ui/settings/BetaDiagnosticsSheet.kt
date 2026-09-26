@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.pix.dayline.BuildConfig
+import com.pix.dayline.data.CalendarSyncBaselineStore
 import com.pix.dayline.data.DaylineStore
 import com.pix.dayline.data.FocusRuntimeStore
 import com.pix.dayline.data.UpdateUiState
@@ -46,6 +47,11 @@ fun BetaDiagnosticsSheet(
     val widgetAt = store.loadLastWidgetRefreshAt()
     val roomWriteError = store.loadLastRoomWriteError()
     val roomWritePending = store.hasPendingRoomWrites()
+    val syncBaselines = remember(context) {
+        CalendarSyncBaselineStore(context.applicationContext)
+    }
+    val syncConflictCount = syncBaselines.conflictCount()
+    val lastSyncConflictAt = syncBaselines.lastConflictAt()
 
     val rows = buildList {
         add("VERSION" to BuildConfig.VERSION_NAME)
@@ -56,6 +62,11 @@ fun BetaDiagnosticsSheet(
             !calendarSyncError.isNullOrBlank() -> "ERROR · ${calendarSyncError.take(40)}"
             lastCalendarSyncAt != null -> "SYNCED · ${formatTime(lastCalendarSyncAt)}"
             else -> "WAITING"
+        })
+        add("CALENDAR CONFLICTS" to if (syncConflictCount == 0) {
+            "NONE"
+        } else {
+            "$syncConflictCount · LAST ${lastSyncConflictAt?.let(::formatTime) ?: "UNKNOWN"}"
         })
         add("WIDGET" to (widgetAt?.let { "UPDATED · ${formatTime(it)}" } ?: "NO REFRESH RECORDED"))
         add("ROOM WRITE" to when {

@@ -231,7 +231,7 @@ fun QuickAddSheet(
             ) {
                 Text(
                     text = if (editing == null) {
-                        if (kind == AgendaKind.EVENT) "New event" else "New task"
+                        "Quick add"
                     } else {
                         if (kind == AgendaKind.EVENT) "Edit event" else "Edit task"
                     },
@@ -309,7 +309,7 @@ fun QuickAddSheet(
                     title.text.isBlank() -> {
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            "TRY · gym tomorrow 7:30 1h",
+                            "TRY · work 6-9:30 every weekday",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.68f)
                         )
@@ -579,31 +579,43 @@ fun QuickAddSheet(
             },
             text = {
                 Text(
-                    "Apply these changes only to this event, or to every event in this series?",
+                    "Choose how much of this series should change.",
                     style = MaterialTheme.typography.bodyLarge
                 )
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        showEditScopeDialog = false
-                        onSave(
-                            savedItem(RecurrenceEditScope.ENTIRE_SERIES),
-                            RecurrenceEditScope.ENTIRE_SERIES
-                        )
-                    }
-                ) { Text("Every event") }
+                Column(horizontalAlignment = Alignment.End) {
+                    TextButton(
+                        onClick = {
+                            showEditScopeDialog = false
+                            onSave(
+                                savedItem(RecurrenceEditScope.THIS_OCCURRENCE),
+                                RecurrenceEditScope.THIS_OCCURRENCE
+                            )
+                        }
+                    ) { Text("This event") }
+                    TextButton(
+                        onClick = {
+                            showEditScopeDialog = false
+                            onSave(
+                                savedItem(RecurrenceEditScope.THIS_AND_FOLLOWING),
+                                RecurrenceEditScope.THIS_AND_FOLLOWING
+                            )
+                        }
+                    ) { Text("This and following") }
+                    TextButton(
+                        onClick = {
+                            showEditScopeDialog = false
+                            onSave(
+                                savedItem(RecurrenceEditScope.ENTIRE_SERIES),
+                                RecurrenceEditScope.ENTIRE_SERIES
+                            )
+                        }
+                    ) { Text("All events") }
+                }
             },
             dismissButton = {
-                TextButton(
-                    onClick = {
-                        showEditScopeDialog = false
-                        onSave(
-                            savedItem(RecurrenceEditScope.THIS_OCCURRENCE),
-                            RecurrenceEditScope.THIS_OCCURRENCE
-                        )
-                    }
-                ) { Text("Only this event") }
+                TextButton(onClick = { showEditScopeDialog = false }) { Text("Cancel") }
             }
         )
     }

@@ -1,13 +1,13 @@
-# Dayline v0.19.0.beta — Validation Report
+# Dayline v0.19.1.beta — Validation Report
 
-This report tracks the current **v0.19.0.beta / versionCode 1900** source. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current **v0.19.1.beta / versionCode 1901** source. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
-- Beta target: **0.19.0.beta / 1900**.
-- `docs/releases/v0.19.0.beta.md` contains concise **Added / Changed / Fixed** updater notes.
+- Beta target: **0.19.1.beta / 1901**.
+- `docs/releases/v0.19.1.beta.md` contains concise **Added / Changed / Fixed** updater notes.
 - Beta/Play flavor separation remains intact; Play stays on the stable base version and does not package the Nothing SDK.
-- Tagged builds must verify signed APK versionName/versionCode against tag `v0.19.0.beta`.
+- Tagged builds must verify signed APK versionName/versionCode against tag `v0.19.1.beta`.
 - Calendar sync regression coverage must preserve a 06:00–09:30 local event when provider end data is temporarily unavailable.
 - Static validation, recurrence/planning unit tests, Beta debug compile and Play debug compile must all pass before tagging.
 
@@ -203,7 +203,7 @@ CI runs pure JVM tests before Android assembly.
 
 ## Android compile gate
 
-Before tagging `v0.19.0.beta`, GitHub Actions must pass:
+Before tagging `v0.19.1.beta`, GitHub Actions must pass:
 
 ```text
 :app:testBetaDebugUnitTest

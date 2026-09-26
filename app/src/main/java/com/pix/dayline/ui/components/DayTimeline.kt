@@ -396,7 +396,18 @@ private fun TimelineItem(
                         Text(item.title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onBackground, textDecoration = if (completed) TextDecoration.LineThrough else TextDecoration.None, modifier = Modifier.weight(1f, fill = false))
                         if (conflict) {
                             Spacer(Modifier.width(8.dp))
-                            Text("!", modifier = Modifier.semantics { contentDescription = "Resolve time conflict for ${item.title}"; role = Role.Button }.clickable(onClick = onConflict).padding(8.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.error)
+                            Text(
+                                "OVERLAP",
+                                modifier = Modifier
+                                    .semantics {
+                                        contentDescription = "Resolve time conflict for ${item.title}"
+                                        role = Role.Button
+                                    }
+                                    .clickable(onClick = onConflict)
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
                         }
                         if (item.kind == AgendaKind.TASK) {
                             Spacer(Modifier.width(8.dp))
@@ -498,7 +509,7 @@ private fun CurrentTimeMarker(now: LocalTime, onClick: () -> Unit) {
         }.padding(vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(now.format(TIME), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.width(58.dp))
+        Text("NOW\n${now.format(TIME)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.width(58.dp))
         Box(Modifier.width(7.dp).height(7.dp).background(MaterialTheme.colorScheme.onBackground, CircleShape))
         Spacer(Modifier.width(9.dp))
         Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.onBackground.copy(alpha = .28f)))
@@ -652,15 +663,24 @@ private fun clampTime(base: LocalTime, deltaMinutes: Int, durationMinutes: Int):
 
 private fun durationToHeight(start: LocalTime, end: LocalTime): Dp {
     val minutes = Duration.between(start, end).toMinutes().coerceAtLeast(5)
-    return (46 + (minutes.coerceAtMost(360) / 60.0 * 12.0).roundToInt()).dp.coerceIn(48.dp, 116.dp)
+    return (42 + (minutes.coerceAtMost(360) / 60.0 * 20.0).roundToInt())
+        .dp
+        .coerceIn(48.dp, 164.dp)
 }
 
 private fun timelineMeta(item: DaylineItem, start: LocalTime, end: LocalTime, date: LocalDate, now: LocalTime, conflict: Boolean): String = buildList {
+    add(
+        when {
+            item.focusCycle != FocusCycle.OFF -> "FOCUS"
+            item.kind == AgendaKind.TASK -> "TASK"
+            else -> "EVENT"
+        }
+    )
     add(durationLabel(Duration.between(start, end).toMinutes().toInt()))
     if (date == LocalDate.now() && !now.isBefore(start) && now.isBefore(end)) {
         add("${Duration.between(now, end).toMinutes().coerceAtLeast(0)}m left")
     }
-    if (item.focusCycle != FocusCycle.OFF) add("${item.focusMinutes}/${item.breakMinutes} focus")
+    if (item.focusCycle != FocusCycle.OFF) add("${item.focusMinutes}/${item.breakMinutes}")
     item.calendarName?.let(::add)
     item.timeZoneId?.takeIf { it != java.time.ZoneId.systemDefault().id }?.let { add(it.substringAfterLast('/')) }
     if (conflict) add("overlap")

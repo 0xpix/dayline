@@ -852,6 +852,10 @@ fun DaylineApp(
             current = screen,
             onSelect = { navigateTo(it); menuOpen = false },
             onDismiss = { menuOpen = false },
+            onQuickAdd = {
+                menuOpen = false
+                addRequest = AddRequest(displayedDate, AgendaKind.EVENT)
+            },
             canUndo = undoHistory.isNotEmpty(),
             onUndo = { menuOpen = false; undoLastChange() }
         )

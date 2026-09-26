@@ -1,6 +1,7 @@
 package com.pix.dayline.data
 
 import com.pix.dayline.model.AgendaKind
+import com.pix.dayline.model.DaylineSpace
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -26,6 +27,20 @@ class QuickAddPreviewTest {
 
         assertEquals(
             "Tomorrow · 07:30 · 1h",
+            parsed.previewLabel(today = thursday, locale = Locale.US)
+        )
+    }
+
+    @Test
+    fun dotShorthandPreviewShowsEverythingRecognized() {
+        val parsed = QuickAddParser.parse(
+            "Lumen project.11:00-14:00.personal.daily.5min",
+            today = thursday,
+            spaces = listOf(DaylineSpace(id = "personal", name = "Personal"))
+        )!!
+
+        assertEquals(
+            "11:00 · 3h · Personal · Every day · Remind 5m before",
             parsed.previewLabel(today = thursday, locale = Locale.US)
         )
     }

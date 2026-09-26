@@ -30,7 +30,9 @@ import com.pix.dayline.ui.DaylineScreen
 fun NavigationSheet(
     current: DaylineScreen,
     onSelect: (DaylineScreen) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    canUndo: Boolean = false,
+    onUndo: () -> Unit = {}
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -80,6 +82,9 @@ fun NavigationSheet(
             Spacer(Modifier.height(20.dp))
 
             NavigationGroup("DAYLINE") {
+                if (canUndo) {
+                    ActionRow("Undo last change", onUndo)
+                }
                 NavigationRow("Settings", DaylineScreen.SETTINGS, current, onSelect)
             }
         }
@@ -163,6 +168,35 @@ private fun NavigationRow(
             color = MaterialTheme.colorScheme.onBackground.copy(
                 alpha = if (selected) 1f else 0.64f
             )
+        )
+    }
+}
+
+
+@Composable
+private fun ActionRow(
+    label: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(modifier = Modifier.size(16.dp), contentAlignment = Alignment.Center) {
+            Text("↶", style = MaterialTheme.typography.labelLarge)
+        }
+        Spacer(Modifier.size(12.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium.copy(fontSize = 21.sp, lineHeight = 25.sp),
+            color = MaterialTheme.colorScheme.onBackground
         )
     }
 }

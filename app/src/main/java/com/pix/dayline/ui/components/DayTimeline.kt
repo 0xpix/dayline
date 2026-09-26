@@ -54,6 +54,9 @@ import com.pix.dayline.model.DaylineItem
 import com.pix.dayline.model.FocusCycle
 import com.pix.dayline.model.isCompletedOn
 import com.pix.dayline.model.overlaps
+import com.pix.dayline.model.withStartPreservingDuration
+import com.pix.dayline.model.withStartEdge
+import com.pix.dayline.model.withEndEdge
 import com.pix.dayline.planning.FreeSlot
 import com.pix.dayline.planning.PlanningEngine
 import com.pix.dayline.ui.theme.composeColor
@@ -247,27 +250,37 @@ private fun TimelineItem(
     var resizing by remember(item.id, item.endTime) { mutableStateOf(false) }
     var resizeOffsetPx by remember(item.id, item.endTime) { mutableFloatStateOf(0f) }
     var lastResizeStep by remember(item.id) { mutableIntStateOf(0) }
+    var startResizing by remember(item.id, item.startTime) { mutableStateOf(false) }
+    var startResizeOffsetPx by remember(item.id, item.startTime) { mutableFloatStateOf(0f) }
+    var lastStartResizeStep by remember(item.id) { mutableIntStateOf(0) }
 
     val dragStep = (dragOffsetPx / pixelsPerFive).roundToInt()
-    val previewItem = if (dragging) shiftItem(item, dragStep * 5) else item
-    val previewStart = previewItem.startTime ?: start
-    val previewEnd = effectiveEnd(previewItem)
     val resizeStep = (resizeOffsetPx / pixelsPerFive).roundToInt()
-    val resizedEnd = if (resizing) shiftEnd(item, resizeStep * 5).endTime ?: end else end
-    val displayEnd = if (resizing) resizedEnd else previewEnd
+    val startResizeStep = (startResizeOffsetPx / pixelsPerFive).roundToInt()
+    val previewItem = when {
+        dragging -> shiftItem(item, dragStep * 5)
+        resizing -> shiftEnd(item, resizeStep * 5)
+        startResizing -> shiftStart(item, startResizeStep * 5)
+        else -> item
+    }
+    val previewStart = previewItem.startTime ?: start
+    val displayEnd = effectiveEnd(previewItem)
     val displayHeight = durationToHeight(previewStart, displayEnd)
 
-    Column(Modifier.alpha(if (past && !dragging && !resizing) 0.48f else 1f)) {
+    Column(Modifier.alpha(if (past && !dragging && !resizing && !startResizing) 0.48f else 1f)) {
         if (item.bufferBeforeMinutes > 0) {
             Text("BUFFER · ${item.bufferBeforeMinutes}M BEFORE", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .65f))
             Spacer(Modifier.height(5.dp))
         }
 
-        if (dragging || resizing) {
+        if (dragging || resizing || startResizing) {
             Surface(shape = RoundedCornerShape(99.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
                 Text(
-                    if (resizing) "END ${displayEnd.format(TIME)} · ${durationLabel(Duration.between(previewStart, displayEnd).toMinutes().toInt())}"
-                    else "MOVE ${previewStart.format(TIME)} → ${previewEnd.format(TIME)}",
+                    when {
+                        resizing -> "END ${displayEnd.format(TIME)} · ${durationLabel(Duration.between(previewStart, displayEnd).toMinutes().toInt())}"
+                        startResizing -> "START ${previewStart.format(TIME)} · ${durationLabel(Duration.between(previewStart, displayEnd).toMinutes().toInt())}"
+                        else -> "MOVE ${previewStart.format(TIME)} → ${displayEnd.format(TIME)} · ${durationLabel(Duration.between(previewStart, displayEnd).toMinutes().toInt())}"
+                    },
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                     style = MaterialTheme.typography.labelLarge,
                     color = accent
@@ -278,17 +291,72 @@ private fun TimelineItem(
 
         Row(
             modifier = Modifier.offset { IntOffset(0, if (dragging) dragOffsetPx.roundToInt() else 0) }
-                .zIndex(if (dragging || resizing) 2f else 0f),
+                .zIndex(if (dragging || resizing || startResizing) 2f else 0f),
             verticalAlignment = Alignment.Top
         ) {
             Column(Modifier.width(58.dp)) {
-                Text(previewStart.format(TIME), style = MaterialTheme.typography.labelMedium, color = if (dragging || resizing) accent else MaterialTheme.colorScheme.onBackground)
+                Text(previewStart.format(TIME), style = MaterialTheme.typography.labelMedium, color = if (dragging || resizing || startResizing) accent else MaterialTheme.colorScheme.onBackground)
                 Spacer(Modifier.height((displayHeight - 30.dp).coerceAtLeast(4.dp)))
                 Text(displayEnd.format(TIME), style = MaterialTheme.typography.labelMedium, color = if (resizing) accent else MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Box(Modifier.padding(top = 2.dp, end = 14.dp).width(if (dragging || resizing) 6.dp else 4.dp).height(displayHeight).background(accent, RoundedCornerShape(99.dp)))
+            Box(Modifier.padding(top = 2.dp, end = 14.dp).width(if (dragging || resizing || startResizing) 6.dp else 4.dp).height(displayHeight).background(accent, RoundedCornerShape(99.dp)))
 
             Column(Modifier.weight(1f).padding(top = 1.dp)) {
+                if (!item.calendarReadOnly) {
+                    Box(
+                        Modifier.width(120.dp).height(32.dp)
+                            .semantics {
+                                contentDescription = "Resize ${item.title}. Drag vertically to change the start time."
+                            }
+                            .pointerInput(item.id, item.startTime, item.endTime) {
+                                var gestureOffset = 0f
+                                var gestureStep = 0
+                                detectDragGestures(
+                                    onDragStart = {
+                                        startResizing = true
+                                        startResizeOffsetPx = 0f
+                                        lastStartResizeStep = 0
+                                        gestureOffset = 0f
+                                        gestureStep = 0
+                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    },
+                                    onDragCancel = {
+                                        startResizing = false
+                                        startResizeOffsetPx = 0f
+                                    },
+                                    onDragEnd = {
+                                        val commit = gestureStep
+                                        startResizing = false
+                                        startResizeOffsetPx = 0f
+                                        if (commit != 0) onResize(shiftStart(item, commit * 5))
+                                    }
+                                ) { change, amount ->
+                                    change.consume()
+                                    gestureOffset += amount.y
+                                    gestureStep = (gestureOffset / pixelsPerFive).roundToInt()
+                                    startResizeOffsetPx = gestureOffset
+                                    if (gestureStep != lastStartResizeStep) {
+                                        lastStartResizeStep = gestureStep
+                                        haptics.performHapticFeedback(
+                                            if (gestureStep % 3 == 0) HapticFeedbackType.SegmentTick
+                                            else HapticFeedbackType.SegmentFrequentTick
+                                        )
+                                    }
+                                    if (abs(gestureOffset) > 140f) onAutoScroll(amount.y * .7f)
+                                }
+                            },
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Box(
+                            Modifier.width(48.dp).height(4.dp)
+                                .background(
+                                    if (startResizing) accent else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .34f),
+                                    CircleShape
+                                )
+                        )
+                    }
+                }
+
                 Column(
                     Modifier.fillMaxWidth()
                         .pointerInput(item.id, item.startTime, item.endTime, item.calendarReadOnly) {
@@ -322,7 +390,7 @@ private fun TimelineItem(
                             contentDescription = "${item.title}, ${previewStart.format(TIME)} to ${displayEnd.format(TIME)}"
                             role = Role.Button
                         }
-                        .clickable(enabled = !dragging && !resizing, interactionSource = remember { MutableInteractionSource() }, indication = null) { onEdit(item) }
+                        .clickable(enabled = !dragging && !resizing && !startResizing, interactionSource = remember { MutableInteractionSource() }, indication = null) { onEdit(item) }
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(item.title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onBackground, textDecoration = if (completed) TextDecoration.LineThrough else TextDecoration.None, modifier = Modifier.weight(1f, fill = false))
@@ -556,23 +624,23 @@ private fun effectiveEnd(item: DaylineItem): LocalTime {
 
 private fun shiftItem(item: DaylineItem, deltaMinutes: Int): DaylineItem {
     val start = item.startTime ?: return item
-    val end = effectiveEnd(item)
-    val duration = Duration.between(start, end).toMinutes().toInt().coerceAtLeast(5)
-    val startMinutes = start.hour * 60 + start.minute
-    val latestStart = (24 * 60 - 1 - duration).coerceAtLeast(0)
-    val shiftedStart = (startMinutes + deltaMinutes).coerceIn(0, latestStart)
-    val newStart = LocalTime.of(shiftedStart / 60, shiftedStart % 60)
-    val endMinutes = (shiftedStart + duration).coerceAtMost(24 * 60 - 1)
-    return item.copy(startTime = newStart, endTime = LocalTime.of(endMinutes / 60, endMinutes % 60), allDay = false)
+    val requestedMinutes = (start.hour * 60 + start.minute + deltaMinutes).coerceIn(0, 24 * 60 - 1)
+    val requested = LocalTime.of(requestedMinutes / 60, requestedMinutes % 60)
+    return item.withStartPreservingDuration(requested).copy(allDay = false)
+}
+
+private fun shiftStart(item: DaylineItem, deltaMinutes: Int): DaylineItem {
+    val start = item.startTime ?: return item
+    val requestedMinutes = (start.hour * 60 + start.minute + deltaMinutes).coerceIn(0, 24 * 60 - 1)
+    val requested = LocalTime.of(requestedMinutes / 60, requestedMinutes % 60)
+    return item.withStartEdge(requested).copy(allDay = false)
 }
 
 private fun shiftEnd(item: DaylineItem, deltaMinutes: Int): DaylineItem {
-    val start = item.startTime ?: return item
     val originalEnd = effectiveEnd(item)
-    val startMinutes = start.hour * 60 + start.minute
-    val endMinutes = originalEnd.hour * 60 + originalEnd.minute
-    val shifted = (endMinutes + deltaMinutes).coerceIn(startMinutes + 5, 24 * 60 - 1)
-    return item.copy(endTime = LocalTime.of(shifted / 60, shifted % 60), allDay = false)
+    val requestedMinutes = (originalEnd.hour * 60 + originalEnd.minute + deltaMinutes).coerceIn(0, 24 * 60 - 1)
+    val requested = LocalTime.of(requestedMinutes / 60, requestedMinutes % 60)
+    return item.withEndEdge(requested).copy(allDay = false)
 }
 
 private fun clampTime(base: LocalTime, deltaMinutes: Int, durationMinutes: Int): LocalTime {

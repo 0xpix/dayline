@@ -27,9 +27,9 @@ android {
             dimension = "distribution"
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
-            // v0.18.12.beta: preserve event duration when calendar sync lacks a trustworthy end.
-            versionCode = 1812
-            versionName = "0.18.12"
+            // v0.19.0.beta: Timeline 2.0, visible Quick Add, safer sync and direct widget actions.
+            versionCode = 1900
+            versionName = "0.19.0"
             // Nothing's Glyph Matrix SDK 2.0 declares minSdk 33. Keep this
             // requirement isolated to the beta/Glyph build so the normal Play
             // build continues to support Dayline's global minSdk 26.

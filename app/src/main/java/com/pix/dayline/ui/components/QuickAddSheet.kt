@@ -72,6 +72,7 @@ fun QuickAddSheet(
 ) {
     val context = LocalContext.current
     var title by remember(editing?.id) { mutableStateOf(TextFieldValue(editing?.title.orEmpty())) }
+    var notes by remember(editing?.id) { mutableStateOf(TextFieldValue(editing?.notes.orEmpty())) }
     val editingOccurrence = editing != null && editing.recurrence != Recurrence.ONCE
     var date by remember(editing?.id, initialDate) {
         mutableStateOf(if (editingOccurrence) initialDate else editing?.startDate ?: initialDate)
@@ -208,7 +209,8 @@ fun QuickAddSheet(
             bufferAfterMinutes = bufferAfter,
             priority = priority,
             color = itemColor,
-            spaceId = spaceId
+            spaceId = spaceId,
+            notes = notes.text.trim()
         )
             .applyingShorthand(shorthand)
             .toItem(editing = editing)
@@ -323,6 +325,39 @@ fun QuickAddSheet(
                         )
                     }
                 }
+            }
+
+            SectionHeader(label = "Notes", top = 28)
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                BasicTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onBackground,
+                        lineHeight = 23.sp
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 96.dp)
+                        .padding(horizontal = 18.dp, vertical = 16.dp),
+                    minLines = 3,
+                    maxLines = 8,
+                    decorationBox = { inner ->
+                        Box {
+                            if (notes.text.isBlank()) {
+                                Text(
+                                    "Add context, links, or anything you want to remember…",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .5f)
+                                )
+                            }
+                            inner()
+                        }
+                    }
+                )
             }
 
             Section("Type") {

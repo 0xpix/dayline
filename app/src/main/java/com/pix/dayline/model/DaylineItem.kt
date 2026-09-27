@@ -45,6 +45,7 @@ data class DaylineItem(
     val timeZoneId: String? = null,
     val color: ItemColor = ItemColor.MONO,
     val spaceId: String? = null,
+    val notes: String = "",
     val details: List<TaskDetail> = emptyList(),
     val completedDates: Set<LocalDate> = emptySet(),
     val calendarEventId: Long? = null,

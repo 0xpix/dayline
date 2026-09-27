@@ -22,6 +22,9 @@ object DaylineTransfer {
             appendLine("BEGIN:VEVENT")
             appendLine("UID:${escape(item.id)}@dayline")
             appendLine("SUMMARY:${escape(item.title)}")
+            if (item.notes.isNotBlank()) {
+                appendLine("DESCRIPTION:${escape(item.notes)}")
+            }
 
             if (item.startTime == null) {
                 appendLine("DTSTART;VALUE=DATE:${item.startDate.format(dateFormatter)}")
@@ -64,6 +67,7 @@ object DaylineTransfer {
     private fun parseEvent(lines: List<String>): DaylineItem? {
         val summary = property(lines, "SUMMARY")?.let(::unescape)?.ifBlank { "Imported event" }
             ?: "Imported event"
+        val notes = property(lines, "DESCRIPTION")?.let(::unescape).orEmpty()
         val startLine = lines.firstOrNull { it.startsWith("DTSTART") } ?: return null
         val endLine = lines.firstOrNull { it.startsWith("DTEND") }
         val rrule = property(lines, "RRULE")
@@ -125,6 +129,7 @@ object DaylineTransfer {
             startTime = startTime,
             endTime = endTime,
             recurrence = recurrence,
+            notes = notes,
             repeatDays =
                 if (recurrence == Recurrence.CUSTOM) {
                     byDays

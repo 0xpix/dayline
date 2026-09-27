@@ -27,9 +27,9 @@ android {
             dimension = "distribution"
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
-            // v0.19.2.beta: recognize compact dot-separated Quick Add directives.
-            versionCode = 1902
-            versionName = "0.19.2"
+            // v0.20.0.beta: navigation hub, animated page motion, and notes.
+            versionCode = 2000
+            versionName = "0.20.0"
             // Nothing's Glyph Matrix SDK 2.0 declares minSdk 33. Keep this
             // requirement isolated to the beta/Glyph build so the normal Play
             // build continues to support Dayline's global minSdk 26.

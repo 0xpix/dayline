@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.20.0.beta — Navigation, motion + notes
+
+### Added
+- Added a full-screen **Navigation Hub** with a stable two-column destination grid, a prominent Quick Add action and inline Undo access.
+- Added directional page transitions so left/right navigation visibly follows the gesture instead of instantly replacing the screen.
+- Added free-text **Notes** to events and tasks, editable from Quick Add/event editing and Task details.
+- Added note persistence through Room, JSON backup/restore, Android Calendar descriptions and ICS import/export.
+- Added note text to local Search.
+
+### Changed
+- Replaced the old stacked burger/menu sheet with a cleaner full-screen destination picker.
+- Replaced the three-line burger icon with a compact 2×2 navigation glyph.
+- Today now animates to the useful part of the timeline/current-time area after entering or changing dates instead of snapping there.
+- Android Calendar reconciliation now includes event descriptions as Dayline notes.
+
+### Fixed
+- Fixed swipe-right back to Today feeling discontinuous when the current-time position was far down the timeline.
+- Fixed notes on editable external Calendar events disappearing after the overlay refreshed.
+- Added a Room 1→2 migration so existing installations gain Notes without losing stored events.
+- Bumped beta versionCode to **2000** and beta versionName to `0.20.0.beta`.
+
+
+
 ## 0.19.2.beta — Compact Quick Add shorthand
 
 ### Added

@@ -18,6 +18,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -804,26 +805,38 @@ fun DaylineApp(
                         if (navigationDirection >= 0) {
                             (
                                 slideInHorizontally(
-                                    animationSpec = tween(300),
+                                    animationSpec = tween(
+                                        durationMillis = 420,
+                                        easing = FastOutSlowInEasing
+                                    ),
                                     initialOffsetX = { width -> width }
-                                ) + fadeIn(animationSpec = tween(190))
+                                ) + fadeIn(animationSpec = tween(220))
                             ) togetherWith (
                                 slideOutHorizontally(
-                                    animationSpec = tween(300),
-                                    targetOffsetX = { width -> -width / 3 }
-                                ) + fadeOut(animationSpec = tween(150))
+                                    animationSpec = tween(
+                                        durationMillis = 360,
+                                        easing = FastOutSlowInEasing
+                                    ),
+                                    targetOffsetX = { width -> -width / 4 }
+                                ) + fadeOut(animationSpec = tween(180))
                             )
                         } else {
                             (
                                 slideInHorizontally(
-                                    animationSpec = tween(300),
+                                    animationSpec = tween(
+                                        durationMillis = 420,
+                                        easing = FastOutSlowInEasing
+                                    ),
                                     initialOffsetX = { width -> -width }
-                                ) + fadeIn(animationSpec = tween(190))
+                                ) + fadeIn(animationSpec = tween(220))
                             ) togetherWith (
                                 slideOutHorizontally(
-                                    animationSpec = tween(300),
-                                    targetOffsetX = { width -> width / 3 }
-                                ) + fadeOut(animationSpec = tween(150))
+                                    animationSpec = tween(
+                                        durationMillis = 360,
+                                        easing = FastOutSlowInEasing
+                                    ),
+                                    targetOffsetX = { width -> width / 4 }
+                                ) + fadeOut(animationSpec = tween(180))
                             )
                         }
                     },

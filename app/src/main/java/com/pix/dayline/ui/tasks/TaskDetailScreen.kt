@@ -43,6 +43,7 @@ fun TaskDetailScreen(
     onDelete: (DaylineItem) -> Unit
 ) {
     var working by remember(item.id) { mutableStateOf(item) }
+    var noteText by remember(item.id) { mutableStateOf(TextFieldValue(item.notes)) }
     var detailText by remember(item.id) { mutableStateOf(TextFieldValue("")) }
     var fitOpen by remember(item.id) { mutableStateOf(false) }
     val context = LocalContext.current
@@ -91,7 +92,20 @@ fun TaskDetailScreen(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState())
                 .padding(start = 32.dp, end = 32.dp, top = 92.dp, bottom = 110.dp)
         ) {
-            Text("‹ Tasks", modifier = Modifier.heightIn(min = 48.dp).clickable { onBack() }.wrapContentHeight(Alignment.CenterVertically), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                "‹ Tasks",
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .clickable {
+                        if (noteText.text.trim() != working.notes) {
+                            persist(working.copy(notes = noteText.text.trim()))
+                        }
+                        onBack()
+                    }
+                    .wrapContentHeight(Alignment.CenterVertically),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Spacer(Modifier.height(36.dp))
             Text(working.title, style = MaterialTheme.typography.displayMedium.copy(fontSize = 38.sp, lineHeight = 40.sp))
             Spacer(Modifier.height(24.dp))
@@ -119,6 +133,56 @@ fun TaskDetailScreen(
                 }))
             }
             MetaRow("♢", working.reminderMinutes?.let { "$it min before" } ?: "No reminder")
+
+            Spacer(Modifier.height(28.dp))
+            Text(
+                "NOTES",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(8.dp))
+            androidx.compose.material3.Surface(
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                BasicTextField(
+                    value = noteText,
+                    onValueChange = { noteText = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 100.dp)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    minLines = 3,
+                    maxLines = 8,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onBackground,
+                        lineHeight = 23.sp
+                    ),
+                    decorationBox = { inner ->
+                        Box {
+                            if (noteText.text.isBlank()) {
+                                Text(
+                                    "Add context, links, or anything you want to remember…",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .48f)
+                                )
+                            }
+                            inner()
+                        }
+                    }
+                )
+            }
+            if (noteText.text.trim() != working.notes) {
+                Text(
+                    "SAVE NOTE",
+                    modifier = Modifier
+                        .heightIn(min = 44.dp)
+                        .clickable { persist(working.copy(notes = noteText.text.trim())) }
+                        .wrapContentHeight(Alignment.CenterVertically),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
 
             Spacer(Modifier.height(24.dp))
             Text("FIT INTO MY DAY  ›", modifier = Modifier.heightIn(min = 48.dp).clickable { fitOpen = true }.wrapContentHeight(Alignment.CenterVertically), style = MaterialTheme.typography.labelLarge)
@@ -177,7 +241,10 @@ fun TaskDetailScreen(
         }
 
         Text("✓", modifier = Modifier.align(Alignment.BottomEnd).padding(28.dp).size(52.dp).background(MaterialTheme.colorScheme.onBackground, CircleShape).clickable {
-            haptics.performHapticFeedback(HapticFeedbackType.LongPress); onSave(working); onBack()
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            val saved = working.copy(notes = noteText.text.trim())
+            onSave(saved)
+            onBack()
         }.padding(13.dp), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.background)
     }
 

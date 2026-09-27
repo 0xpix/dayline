@@ -94,15 +94,16 @@ fun TodayScreen(
     val dayItems = items.filter { it.occursOn(date) }
         .sortedWith(compareBy<DaylineItem> { it.startTime == null }.thenBy { it.startTime })
 
-    // On first display, land slightly before the useful part of the day instead
-    // of always starting at the top. This waits for the scroll range to exist.
-    LaunchedEffect(date, dayItems.map { it.id to it.startTime }) {
-        delay(160L)
+    // Position the timeline with motion instead of snapping after a page/date
+    // change. Keeping this keyed to the date avoids re-centering the user when
+    // events are edited while they are already reading the timeline.
+    LaunchedEffect(date) {
+        delay(140L)
         val target = when {
             date == LocalDate.now() -> now.minusMinutes(45)
             else -> dayItems.firstOrNull { it.startTime != null }?.startTime ?: LocalTime.of(8, 0)
         }
-        scrollNear(target, animate = false)
+        scrollNear(target, animate = true)
     }
 
     Box(

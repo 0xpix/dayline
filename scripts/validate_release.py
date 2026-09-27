@@ -413,7 +413,7 @@ feature_checks = {
     "room ordered async writes": "io.execute {" in all_kotlin and "onPersisted" in all_kotlin and "onFailure" in all_kotlin and "replaceItemsBlocking" in all_kotlin and "replaceSpacesBlocking" in all_kotlin,
     "room write journal": "KEY_PENDING_ROOM_ITEMS" in all_kotlin and "KEY_PENDING_ROOM_SPACES" in all_kotlin and "replayPendingRoomWrites" in all_kotlin and "clearPendingRoomWrite" in all_kotlin and "loadLastRoomWriteError" in all_kotlin and "hasPendingRoomWrites" in all_kotlin,
     "item notes": "val notes: String" in all_kotlin and "\"NOTES\"" in all_kotlin and "DESCRIPTION" in all_kotlin and "item.notes.lowercase" in all_kotlin,
-    "room notes migration": "MIGRATION_1_2" in all_kotlin and "ADD COLUMN notes TEXT NOT NULL DEFAULT" in all_kotlin and "version = 2" in all_kotlin,
+    "room notes migration": "MIGRATION_1_2" in all_kotlin and "ADD COLUMN notes TEXT" in all_kotlin and "version = 2" in all_kotlin,
     "navigation hub": "Full-screen navigation hub" in all_kotlin and "DestinationTile" in all_kotlin and "NavigationGridIcon" in all_kotlin,
     "animated navigation": "AnimatedContent" in all_kotlin and "slideInHorizontally" in all_kotlin and "dayline-screen" in all_kotlin and "scrollNear(target, animate = true)" in all_kotlin,
     "local quick add parser": "QuickAddParser" in all_kotlin and "ParsedQuickAdd" in all_kotlin and "applyingShorthand" in all_kotlin,

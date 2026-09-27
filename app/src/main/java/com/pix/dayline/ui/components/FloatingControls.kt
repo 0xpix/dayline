@@ -6,8 +6,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,17 +21,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * A quiet Dawn-like action rail.
+ * Quiet floating controls for Dayline.
  *
- * The menu/today controls are intentionally small and airy. The primary add
- * action is the only visually heavy control.
+ * Navigation is intentionally a labelled "Views" capsule rather than a burger
+ * or drawer icon. It opens the compact bottom view switcher.
  */
 @Composable
 fun FloatingControls(
@@ -44,15 +42,29 @@ fun FloatingControls(
 ) {
     Column(
         modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalAlignment = Alignment.End,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        CircleAction(
-            filled = false,
-            size = 42,
-            onClick = onMenu
-        ) { color ->
-            NavigationGridIcon(color)
+        Surface(
+            modifier = Modifier
+                .widthIn(min = 76.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onMenu
+                ),
+            shape = RoundedCornerShape(999.dp),
+            color = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            tonalElevation = 0.dp,
+            shadowElevation = 2.dp
+        ) {
+            Text(
+                text = "VIEWS  ··",
+                modifier = Modifier.padding(horizontal = 15.dp, vertical = 12.dp),
+                style = MaterialTheme.typography.labelMedium,
+                letterSpacing = .6.sp
+            )
         }
 
         if (showToday) {
@@ -93,34 +105,23 @@ fun FloatingControls(
 
 @Composable
 private fun CircleAction(
-    label: String? = null,
     filled: Boolean,
     onClick: () -> Unit,
     size: Int = 42,
-    textSize: Int = 22,
-    content: (@Composable (Color) -> Unit)? = null
+    content: @Composable (Color) -> Unit
 ) {
     val background =
-        if (filled) {
-            MaterialTheme.colorScheme.onBackground
-        } else {
-            MaterialTheme.colorScheme.surface
-        }
-
+        if (filled) MaterialTheme.colorScheme.onBackground
+        else MaterialTheme.colorScheme.surface
     val foreground =
-        if (filled) {
-            MaterialTheme.colorScheme.background
-        } else {
-            MaterialTheme.colorScheme.onSurface
-        }
+        if (filled) MaterialTheme.colorScheme.background
+        else MaterialTheme.colorScheme.onSurface
 
     Surface(
         modifier = Modifier
             .size(size.dp)
             .clickable(
-                interactionSource = remember {
-                    MutableInteractionSource()
-                },
+                interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick
             ),
@@ -128,79 +129,25 @@ private fun CircleAction(
         color = background,
         contentColor = foreground,
         tonalElevation = 0.dp,
-        shadowElevation = if (filled) 1.dp else 3.dp
+        shadowElevation = if (filled) 1.dp else 2.dp
     ) {
         Box(contentAlignment = Alignment.Center) {
-            if (content != null) {
-                content(foreground)
-            } else if (label != null) {
-                Text(
-                    text = label,
-                    color = foreground,
-                    fontSize = textSize.sp,
-                    fontWeight = FontWeight.Normal
-                )
-            }
+            content(foreground)
         }
     }
 }
 
 @Composable
-private fun NavigationGridIcon(color: Color) {
-    Canvas(modifier = Modifier.size(18.dp)) {
-        val cell = size.width * .24f
-        val gap = size.width * .14f
-        val left = (size.width - (cell * 2f + gap)) / 2f
-        val top = (size.height - (cell * 2f + gap)) / 2f
+private fun DaylineLogoIcon(color: Color) {
+    Canvas(modifier = Modifier.size(23.dp)) {
+        fun x(value: Float): Float = size.width * value / 108f
+        fun y(value: Float): Float = size.height * value / 108f
 
-        repeat(2) { row ->
-            repeat(2) { column ->
-                drawRoundRect(
-                    color = color,
-                    topLeft = Offset(
-                        left + column * (cell + gap),
-                        top + row * (cell + gap)
-                    ),
-                    size = Size(cell, cell),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(
-                        cell * .22f,
-                        cell * .22f
-                    )
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun DaylineLogoIcon(
-    color: Color
-) {
-    Canvas(
-        modifier = Modifier.size(23.dp)
-    ) {
-        fun x(value: Float): Float =
-            size.width * value / 108f
-
-        fun y(value: Float): Float =
-            size.height * value / 108f
-
-        fun block(
-            left: Float,
-            top: Float,
-            right: Float,
-            bottom: Float
-        ) {
+        fun block(left: Float, top: Float, right: Float, bottom: Float) {
             drawRect(
                 color = color,
-                topLeft = Offset(
-                    x(left),
-                    y(top)
-                ),
-                size = Size(
-                    x(right - left),
-                    y(bottom - top)
-                )
+                topLeft = Offset(x(left), y(top)),
+                size = Size(x(right - left), y(bottom - top))
             )
         }
 

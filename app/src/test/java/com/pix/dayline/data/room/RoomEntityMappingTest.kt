@@ -44,6 +44,7 @@ class RoomEntityMappingTest {
             timeZoneId = "Europe/Berlin",
             color = ItemColor.VIOLET,
             spaceId = "work",
+            notes = "Bring the draft and discuss the revised model.",
             details = listOf(
                 TaskDetail("detail-1", "Outline", true),
                 TaskDetail("detail-2", "Write", false)

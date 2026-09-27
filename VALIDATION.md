@@ -1,13 +1,13 @@
-# Dayline v0.20.0.beta — Validation Report
+# Dayline v0.20.1.beta — Validation Report
 
-This report tracks the current **v0.20.0.beta / versionCode 2000** source. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current **v0.20.1.beta / versionCode 2001** source. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 ## Release checks
 
-- Beta target: **0.20.0.beta / 2000**.
-- `docs/releases/v0.20.0.beta.md` contains concise **Added / Changed / Fixed** updater notes.
+- Beta target: **0.20.1.beta / 2001**.
+- `docs/releases/v0.20.1.beta.md` contains concise **Added / Changed / Fixed** updater notes.
 - Beta/Play flavor separation remains intact; Play stays on the stable base version and does not package the Nothing SDK.
-- Tagged builds must verify signed APK versionName/versionCode against tag `v0.20.0.beta`.
+- Tagged builds must verify signed APK versionName/versionCode against tag `v0.20.1.beta`.
 - Calendar sync regression coverage must preserve a 06:00–09:30 local event when provider end data is temporarily unavailable.
 - Static validation, recurrence/planning unit tests, Beta debug compile and Play debug compile must all pass before tagging.
 
@@ -221,8 +221,9 @@ The tag job additionally builds `:app:assembleBetaRelease`, verifies tag/APK ide
 
 ## Navigation + motion
 
-- The old stacked burger menu is replaced by a full-screen two-column Navigation Hub.
-- The floating navigation control uses a 2×2 grid glyph rather than burger lines.
-- Main destination changes use directional horizontal slide/fade transitions.
+- Navigation opens as a compact bottom view tray rather than a side drawer, burger menu or full-screen launcher.
+- The floating navigation control is a labelled VIEWS capsule rather than a burger/grid glyph.
+- Today, Calendar, Upcoming and Tasks are primary tray destinations; Search, Spaces and Settings remain one tap away.
+- Main destination changes use eased directional horizontal slide/fade transitions.
 - Today → Upcoming moves left; Upcoming → Today moves right.
-- Today timeline entry/date positioning uses animated scroll rather than a hard jump.
+- Today waits for the measured scroll range, then animates into the current-time/useful-block position instead of snapping.

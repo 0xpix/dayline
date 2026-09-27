@@ -7,34 +7,34 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.pix.dayline.ui.DaylineScreen
 
 /**
- * Full-screen navigation hub.
+ * Compact bottom navigation tray.
  *
- * This intentionally avoids a drawer/burger list. Dayline destinations live in
- * a stable two-column grid so switching pages feels like choosing a place, not
- * opening an app drawer.
+ * Dayline deliberately avoids a side drawer, burger menu and full-screen
+ * launcher. The tray stays close to the thumb, keeps the current page visible
+ * and gives the four everyday destinations the strongest hierarchy.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NavigationSheet(
     current: DaylineScreen,
@@ -44,159 +44,134 @@ fun NavigationSheet(
     canUndo: Boolean = false,
     onUndo: () -> Unit = {}
 ) {
-    Dialog(
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
-    ) {
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.background
-        ) {
-            Column(
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
+        dragHandle = {
+            Surface(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 26.dp, vertical = 22.dp)
+                    .padding(top = 10.dp, bottom = 8.dp)
+                    .width(34.dp)
+                    .height(4.dp),
+                shape = RoundedCornerShape(999.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .28f)
+            ) {}
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 22.dp)
+                .padding(bottom = 28.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Column {
+                    Text(
+                        "Switch view",
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        "Currently ${current.label}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    "Swipe down to close",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .62f)
+                )
+            }
+
+            Spacer(Modifier.height(22.dp))
+
+            DestinationRow(
+                first = DaylineScreen.TODAY,
+                second = DaylineScreen.CALENDAR,
+                current = current,
+                onSelect = onSelect
+            )
+            Spacer(Modifier.height(10.dp))
+            DestinationRow(
+                first = DaylineScreen.UPCOMING,
+                second = DaylineScreen.TASKS,
+                current = current,
+                onSelect = onSelect
+            )
+
+            Spacer(Modifier.height(18.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                SecondaryDestination(
+                    screen = DaylineScreen.SEARCH,
+                    selected = current == DaylineScreen.SEARCH,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onSelect(DaylineScreen.SEARCH) }
+                )
+                SecondaryDestination(
+                    screen = DaylineScreen.SPACES,
+                    selected = current == DaylineScreen.SPACES,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onSelect(DaylineScreen.SPACES) }
+                )
+                SecondaryDestination(
+                    screen = DaylineScreen.SETTINGS,
+                    selected = current == DaylineScreen.SETTINGS,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onSelect(DaylineScreen.SETTINGS) }
+                )
+            }
+
+            Spacer(Modifier.height(22.dp))
+
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onQuickAdd
+                    ),
+                shape = RoundedCornerShape(999.dp),
+                color = MaterialTheme.colorScheme.onBackground,
+                contentColor = MaterialTheme.colorScheme.background
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(
-                            "DAYLINE",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            "Move around",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
-
-                    Surface(
-                        modifier = Modifier.clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onDismiss
-                        ),
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surface
-                    ) {
-                        Text(
-                            "×",
-                            modifier = Modifier.padding(horizontal = 15.dp, vertical = 9.dp),
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                    }
+                    Text("Quick add", style = MaterialTheme.typography.titleMedium)
+                    Text("+", style = MaterialTheme.typography.titleLarge)
                 }
+            }
 
-                Spacer(Modifier.height(28.dp))
-
-                Surface(
+            if (canUndo) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Undo last change",
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 46.dp)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            onClick = onQuickAdd
-                        ),
-                    shape = RoundedCornerShape(28.dp),
-                    color = MaterialTheme.colorScheme.onBackground,
-                    contentColor = MaterialTheme.colorScheme.background
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                "Quick Add",
-                                style = MaterialTheme.typography.titleLarge
-                            )
-                            Text(
-                                "Event or task",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.background.copy(alpha = .68f)
-                            )
-                        }
-                        Text("+", style = MaterialTheme.typography.headlineMedium)
-                    }
-                }
-
-                Spacer(Modifier.height(22.dp))
-                Text(
-                    "PAGES",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(10.dp))
-
-                DestinationRow(
-                    first = DaylineScreen.TODAY,
-                    second = DaylineScreen.CALENDAR,
-                    current = current,
-                    onSelect = onSelect
-                )
-                Spacer(Modifier.height(10.dp))
-                DestinationRow(
-                    first = DaylineScreen.UPCOMING,
-                    second = DaylineScreen.TASKS,
-                    current = current,
-                    onSelect = onSelect
-                )
-                Spacer(Modifier.height(10.dp))
-                DestinationRow(
-                    first = DaylineScreen.SEARCH,
-                    second = DaylineScreen.SPACES,
-                    current = current,
-                    onSelect = onSelect
-                )
-                Spacer(Modifier.height(10.dp))
-                DestinationRow(
-                    first = DaylineScreen.SETTINGS,
-                    second = null,
-                    current = current,
-                    onSelect = onSelect
-                )
-
-                Spacer(Modifier.weight(1f))
-
-                if (canUndo) {
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = onUndo
-                            ),
-                        shape = RoundedCornerShape(22.dp),
-                        color = MaterialTheme.colorScheme.surface
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 15.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Undo last change", style = MaterialTheme.typography.bodyLarge)
-                            Text("↶", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                    Spacer(Modifier.height(12.dp))
-                }
-
-                Text(
-                    "Current · ${current.label}",
+                            onClick = onUndo
+                        )
+                        .padding(horizontal = 4.dp, vertical = 12.dp),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .7f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -206,7 +181,7 @@ fun NavigationSheet(
 @Composable
 private fun DestinationRow(
     first: DaylineScreen,
-    second: DaylineScreen?,
+    second: DaylineScreen,
     current: DaylineScreen,
     onSelect: (DaylineScreen) -> Unit
 ) {
@@ -220,16 +195,12 @@ private fun DestinationRow(
             modifier = Modifier.weight(1f),
             onClick = { onSelect(first) }
         )
-        if (second != null) {
-            DestinationTile(
-                screen = second,
-                selected = second == current,
-                modifier = Modifier.weight(1f),
-                onClick = { onSelect(second) }
-            )
-        } else {
-            Box(Modifier.weight(1f))
-        }
+        DestinationTile(
+            screen = second,
+            selected = second == current,
+            modifier = Modifier.weight(1f),
+            onClick = { onSelect(second) }
+        )
     }
 }
 
@@ -242,13 +213,13 @@ private fun DestinationTile(
 ) {
     Surface(
         modifier = modifier
-            .height(104.dp)
+            .height(84.dp)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick
             ),
-        shape = RoundedCornerShape(26.dp),
+        shape = RoundedCornerShape(24.dp),
         color = if (selected) {
             MaterialTheme.colorScheme.onBackground
         } else {
@@ -260,37 +231,75 @@ private fun DestinationTile(
             MaterialTheme.colorScheme.onBackground
         }
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 15.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                screen.mark,
-                style = MaterialTheme.typography.labelLarge,
-                color = if (selected) {
-                    MaterialTheme.colorScheme.background.copy(alpha = .68f)
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-            )
             Column {
                 Text(
                     screen.label,
                     style = MaterialTheme.typography.titleMedium.copy(
-                        fontSize = 19.sp,
-                        lineHeight = 22.sp
+                        fontSize = 18.sp,
+                        lineHeight = 21.sp
                     )
                 )
+                Spacer(Modifier.height(3.dp))
                 Text(
                     screen.hint,
                     style = MaterialTheme.typography.bodySmall,
                     color = if (selected) {
-                        MaterialTheme.colorScheme.background.copy(alpha = .66f)
+                        MaterialTheme.colorScheme.background.copy(alpha = .64f)
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     }
                 )
             }
+            if (selected) {
+                Surface(
+                    modifier = Modifier
+                        .width(7.dp)
+                        .height(7.dp),
+                    shape = RoundedCornerShape(999.dp),
+                    color = MaterialTheme.colorScheme.background
+                ) {}
+            }
+        }
+    }
+}
+
+@Composable
+private fun SecondaryDestination(
+    screen: DaylineScreen,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = modifier
+            .heightIn(min = 48.dp)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            ),
+        shape = RoundedCornerShape(999.dp),
+        color = if (selected) {
+            MaterialTheme.colorScheme.onBackground
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        contentColor = if (selected) {
+            MaterialTheme.colorScheme.background
+        } else {
+            MaterialTheme.colorScheme.onBackground
+        }
+    ) {
+        Box(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 13.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(screen.label, style = MaterialTheme.typography.labelLarge)
         }
     }
 }
@@ -308,22 +317,11 @@ private val DaylineScreen.label: String
 
 private val DaylineScreen.hint: String
     get() = when (this) {
-        DaylineScreen.TODAY -> "Timeline"
-        DaylineScreen.CALENDAR -> "Month"
-        DaylineScreen.UPCOMING -> "Next"
-        DaylineScreen.TASKS -> "To do"
-        DaylineScreen.SEARCH -> "Find"
+        DaylineScreen.TODAY -> "Your timeline"
+        DaylineScreen.CALENDAR -> "Month view"
+        DaylineScreen.UPCOMING -> "What is next"
+        DaylineScreen.TASKS -> "Things to do"
+        DaylineScreen.SEARCH -> "Find anything"
         DaylineScreen.SPACES -> "Organize"
-        DaylineScreen.SETTINGS -> "Tune"
-    }
-
-private val DaylineScreen.mark: String
-    get() = when (this) {
-        DaylineScreen.TODAY -> "01"
-        DaylineScreen.CALENDAR -> "02"
-        DaylineScreen.UPCOMING -> "03"
-        DaylineScreen.TASKS -> "04"
-        DaylineScreen.SEARCH -> "05"
-        DaylineScreen.SPACES -> "06"
-        DaylineScreen.SETTINGS -> "07"
+        DaylineScreen.SETTINGS -> "Preferences"
     }

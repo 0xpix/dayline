@@ -1,5 +1,7 @@
 package com.pix.dayline.ui.today
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.scrollBy
@@ -25,6 +27,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
@@ -35,7 +38,9 @@ import com.pix.dayline.ui.components.DayGlyph
 import com.pix.dayline.ui.components.DayTimeline
 import com.pix.dayline.ui.components.FloatingControls
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -67,13 +72,38 @@ fun TodayScreen(
     val scope = rememberCoroutineScope()
     val actualToday = LocalDate.now()
 
-    fun scrollNear(time: LocalTime, animate: Boolean = true) {
+    suspend fun positionNear(time: LocalTime, animate: Boolean = true) {
+        // A newly-entered Today screen can report maxValue == 0 until its
+        // timeline has been measured. Wait briefly for the real scroll range
+        // so returning by swipe glides to "now" instead of snapping there.
+        val scrollRange = if (scrollState.maxValue > 0) {
+            scrollState.maxValue
+        } else {
+            withTimeoutOrNull(700L) {
+                snapshotFlow { scrollState.maxValue }.first { it > 0 }
+            } ?: scrollState.maxValue
+        }
+
         val minute = time.hour * 60 + time.minute
         val fraction = ((minute - 330).coerceIn(0, 1020) / 1020f)
-        val target = (fraction * scrollState.maxValue.coerceAtLeast(1)).roundToInt()
-        scope.launch {
-            if (animate) scrollState.animateScrollTo(target) else scrollState.scrollTo(target)
+        val target = (fraction * scrollRange.coerceAtLeast(1)).roundToInt()
+            .coerceIn(0, scrollRange.coerceAtLeast(0))
+
+        if (animate) {
+            scrollState.animateScrollTo(
+                target,
+                animationSpec = tween(
+                    durationMillis = 650,
+                    easing = FastOutSlowInEasing
+                )
+            )
+        } else {
+            scrollState.scrollTo(target)
         }
+    }
+
+    fun scrollNear(time: LocalTime, animate: Boolean = true) {
+        scope.launch { positionNear(time, animate) }
     }
 
     fun scrollToNow() {
@@ -98,12 +128,15 @@ fun TodayScreen(
     // change. Keeping this keyed to the date avoids re-centering the user when
     // events are edited while they are already reading the timeline.
     LaunchedEffect(date) {
-        delay(140L)
+        // Let the page transition begin, then animate the timeline itself.
+        // This makes Upcoming -> Today feel continuous rather than landing on
+        // Today and immediately jumping to the current-time area.
+        delay(90L)
         val target = when {
             date == LocalDate.now() -> now.minusMinutes(45)
             else -> dayItems.firstOrNull { it.startTime != null }?.startTime ?: LocalTime.of(8, 0)
         }
-        scrollNear(target, animate = true)
+        positionNear(target, animate = true)
     }
 
     Box(

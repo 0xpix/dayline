@@ -52,7 +52,7 @@ fun FloatingControls(
             size = 42,
             onClick = onMenu
         ) { color ->
-            MenuLinesIcon(color)
+            NavigationGridIcon(color)
         }
 
         if (showToday) {
@@ -146,34 +146,29 @@ private fun CircleAction(
 }
 
 @Composable
-private fun MenuLinesIcon(color: Color) {
+private fun NavigationGridIcon(color: Color) {
     Canvas(modifier = Modifier.size(18.dp)) {
-        val stroke = 1.55.dp.toPx()
-        val left = size.width * 0.22f
-        val right = size.width * 0.78f
-        val shortRight = size.width * 0.66f
+        val cell = size.width * .24f
+        val gap = size.width * .14f
+        val left = (size.width - (cell * 2f + gap)) / 2f
+        val top = (size.height - (cell * 2f + gap)) / 2f
 
-        drawLine(
-            color,
-            Offset(left, size.height * 0.34f),
-            Offset(right, size.height * 0.34f),
-            stroke,
-            StrokeCap.Round
-        )
-        drawLine(
-            color,
-            Offset(left, size.height * 0.50f),
-            Offset(shortRight, size.height * 0.50f),
-            stroke,
-            StrokeCap.Round
-        )
-        drawLine(
-            color,
-            Offset(left, size.height * 0.66f),
-            Offset(right, size.height * 0.66f),
-            stroke,
-            StrokeCap.Round
-        )
+        repeat(2) { row ->
+            repeat(2) { column ->
+                drawRoundRect(
+                    color = color,
+                    topLeft = Offset(
+                        left + column * (cell + gap),
+                        top + row * (cell + gap)
+                    ),
+                    size = Size(cell, cell),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(
+                        cell * .22f,
+                        cell * .22f
+                    )
+                )
+            }
+        }
     }
 }
 

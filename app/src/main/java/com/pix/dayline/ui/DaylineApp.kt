@@ -12,6 +12,13 @@ import android.provider.CalendarContract
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -63,6 +70,17 @@ import java.time.LocalTime
 import java.util.UUID
 
 enum class DaylineScreen { TODAY, CALENDAR, UPCOMING, TASKS, SEARCH, SPACES, SETTINGS }
+
+private val DaylineScreen.navigationRank: Int
+    get() = when (this) {
+        DaylineScreen.TODAY -> 0
+        DaylineScreen.CALENDAR -> 1
+        DaylineScreen.UPCOMING -> 2
+        DaylineScreen.TASKS -> 3
+        DaylineScreen.SEARCH -> 4
+        DaylineScreen.SPACES -> 5
+        DaylineScreen.SETTINGS -> 6
+    }
 private data class AddRequest(val date: LocalDate, val kind: AgendaKind, val time: LocalTime? = null)
 private data class PendingRecurringGestureEdit(
     val updated: DaylineItem,
@@ -391,6 +409,7 @@ fun DaylineApp(
         }
 
         var screen by remember { mutableStateOf(DaylineScreen.TODAY) }
+        var navigationDirection by remember { mutableIntStateOf(0) }
         var displayedDate by remember { mutableStateOf(LocalDate.now()) }
         var history by remember { mutableStateOf(emptyList<DaylineScreen>()) }
         var menuOpen by remember { mutableStateOf(false) }
@@ -427,14 +446,32 @@ fun DaylineApp(
         }
         fun navigateTo(next: DaylineScreen) {
             if (next == screen) return
-            history = history + screen; screen = next; taskDetail = null
+            navigationDirection =
+                if (next.navigationRank >= screen.navigationRank) 1 else -1
+            history = history + screen
+            screen = next
+            taskDetail = null
         }
         fun goToday() {
-            history = emptyList(); taskDetail = null; eventDetail = null; displayedDate = LocalDate.now(); screen = DaylineScreen.TODAY
+            if (screen != DaylineScreen.TODAY) navigationDirection = -1
+            history = emptyList()
+            taskDetail = null
+            eventDetail = null
+            displayedDate = LocalDate.now()
+            screen = DaylineScreen.TODAY
         }
         fun goBack() {
-            if (history.isNotEmpty()) { screen = history.last(); history = history.dropLast(1) }
-            else if (screen != DaylineScreen.TODAY) { displayedDate = LocalDate.now(); screen = DaylineScreen.TODAY }
+            if (history.isNotEmpty()) {
+                val target = history.last()
+                navigationDirection =
+                    if (target.navigationRank >= screen.navigationRank) 1 else -1
+                screen = target
+                history = history.dropLast(1)
+            } else if (screen != DaylineScreen.TODAY) {
+                navigationDirection = -1
+                displayedDate = LocalDate.now()
+                screen = DaylineScreen.TODAY
+            }
         }
         fun requestNotificationIfNeeded(item: DaylineItem) {
             if ((item.reminderMinutes != null || (nowActivityEnabled && item.startTime != null && item.endTime != null)) &&
@@ -760,7 +797,39 @@ fun DaylineApp(
                     },
                     onDelete = ::deleteItem
                 )
-            } else when (screen) {
+            } else {
+                AnimatedContent(
+                    targetState = screen,
+                    transitionSpec = {
+                        if (navigationDirection >= 0) {
+                            (
+                                slideInHorizontally(
+                                    animationSpec = tween(300),
+                                    initialOffsetX = { width -> width }
+                                ) + fadeIn(animationSpec = tween(190))
+                            ) togetherWith (
+                                slideOutHorizontally(
+                                    animationSpec = tween(300),
+                                    targetOffsetX = { width -> -width / 3 }
+                                ) + fadeOut(animationSpec = tween(150))
+                            )
+                        } else {
+                            (
+                                slideInHorizontally(
+                                    animationSpec = tween(300),
+                                    initialOffsetX = { width -> -width }
+                                ) + fadeIn(animationSpec = tween(190))
+                            ) togetherWith (
+                                slideOutHorizontally(
+                                    animationSpec = tween(300),
+                                    targetOffsetX = { width -> width / 3 }
+                                ) + fadeOut(animationSpec = tween(150))
+                            )
+                        }
+                    },
+                    label = "dayline-screen"
+                ) { targetScreen ->
+                    when (targetScreen) {
                 DaylineScreen.TODAY -> TodayScreen(
                     items = visibleItems,
                     showOrb = showOrb,
@@ -783,17 +852,32 @@ fun DaylineApp(
                     onResize = { changeWithUndo(it, "Resized ${it.title} to ${it.endTime}", displayedDate) },
                     onScheduleTask = { changeWithUndo(it, "Scheduled ${it.title} at ${it.startTime}", displayedDate) },
                     onReturnToday = ::goToday,
-                    onSwipeUpcoming = { history = emptyList(); taskDetail = null; screen = DaylineScreen.UPCOMING }
+                    onSwipeUpcoming = {
+                        navigationDirection = 1
+                        history = emptyList()
+                        taskDetail = null
+                        screen = DaylineScreen.UPCOMING
+                    }
                 )
                 DaylineScreen.CALENDAR -> CalendarScreen(
                     items = visibleItems, weekStartsMonday = weekStartsMonday, onMenu = { menuOpen = true }, onToday = ::goToday,
                     onAdd = { addRequest = AddRequest(it, AgendaKind.EVENT) }, onEdit = { item, date -> openItem(item, date) }, onToggleTask = ::toggleTask,
-                    onOpenDay = { date -> displayedDate = date; history = emptyList(); screen = DaylineScreen.TODAY }
+                    onOpenDay = { date ->
+                        navigationDirection = -1
+                        displayedDate = date
+                        history = emptyList()
+                        screen = DaylineScreen.TODAY
+                    }
                 )
                 DaylineScreen.UPCOMING -> UpcomingScreen(
                     items = visibleItems, spaces = spaces, onMenu = { menuOpen = true }, onToday = ::goToday,
                     onAdd = { addRequest = AddRequest(it, AgendaKind.EVENT) }, onEdit = { item, date -> openItem(item, date) }, onToggleTask = ::toggleTask,
-                    onSwipeToday = { history = emptyList(); displayedDate = LocalDate.now(); screen = DaylineScreen.TODAY }
+                    onSwipeToday = {
+                        navigationDirection = -1
+                        history = emptyList()
+                        displayedDate = LocalDate.now()
+                        screen = DaylineScreen.TODAY
+                    }
                 )
                 DaylineScreen.TASKS -> TasksScreen(
                     items = items, spaces = spaces, onMenu = { menuOpen = true }, onToday = ::goToday,
@@ -843,6 +927,8 @@ fun DaylineApp(
                     onWeekStart = { weekStartsMonday = it; store.saveWeekStartsMonday(it) },
                     onMenu = { menuOpen = true }, onToday = ::goToday
                 )
+                    }
+                }
             }
 
             SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 92.dp))

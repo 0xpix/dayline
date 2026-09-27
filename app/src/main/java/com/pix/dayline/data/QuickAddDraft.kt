@@ -35,7 +35,8 @@ data class QuickAddDraft(
     val earliestDate: LocalDate? = null,
     val deadlineDate: LocalDate? = null,
     val color: ItemColor = ItemColor.MONO,
-    val spaceId: String? = null
+    val spaceId: String? = null,
+    val notes: String = ""
 ) {
     fun applyingShorthand(parsed: ParsedQuickAdd?): QuickAddDraft {
         if (parsed == null || !parsed.hasDirectives) return this
@@ -130,6 +131,7 @@ data class QuickAddDraft(
             timeZoneId = preservedTimeZone,
             color = color,
             spaceId = spaceId,
+            notes = notes,
             details = editing?.details ?: emptyList(),
             completedDates = editing?.completedDates ?: emptySet(),
             calendarEventId = editing?.calendarEventId.takeIf { preserveCalendarIdentity },

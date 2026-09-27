@@ -77,6 +77,21 @@ fun EventDetailSheet(
                 Text(meta, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
+            if (item.notes.isNotBlank()) {
+                Spacer(Modifier.height(22.dp))
+                Text(
+                    "NOTES",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(7.dp))
+                Text(
+                    item.notes,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
+
             Spacer(Modifier.height(26.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 DetailAction("EDIT", enabled = !item.calendarReadOnly, onClick = onEdit)

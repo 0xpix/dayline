@@ -663,6 +663,7 @@ class DaylineStore(context: Context) {
             allDay = json.optBoolean("allDay", kind == AgendaKind.EVENT && startTimeRaw.isBlank()),
             timeZoneId = json.optString("timeZoneId").takeIf { it.isNotBlank() },
             color = enumValue(json.optString("color"), ItemColor.MONO), spaceId = json.optString("spaceId").takeIf { it.isNotBlank() },
+            notes = json.optString("notes"),
             details = details, completedDates = completed, calendarEventId = json.optLong("calendarEventId", -1L).takeIf { it >= 0L },
             calendarId = json.optLong("calendarId", -1L).takeIf { it >= 0L }, calendarName = json.optString("calendarName").takeIf { it.isNotBlank() },
             calendarReadOnly = json.optBoolean("calendarReadOnly", false)
@@ -682,7 +683,7 @@ class DaylineStore(context: Context) {
             .put("estimatedDurationMinutes", item.estimatedDurationMinutes)
             .put("earliestDate", item.earliestDate?.toString().orEmpty()).put("deadlineDate", item.deadlineDate?.toString().orEmpty())
             .put("allDay", item.allDay).put("timeZoneId", item.timeZoneId.orEmpty())
-            .put("color", item.color.name).put("spaceId", item.spaceId.orEmpty()).put("details", details).put("completedDates", datesArray(item.completedDates))
+            .put("color", item.color.name).put("spaceId", item.spaceId.orEmpty()).put("notes", item.notes).put("details", details).put("completedDates", datesArray(item.completedDates))
             .put("calendarEventId", item.calendarEventId ?: -1L).put("calendarId", item.calendarId ?: -1L).put("calendarName", item.calendarName.orEmpty())
             .put("calendarReadOnly", item.calendarReadOnly)
     }

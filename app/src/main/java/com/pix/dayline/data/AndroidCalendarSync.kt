@@ -116,6 +116,7 @@ object AndroidCalendarSync {
         val projection = arrayOf(
             CalendarContract.Instances.EVENT_ID,
             CalendarContract.Instances.TITLE,
+            CalendarContract.Instances.DESCRIPTION,
             CalendarContract.Instances.BEGIN,
             CalendarContract.Instances.END,
             CalendarContract.Instances.ALL_DAY,
@@ -134,6 +135,7 @@ object AndroidCalendarSync {
             )?.use { cursor ->
                 val eventIdIx = cursor.getColumnIndexOrThrow(CalendarContract.Instances.EVENT_ID)
                 val titleIx = cursor.getColumnIndexOrThrow(CalendarContract.Instances.TITLE)
+                val descriptionIx = cursor.getColumnIndex(CalendarContract.Instances.DESCRIPTION)
                 val beginIx = cursor.getColumnIndexOrThrow(CalendarContract.Instances.BEGIN)
                 val endIx = cursor.getColumnIndexOrThrow(CalendarContract.Instances.END)
                 val allDayIx = cursor.getColumnIndexOrThrow(CalendarContract.Instances.ALL_DAY)
@@ -170,6 +172,14 @@ object AndroidCalendarSync {
                                     ?.ifBlank { "Untitled" }
                                     ?: "Untitled",
                                 kind = AgendaKind.EVENT,
+                                notes = if (
+                                    descriptionIx >= 0 &&
+                                    !cursor.isNull(descriptionIx)
+                                ) {
+                                    cursor.getString(descriptionIx).orEmpty()
+                                } else {
+                                    ""
+                                },
                                 startDate = beginDateTime.toLocalDate(),
                                 startTime = if (allDay) null else beginDateTime.toLocalTime(),
                                 endTime = if (allDay) null else endDateTime.toLocalTime(),
@@ -192,6 +202,7 @@ object AndroidCalendarSync {
 
     private data class ProviderSnapshot(
         val title: String,
+        val notes: String,
         val startDate: LocalDate,
         val startTime: java.time.LocalTime?,
         val endTime: java.time.LocalTime?,
@@ -243,6 +254,7 @@ object AndroidCalendarSync {
                     val snapshot = state.snapshot
                     val providerCandidate = item.copy(
                         title = snapshot.title,
+                        notes = snapshot.notes,
                         startDate = snapshot.startDate,
                         startTime = snapshot.startTime,
                         endTime = CalendarProviderTimePolicy.reconciledEndTime(
@@ -302,6 +314,7 @@ object AndroidCalendarSync {
         val projection = arrayOf(
             CalendarContract.Events._ID,
             CalendarContract.Events.TITLE,
+            CalendarContract.Events.DESCRIPTION,
             CalendarContract.Events.DTSTART,
             CalendarContract.Events.DTEND,
             CalendarContract.Events.DURATION,
@@ -324,6 +337,12 @@ object AndroidCalendarSync {
             val title = cursor.getString(cursor.getColumnIndexOrThrow(CalendarContract.Events.TITLE))
                 ?.ifBlank { "Untitled" }
                 ?: "Untitled"
+            val descriptionIx = cursor.getColumnIndex(CalendarContract.Events.DESCRIPTION)
+            val notes = if (descriptionIx >= 0 && !cursor.isNull(descriptionIx)) {
+                cursor.getString(descriptionIx).orEmpty()
+            } else {
+                ""
+            }
             val startMillis = cursor.getLong(cursor.getColumnIndexOrThrow(CalendarContract.Events.DTSTART))
             val dtEndIx = cursor.getColumnIndex(CalendarContract.Events.DTEND)
             val durationIx = cursor.getColumnIndex(CalendarContract.Events.DURATION)
@@ -360,6 +379,7 @@ object AndroidCalendarSync {
             ProviderState.Present(
                 ProviderSnapshot(
                     title = title,
+                    notes = notes,
                     startDate = startZoned.toLocalDate(),
                     startTime = if (allDay) null else startZoned.toLocalTime(),
                     endTime = if (allDay) null else endZoned?.toLocalTime(),
@@ -563,6 +583,7 @@ object AndroidCalendarSync {
 
     private fun syncFingerprint(item: DaylineItem): String = listOf(
         item.title,
+        item.notes,
         item.startDate.toString(),
         item.startTime?.toString().orEmpty(),
         item.endTime?.toString().orEmpty(),
@@ -586,6 +607,11 @@ object AndroidCalendarSync {
         calendarId?.let { values.put(CalendarContract.Events.CALENDAR_ID, it) }
 
         values.put(CalendarContract.Events.TITLE, item.title)
+        if (item.notes.isBlank()) {
+            values.putNull(CalendarContract.Events.DESCRIPTION)
+        } else {
+            values.put(CalendarContract.Events.DESCRIPTION, item.notes)
+        }
 
         val startTime = item.startTime
         val allDay = item.allDay || startTime == null

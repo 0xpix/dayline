@@ -42,7 +42,8 @@ class QuickAddDraftTest {
             date = date,
             startTime = LocalTime.of(9, 30),
             endTime = LocalTime.of(10, 30),
-            recurrence = Recurrence.ONCE
+            recurrence = Recurrence.ONCE,
+            notes = "Bring the revised outline."
         ).toItem(editing = editing)
 
         assertEquals(editing.id, saved.id)
@@ -51,6 +52,7 @@ class QuickAddDraftTest {
         assertEquals("Work", saved.calendarName)
         assertTrue(saved.calendarReadOnly)
         assertEquals("Europe/Berlin", saved.timeZoneId)
+        assertEquals("Bring the revised outline.", saved.notes)
         assertEquals(2, saved.focusSessionsCompleted)
         assertEquals(75, saved.focusedMinutesCompleted)
     }

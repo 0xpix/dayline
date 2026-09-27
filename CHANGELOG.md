@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.20.1.beta — Navigation tray + smoother Today return
+
+### Added
+- Added a compact bottom **view tray** with Today, Calendar, Upcoming and Tasks as primary destinations plus Search, Spaces and Settings as secondary destinations.
+- Added a labelled **VIEWS** capsule so navigation no longer depends on a burger/grid menu glyph.
+
+### Changed
+- Replaced the full-screen Navigation Hub with a thumb-friendly bottom sheet that can be dismissed by swiping down.
+- Lengthened and eased horizontal page transitions so left/right navigation reads as one continuous movement.
+- Today now waits for the measured timeline scroll range before animating toward the current-time area.
+- Kept Notes directly available while creating/editing events and tasks, with the same persisted Notes data used in details, Search, Calendar descriptions, backups and ICS.
+
+### Fixed
+- Fixed returning to Today by swipe sometimes snapping to the current-time position because the scroll target was calculated before layout completed.
+- Updated release validation for the new navigation tray and measured-scroll animation.
+- Bumped beta versionCode to **2001** and beta versionName to `0.20.1.beta`.
+
+
 ## 0.20.0.beta — Navigation, motion + notes
 
 ### Added

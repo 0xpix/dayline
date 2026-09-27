@@ -75,7 +75,7 @@ fun SearchScreen(
             Spacer(Modifier.height(26.dp))
 
             when {
-                query.text.isBlank() -> Text("Search names, Spaces, calendars, dates, weeks, task state, or free time. Everything is resolved locally.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                query.text.isBlank() -> Text("Search names, notes, Spaces, calendars, dates, weeks, task state, or free time. Everything is resolved locally.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 parsed.free -> {
                     Text("FREE TIME", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(8.dp))
@@ -202,6 +202,7 @@ private fun search(items: List<DaylineItem>, spaces: List<DaylineSpace>, raw: St
 
         val searchable = buildString {
             append(item.title.lowercase(locale)); append(' ')
+            append(item.notes.lowercase(locale)); append(' ')
             append(item.calendarName?.lowercase(locale).orEmpty()); append(' ')
             append(spacesById[item.spaceId]?.name?.lowercase(locale).orEmpty()); append(' ')
             append(item.startDate)

@@ -414,7 +414,7 @@ feature_checks = {
     "room write journal": "KEY_PENDING_ROOM_ITEMS" in all_kotlin and "KEY_PENDING_ROOM_SPACES" in all_kotlin and "replayPendingRoomWrites" in all_kotlin and "clearPendingRoomWrite" in all_kotlin and "loadLastRoomWriteError" in all_kotlin and "hasPendingRoomWrites" in all_kotlin,
     "item notes": "val notes: String" in all_kotlin and "\"NOTES\"" in all_kotlin and "DESCRIPTION" in all_kotlin and "item.notes.lowercase" in all_kotlin,
     "room notes migration": "MIGRATION_1_2" in all_kotlin and "ADD COLUMN notes TEXT" in all_kotlin and "version = 2" in all_kotlin,
-    "navigation tray": "Compact bottom navigation tray" in all_kotlin and "DestinationTile" in all_kotlin and "SecondaryDestination" in all_kotlin and "\"VIEWS  ··\"" in all_kotlin,
+    "navigation tray": "Compact bottom navigation tray" in all_kotlin and "DestinationTile" in all_kotlin and "SecondaryDestination" in all_kotlin and "\"VIEWS  ··\"" in all_kotlin and "onSelect = { navigateTo(it) }" in all_kotlin,
     "animated navigation": "AnimatedContent" in all_kotlin and "slideInHorizontally" in all_kotlin and "dayline-screen" in all_kotlin and "positionNear(target, animate = true)" in all_kotlin and ".background(MaterialTheme.colorScheme.background)" in all_kotlin and "setBackgroundDrawable(ColorDrawable(colorScheme.background.toArgb()))" in all_kotlin,
     "local quick add parser": "QuickAddParser" in all_kotlin and "ParsedQuickAdd" in all_kotlin and "applyingShorthand" in all_kotlin,
     "compact quick add directives": "extractCompactDirectives" in all_kotlin and "COMPACT_REMINDER_REGEX" in all_kotlin and "spaceName" in all_kotlin and "spaces = spaces" in all_kotlin,

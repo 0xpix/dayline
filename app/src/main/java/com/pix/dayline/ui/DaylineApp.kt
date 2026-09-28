@@ -20,6 +20,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -786,7 +787,13 @@ fun DaylineApp(
             }
         }
 
-        Box(Modifier.fillMaxSize()) {
+        // Keep the transition host opaque. AnimatedContent slides can otherwise
+        // expose the Activity window for a frame between destinations.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
             val detail = taskDetail
             if (detail != null) {
                 val live = items.firstOrNull { it.id == detail.id } ?: detail

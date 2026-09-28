@@ -224,6 +224,7 @@ The tag job additionally builds `:app:assembleBetaRelease`, verifies tag/APK ide
 - Navigation opens as a compact bottom view tray rather than a side drawer, burger menu or full-screen launcher.
 - The floating navigation control is a labelled VIEWS capsule rather than a burger/grid glyph.
 - Today, Calendar, Upcoming and Tasks are primary tray destinations; Search, Spaces and Settings remain one tap away.
+- Selecting a destination updates the page without dismissing the VIEWS tray; swipe down/outside dismissal closes it.
 - Main destination changes use eased directional horizontal slide/fade transitions.
 - The animated destination host always paints MaterialTheme.colorScheme.background so dark-mode swipes never reveal a white window.
 - Today → Upcoming moves left; Upcoming → Today moves right.

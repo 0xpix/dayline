@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -956,7 +957,9 @@ fun DaylineApp(
 
         if (menuOpen) NavigationSheet(
             current = screen,
-            onSelect = { navigateTo(it); menuOpen = false },
+            // Keep the view tray open while switching destinations so the
+            // user can move across several pages without reopening navigation.
+            onSelect = { navigateTo(it) },
             onDismiss = { menuOpen = false },
             onQuickAdd = {
                 menuOpen = false

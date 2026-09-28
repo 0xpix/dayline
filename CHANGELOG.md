@@ -8,6 +8,7 @@
 
 ### Changed
 - Page transitions keep the active Dayline background painted for the entire slide/fade animation, including edge-to-edge areas.
+- Choosing a destination from the VIEWS tray now switches the page underneath while keeping the tray open for additional navigation.
 
 ### Fixed
 - Fixed a brief white flash appearing between pages while swiping or navigating in dark mode.

@@ -27,9 +27,9 @@ android {
             dimension = "distribution"
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
-            // v0.20.1.beta: bottom view tray, smoother swipe motion, and notes.
-            versionCode = 2001
-            versionName = "0.20.1"
+            // v0.20.2.beta: dark-safe page transitions and navigation polish.
+            versionCode = 2002
+            versionName = "0.20.2"
             // Nothing's Glyph Matrix SDK 2.0 declares minSdk 33. Keep this
             // requirement isolated to the beta/Glyph build so the normal Play
             // build continues to support Dayline's global minSdk 26.

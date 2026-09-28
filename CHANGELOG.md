@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.20.2.beta — Dark-safe navigation transitions
+
+### Added
+- Added an opaque theme background behind the animated page host so transitions never expose the Activity window.
+- Added Activity-window background synchronization with Dayline's resolved light/dark color scheme.
+
+### Changed
+- Page transitions keep the active Dayline background painted for the entire slide/fade animation, including edge-to-edge areas.
+
+### Fixed
+- Fixed a brief white flash appearing between pages while swiping or navigating in dark mode.
+- Fixed the platform light window briefly showing through when AnimatedContent moved both destination surfaces off the same pixels.
+- Bumped beta versionCode to **2002** and beta versionName to `0.20.2.beta`.
+
+
 ## 0.20.1.beta — Navigation tray + smoother Today return
 
 ### Added

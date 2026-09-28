@@ -415,7 +415,7 @@ feature_checks = {
     "item notes": "val notes: String" in all_kotlin and "\"NOTES\"" in all_kotlin and "DESCRIPTION" in all_kotlin and "item.notes.lowercase" in all_kotlin,
     "room notes migration": "MIGRATION_1_2" in all_kotlin and "ADD COLUMN notes TEXT" in all_kotlin and "version = 2" in all_kotlin,
     "navigation tray": "Compact bottom navigation tray" in all_kotlin and "DestinationTile" in all_kotlin and "SecondaryDestination" in all_kotlin and "\"VIEWS  ··\"" in all_kotlin,
-    "animated navigation": "AnimatedContent" in all_kotlin and "slideInHorizontally" in all_kotlin and "dayline-screen" in all_kotlin and "positionNear(target, animate = true)" in all_kotlin,
+    "animated navigation": "AnimatedContent" in all_kotlin and "slideInHorizontally" in all_kotlin and "dayline-screen" in all_kotlin and "positionNear(target, animate = true)" in all_kotlin and ".background(MaterialTheme.colorScheme.background)" in all_kotlin and "setBackgroundDrawable(ColorDrawable(colorScheme.background.toArgb()))" in all_kotlin,
     "local quick add parser": "QuickAddParser" in all_kotlin and "ParsedQuickAdd" in all_kotlin and "applyingShorthand" in all_kotlin,
     "compact quick add directives": "extractCompactDirectives" in all_kotlin and "COMPACT_REMINDER_REGEX" in all_kotlin and "spaceName" in all_kotlin and "spaces = spaces" in all_kotlin,
     "quick add live preview": "previewLabel" in all_kotlin and "needsFocusStartTime" in all_kotlin and "quickAddNeedsTime" in all_kotlin and "UNDERSTOOD ·" in all_kotlin and "TRY · work 6-9:30 every weekday" in all_kotlin and "reminderMinutes" in all_kotlin,

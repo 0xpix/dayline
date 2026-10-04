@@ -1,6 +1,6 @@
 # Dayline Glyph Matrix integration
 
-Dayline v0.21.2.beta provides an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
+Dayline v0.21.3.beta provides an experimental **Nothing Phone (4a) Pro** Glyph Matrix experience. The device uses a **13×13** matrix and supports **AOD-only Glyph Toys**.
 
 The conservative transport recovery and centered stacked Focus timer from v0.15.3–v0.15.4 remain the hardware baseline. v0.20.0 simplifies the live expression set and restores the optional brief app-state mode without making those states the permanent face.
 

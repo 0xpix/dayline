@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
+import java.time.LocalTime
 
 class DaylinePlanTest {
     private val sunday = LocalDate.of(2026, 10, 4)
@@ -186,6 +187,59 @@ class DaylinePlanTest {
         val summary = mealSummaryFor(listOf(plan), monday)
 
         assertEquals(listOf("Eggs and toast"), summary.single().titles)
+    }
+
+    @Test
+    fun mealGlanceShowsOnlyCurrentMealInsideItsWindow() {
+        val plan = DaylinePlan(
+            id = "diet",
+            name = "Diet",
+            sections = DaylinePlan.MEAL_SECTIONS,
+            items = listOf(
+                DaylinePlanItem("breakfast", "Oat bowl", "Breakfast", weekdays = setOf(1)),
+                DaylinePlanItem("lunch", "Chicken rice", "Lunch", weekdays = setOf(1)),
+                DaylinePlanItem("snack", "Greek yogurt", "Snacks", weekdays = setOf(1)),
+                DaylinePlanItem("dinner", "Salmon potatoes", "Dinner", weekdays = setOf(1))
+            )
+        )
+
+        val glance = mealGlanceFor(listOf(plan), monday, LocalTime.of(15, 47))
+
+        assertEquals(DaylineMealGlanceState.NOW, glance?.state)
+        assertEquals("Snacks", glance?.meal?.section)
+        assertEquals(listOf("Greek yogurt"), glance?.meal?.titles)
+    }
+
+    @Test
+    fun mealGlanceShowsNextMealBetweenWindows() {
+        val plan = DaylinePlan(
+            id = "diet",
+            name = "Diet",
+            sections = DaylinePlan.MEAL_SECTIONS,
+            items = listOf(
+                DaylinePlanItem("snack", "Greek yogurt", "Snacks", weekdays = setOf(1)),
+                DaylinePlanItem("dinner", "Salmon potatoes", "Dinner", weekdays = setOf(1))
+            )
+        )
+
+        val glance = mealGlanceFor(listOf(plan), monday, LocalTime.of(17, 30))
+
+        assertEquals(DaylineMealGlanceState.NEXT, glance?.state)
+        assertEquals("Dinner", glance?.meal?.section)
+    }
+
+    @Test
+    fun mealGlanceDisappearsAfterLastMeal() {
+        val plan = DaylinePlan(
+            id = "diet",
+            name = "Diet",
+            sections = DaylinePlan.MEAL_SECTIONS,
+            items = listOf(
+                DaylinePlanItem("dinner", "Salmon potatoes", "Dinner", weekdays = setOf(1))
+            )
+        )
+
+        assertEquals(null, mealGlanceFor(listOf(plan), monday, LocalTime.of(21, 30)))
     }
 
 }

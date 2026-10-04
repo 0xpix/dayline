@@ -27,9 +27,9 @@ android {
             dimension = "distribution"
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
-            // v0.20.2.beta: dark-safe page transitions and navigation polish.
-            versionCode = 2002
-            versionName = "0.20.2"
+            // v0.21.0.beta: optional date-aware Plans, kept separate from calendar events.
+            versionCode = 2100
+            versionName = "0.21.0"
             // Nothing's Glyph Matrix SDK 2.0 declares minSdk 33. Keep this
             // requirement isolated to the beta/Glyph build so the normal Play
             // build continues to support Dayline's global minSdk 26.

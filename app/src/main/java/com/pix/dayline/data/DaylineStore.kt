@@ -57,6 +57,75 @@ class DaylineStore(context: Context) {
         )
     }
 
+    fun loadPlans(): List<DaylinePlan> {
+        val raw = prefs.getString(KEY_PLANS, null) ?: return emptyList()
+        val array = runCatching { JSONArray(raw) }.getOrNull() ?: return emptyList()
+        return buildList {
+            for (index in 0 until array.length()) {
+                val plan = runCatching {
+                    val json = array.getJSONObject(index)
+                    val sectionsArray = json.optJSONArray("sections") ?: JSONArray()
+                    val sections = buildList {
+                        for (sectionIndex in 0 until sectionsArray.length()) {
+                            sectionsArray.optString(sectionIndex).trim()
+                                .takeIf(String::isNotBlank)
+                                ?.let(::add)
+                        }
+                    }.distinct()
+
+                    val entriesJson = json.optJSONObject("entries") ?: JSONObject()
+                    val entries = buildMap<String, Map<String, String>> {
+                        val dates = entriesJson.keys()
+                        while (dates.hasNext()) {
+                            val dateKey = dates.next()
+                            val dayJson = entriesJson.optJSONObject(dateKey) ?: continue
+                            val values = buildMap<String, String> {
+                                val sectionKeys = dayJson.keys()
+                                while (sectionKeys.hasNext()) {
+                                    val section = sectionKeys.next()
+                                    val value = dayJson.optString(section)
+                                    if (section in sections && value.isNotBlank()) put(section, value)
+                                }
+                            }
+                            if (values.isNotEmpty()) put(dateKey, values)
+                        }
+                    }
+
+                    DaylinePlan(
+                        id = json.optString("id").ifBlank { UUID.randomUUID().toString() },
+                        name = json.optString("name").ifBlank { "Plan" },
+                        sections = sections,
+                        entries = entries
+                    )
+                }.getOrNull()
+                if (plan != null) add(plan)
+            }
+        }
+    }
+
+    fun savePlans(plans: List<DaylinePlan>) {
+        val array = JSONArray()
+        plans.forEach { plan ->
+            val sections = JSONArray().apply { plan.sections.forEach(::put) }
+            val entries = JSONObject()
+            plan.entries.forEach { (dateKey, values) ->
+                val day = JSONObject()
+                values.forEach { (section, value) ->
+                    if (section in plan.sections && value.isNotBlank()) day.put(section, value)
+                }
+                if (day.length() > 0) entries.put(dateKey, day)
+            }
+            array.put(
+                JSONObject()
+                    .put("id", plan.id)
+                    .put("name", plan.name)
+                    .put("sections", sections)
+                    .put("entries", entries)
+            )
+        }
+        prefs.edit().putString(KEY_PLANS, array.toString()).apply()
+    }
+
     fun loadTemplates(): List<EventTemplate> {
         val raw = prefs.getString(KEY_TEMPLATES, null) ?: return defaultTemplates()
         val array = runCatching { JSONArray(raw) }.getOrNull() ?: return defaultTemplates()
@@ -384,15 +453,30 @@ class DaylineStore(context: Context) {
             require(templateIds.add(templateId)) { "Backup contains duplicate template id: $templateId" }
         }
 
+        val plansArray = values.optString(KEY_PLANS)
+            .takeIf { it.isNotBlank() }
+            ?.let(::JSONArray)
+            ?: JSONArray()
+        val planIds = mutableSetOf<String>()
+        for (index in 0 until plansArray.length()) {
+            val plan = plansArray.getJSONObject(index)
+            val planId = plan.optString("id")
+            require(planId.isNotBlank()) { "Backup contains a Plan without an id" }
+            require(planIds.add(planId)) { "Backup contains duplicate Plan id: $planId" }
+            require(plan.optString("name").isNotBlank()) { "Backup contains a Plan without a name" }
+        }
+
         val spaces = spacesArray.length()
         val templates = templatesArray.length()
+        val plans = plansArray.length()
 
         BackupPreview(
             version = version,
             events = events,
             tasks = tasks,
             spaces = spaces,
-            templates = templates
+            templates = templates,
+            plans = plans
         )
     }.getOrNull()
 
@@ -726,7 +810,7 @@ class DaylineStore(context: Context) {
             "last_room_write_error"
         )
 
-        private const val KEY_ITEMS = "items"; private const val KEY_SPACES = "spaces"; private const val KEY_TEMPLATES = "templates"
+        private const val KEY_ITEMS = "items"; private const val KEY_SPACES = "spaces"; private const val KEY_TEMPLATES = "templates"; private const val KEY_PLANS = "plans"
         private const val KEY_CALENDAR_PREFS = "calendar_prefs"; private const val KEY_APPEARANCE = "appearance"; private const val KEY_FONT = "font"
         private const val KEY_WIDGET_FONT = "widget_font"; private const val KEY_WIDGET_EMOJI = "widget_emoji"; private const val KEY_WIDGET_AUTO_SLIDE = "widget_auto_slide"
         private const val KEY_NOW_ACTIVITY = "now_activity"; private const val KEY_CALENDAR_SYNC = "calendar_sync"; private const val KEY_AUTO_BETA_UPDATES = "auto_beta_updates"
@@ -749,7 +833,8 @@ data class BackupPreview(
     val events: Int,
     val tasks: Int,
     val spaces: Int,
-    val templates: Int
+    val templates: Int,
+    val plans: Int = 0
 ) {
     val items: Int get() = events + tasks
 }

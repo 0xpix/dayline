@@ -87,7 +87,7 @@ fun UpcomingScreen(
                     onHorizontalDrag = { _, amount -> dragTotal += amount },
                     onDragCancel = { dragTotal = 0f },
                     onDragEnd = {
-                        if (dragTotal > 120f) onSwipeToday()
+                        if (dragTotal < -120f) onSwipeToday()
                         dragTotal = 0f
                     }
                 )
@@ -104,7 +104,7 @@ fun UpcomingScreen(
             Text("Upcoming", style = MaterialTheme.typography.displayMedium)
             Spacer(Modifier.height(10.dp))
             Text(
-                "Swipe right for Today",
+                "Swipe left for Today",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

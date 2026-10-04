@@ -1,6 +1,9 @@
 # Dayline v0.21.0.beta — Validation Report
 
-This report tracks the current **v0.21.0.beta / versionCode 2100** source. GitHub Actions remains the authoritative Android/Compose compile gate.\n\n- Plans remain separate from calendar events, Quick Add, busy time and conflict detection.\n- Today swipe contract: left → Plans, right → Upcoming; reverse gestures return to Today.
+This report tracks the current **v0.21.0.beta / versionCode 2100** source. GitHub Actions remains the authoritative Android/Compose compile gate.
+
+- Plans remain separate from calendar events, Quick Add, busy time and conflict detection.
+- Today swipe contract: left → Plans, right → Upcoming; reverse gestures return to Today.
 
 ## Release checks
 

@@ -859,6 +859,7 @@ fun DaylineApp(
                     when (targetScreen) {
                 DaylineScreen.TODAY -> TodayScreen(
                     items = visibleItems,
+                    plans = plans,
                     showOrb = showOrb,
                     date = displayedDate,
                     onMenu = { menuOpen = true },
@@ -879,6 +880,12 @@ fun DaylineApp(
                     onResize = { changeWithUndo(it, "Resized ${it.title} to ${it.endTime}", displayedDate) },
                     onScheduleTask = { changeWithUndo(it, "Scheduled ${it.title} at ${it.startTime}", displayedDate) },
                     onReturnToday = ::goToday,
+                    onOpenPlans = {
+                        navigationDirection = 1
+                        history = emptyList()
+                        taskDetail = null
+                        screen = DaylineScreen.PLANS
+                    },
                     onSwipePlans = {
                         navigationDirection = 1
                         history = emptyList()

@@ -111,4 +111,81 @@ class DaylinePlanTest {
         assertEquals("Breakfast", plan.items.single().section)
         assertEquals(setOf(1), plan.items.single().weekdays)
     }
+    @Test
+    fun mealSummaryUsesExpectedTodayWindows() {
+        val plan = DaylinePlan(
+            id = "diet",
+            name = "Diet",
+            sections = DaylinePlan.MEAL_SECTIONS,
+            items = listOf(
+                DaylinePlanItem(
+                    id = "breakfast",
+                    title = "Oat bowl",
+                    section = "Breakfast",
+                    weekdays = setOf(1)
+                ),
+                DaylinePlanItem(
+                    id = "lunch",
+                    title = "Chicken rice",
+                    section = "Lunch",
+                    weekdays = setOf(1)
+                ),
+                DaylinePlanItem(
+                    id = "snack",
+                    title = "Greek yogurt",
+                    section = "Snacks",
+                    weekdays = setOf(1)
+                ),
+                DaylinePlanItem(
+                    id = "dinner",
+                    title = "Salmon potatoes",
+                    section = "Dinner",
+                    weekdays = setOf(1)
+                )
+            )
+        )
+
+        val summary = mealSummaryFor(listOf(plan), monday)
+
+        assertEquals(
+            listOf("Breakfast", "Lunch", "Snacks", "Dinner"),
+            summary.map { it.section }
+        )
+        assertEquals("06:00", summary[0].start.toString())
+        assertEquals("09:00", summary[0].end.toString())
+        assertEquals("09:00", summary[1].start.toString())
+        assertEquals("13:00", summary[1].end.toString())
+        assertEquals("15:00", summary[2].start.toString())
+        assertEquals("17:00", summary[2].end.toString())
+        assertEquals("18:00", summary[3].start.toString())
+        assertEquals("21:00", summary[3].end.toString())
+    }
+
+    @Test
+    fun mealSummaryOnlyIncludesFoodsScheduledForThatWeekday() {
+        val plan = DaylinePlan(
+            id = "diet",
+            name = "Diet",
+            sections = DaylinePlan.MEAL_SECTIONS,
+            items = listOf(
+                DaylinePlanItem(
+                    id = "monday",
+                    title = "Eggs and toast",
+                    section = "Breakfast",
+                    weekdays = setOf(1)
+                ),
+                DaylinePlanItem(
+                    id = "tuesday",
+                    title = "Porridge",
+                    section = "Breakfast",
+                    weekdays = setOf(2)
+                )
+            )
+        )
+
+        val summary = mealSummaryFor(listOf(plan), monday)
+
+        assertEquals(listOf("Eggs and toast"), summary.single().titles)
+    }
+
 }

@@ -1,13 +1,13 @@
-# Dayline v0.20.2.beta — Validation Report
+# Dayline v0.21.0.beta — Validation Report
 
-This report tracks the current **v0.20.2.beta / versionCode 2002** source. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current **v0.21.0.beta / versionCode 2100** source. GitHub Actions remains the authoritative Android/Compose compile gate.\n\n- Plans remain separate from calendar events, Quick Add, busy time and conflict detection.\n- Today swipe contract: left → Plans, right → Upcoming; reverse gestures return to Today.
 
 ## Release checks
 
-- Beta target: **0.20.2.beta / 2002**.
-- `docs/releases/v0.20.2.beta.md` contains concise **Added / Changed / Fixed** updater notes.
+- Beta target: **0.21.0.beta / 2100**.
+- `docs/releases/v0.21.0.beta.md` contains concise **Added / Changed / Fixed** updater notes.
 - Beta/Play flavor separation remains intact; Play stays on the stable base version and does not package the Nothing SDK.
-- Tagged builds must verify signed APK versionName/versionCode against tag `v0.20.2.beta`.
+- Tagged builds must verify signed APK versionName/versionCode against tag `v0.21.0.beta`.
 - Calendar sync regression coverage must preserve a 06:00–09:30 local event when provider end data is temporarily unavailable.
 - Static validation, recurrence/planning unit tests, Beta debug compile and Play debug compile must all pass before tagging.
 

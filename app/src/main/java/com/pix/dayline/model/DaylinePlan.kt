@@ -1,6 +1,7 @@
 package com.pix.dayline.model
 
 import java.time.LocalDate
+import java.time.LocalTime
 import java.util.UUID
 
 /**
@@ -18,6 +19,40 @@ data class DaylinePlanItem(
     val weekdays: Set<Int> = emptySet()
 ) {
     fun occursOn(date: LocalDate): Boolean = date.dayOfWeek.value in weekdays
+}
+
+data class DaylineMealSummary(
+    val section: String,
+    val start: LocalTime,
+    val end: LocalTime,
+    val titles: List<String>
+)
+
+fun mealSummaryFor(plans: List<DaylinePlan>, date: LocalDate): List<DaylineMealSummary> {
+    val windows = listOf(
+        Triple("Breakfast", LocalTime.of(6, 0), LocalTime.of(9, 0)),
+        Triple("Lunch", LocalTime.of(9, 0), LocalTime.of(13, 0)),
+        Triple("Snacks", LocalTime.of(15, 0), LocalTime.of(17, 0)),
+        Triple("Dinner", LocalTime.of(18, 0), LocalTime.of(21, 0))
+    )
+
+    return windows.mapNotNull { (section, start, end) ->
+        val titles = plans
+            .filter { section in it.sections }
+            .flatMap { it.itemsFor(date, section) }
+            .map { it.title.trim() }
+            .filter(String::isNotBlank)
+            .distinct()
+
+        titles.takeIf { it.isNotEmpty() }?.let {
+            DaylineMealSummary(
+                section = section,
+                start = start,
+                end = end,
+                titles = it
+            )
+        }
+    }
 }
 
 data class DaylinePlan(

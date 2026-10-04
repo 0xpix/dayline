@@ -7,15 +7,15 @@
 ### A quieter way to plan your day.
 
 **Dayline is a minimal, local-first calendar and daily planner for Android.**  
-It brings events, tasks, free time, Focus, widgets and Android Calendar sync into one calm Today-first timeline.
+It brings events, tasks, optional Plans, free time, Focus, widgets and Android Calendar sync into one calm Today-first experience.
 
-[![Beta](https://img.shields.io/badge/status-beta-111111?style=flat-square)](https://github.com/0xpix/dayline/releases/tag/v0.20.2.beta)
-[![Release](https://img.shields.io/badge/version-v0.20.2.beta-111111?style=flat-square)](https://github.com/0xpix/dayline/releases/tag/v0.20.2.beta)
+[![Beta](https://img.shields.io/badge/status-beta-111111?style=flat-square)](https://github.com/0xpix/dayline/releases/tag/v0.21.0.beta)
+[![Release](https://img.shields.io/badge/version-v0.21.0.beta-111111?style=flat-square)](https://github.com/0xpix/dayline/releases/tag/v0.21.0.beta)
 [![Android](https://img.shields.io/badge/Android-13%2B-111111?style=flat-square&logo=android)](#install-the-beta)
 [![Kotlin](https://img.shields.io/badge/Kotlin-Compose-111111?style=flat-square&logo=kotlin)](#build-from-source)
 [![License](https://img.shields.io/badge/license-MIT-111111?style=flat-square)](LICENSE)
 
-[**Download the latest beta**](https://github.com/0xpix/dayline/releases/tag/v0.20.2.beta) · [Report a bug](https://github.com/0xpix/dayline/issues) · [Privacy](docs/privacy-policy.md)
+[**Download the latest beta**](https://github.com/0xpix/dayline/releases/tag/v0.21.0.beta) · [Report a bug](https://github.com/0xpix/dayline/issues) · [Privacy](docs/privacy-policy.md)
 
 </div>
 
@@ -59,8 +59,8 @@ It is intentionally geometric and monochrome so it remains readable as an Androi
 
 | | |
 |---|---|
-| **Release** | `v0.20.2.beta` |
-| **Android versionCode** | `2002` |
+| **Release** | `v0.21.0.beta` |
+| **Android versionCode** | `2100` |
 | **Status** | Public beta |
 | **Beta package** | `com.pix.dayline.beta` |
 | **GitHub beta minimum Android** | Android 13 / API 33 |
@@ -197,10 +197,10 @@ That is the basic philosophy of Dayline: **show the day clearly, then help you u
 
 ## Install the beta
 
-The current public release is **v0.20.2.beta**.
+The current public release is **v0.21.0.beta**.
 
-1. Open the [v0.20.2.beta release](https://github.com/0xpix/dayline/releases/tag/v0.20.2.beta).
-2. Download `dayline-v0.20.2.beta.apk`.
+1. Open the [v0.21.0.beta release](https://github.com/0xpix/dayline/releases/tag/v0.21.0.beta).
+2. Download `dayline-v0.21.0.beta.apk`.
 3. Allow installation from your browser/file manager when Android asks.
 4. Install Dayline.
 
@@ -289,6 +289,6 @@ Bug reports, testing feedback and focused pull requests are welcome. See [CONTRI
 
 **Dayline** · A quieter way to plan your day.
 
-`v0.20.2.beta`
+`v0.21.0.beta`
 
 </div>

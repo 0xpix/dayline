@@ -126,6 +126,12 @@ fun NavigationSheet(
                     onClick = { onSelect(DaylineScreen.SPACES) }
                 )
                 SecondaryDestination(
+                    screen = DaylineScreen.PLANS,
+                    selected = current == DaylineScreen.PLANS,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onSelect(DaylineScreen.PLANS) }
+                )
+                SecondaryDestination(
                     screen = DaylineScreen.SETTINGS,
                     selected = current == DaylineScreen.SETTINGS,
                     modifier = Modifier.weight(1f),
@@ -307,6 +313,7 @@ private fun SecondaryDestination(
 private val DaylineScreen.label: String
     get() = when (this) {
         DaylineScreen.TODAY -> "Today"
+        DaylineScreen.PLANS -> "Plans"
         DaylineScreen.CALENDAR -> "Calendar"
         DaylineScreen.UPCOMING -> "Upcoming"
         DaylineScreen.TASKS -> "Tasks"
@@ -318,6 +325,7 @@ private val DaylineScreen.label: String
 private val DaylineScreen.hint: String
     get() = when (this) {
         DaylineScreen.TODAY -> "Your timeline"
+        DaylineScreen.PLANS -> "Things you follow"
         DaylineScreen.CALENDAR -> "Month view"
         DaylineScreen.UPCOMING -> "What is next"
         DaylineScreen.TASKS -> "Things to do"

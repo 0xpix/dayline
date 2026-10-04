@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.21.0.beta — Plans
+
+### Added
+- Added optional **Plans** for date-aware routines that should not occupy calendar time.
+- Added a **Meals** starter template with Breakfast, Lunch, Dinner and Snacks, plus fully custom plan names and sections.
+- Added per-day plan entries, day browsing and JSON backup/restore support.
+- Added Plans as a secondary destination in the VIEWS tray.
+
+### Changed
+- Today now uses the three-page gesture model: **swipe left → Plans** and **swipe right → Upcoming**.
+- Plans use their own editor instead of calendar Quick Add and never create events, reminders, busy blocks or conflicts.
+
+### Fixed
+- Added plan-model regression coverage for date isolation, blank-entry cleanup and section removal.
+- Bumped beta versionCode to **2100** and beta versionName to `0.21.0.beta`.
+
+
 ## 0.20.2.beta — Dark-safe navigation transitions
 
 ### Added

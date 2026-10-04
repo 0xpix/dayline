@@ -53,6 +53,7 @@ import com.pix.dayline.ui.components.EventDetailSheet
 import com.pix.dayline.ui.components.NavigationSheet
 import com.pix.dayline.ui.components.QuickAddSheet
 import com.pix.dayline.ui.onboarding.OnboardingScreen
+import com.pix.dayline.ui.plans.PlansScreen
 import com.pix.dayline.ui.search.SearchScreen
 import com.pix.dayline.ui.settings.PostUpdateWhatsNewSheet
 import com.pix.dayline.ui.settings.SettingsScreen
@@ -72,17 +73,18 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.util.UUID
 
-enum class DaylineScreen { TODAY, CALENDAR, UPCOMING, TASKS, SEARCH, SPACES, SETTINGS }
+enum class DaylineScreen { TODAY, PLANS, CALENDAR, UPCOMING, TASKS, SEARCH, SPACES, SETTINGS }
 
 private val DaylineScreen.navigationRank: Int
     get() = when (this) {
         DaylineScreen.TODAY -> 0
-        DaylineScreen.CALENDAR -> 1
-        DaylineScreen.UPCOMING -> 2
-        DaylineScreen.TASKS -> 3
-        DaylineScreen.SEARCH -> 4
-        DaylineScreen.SPACES -> 5
-        DaylineScreen.SETTINGS -> 6
+        DaylineScreen.PLANS -> 1
+        DaylineScreen.CALENDAR -> 2
+        DaylineScreen.UPCOMING -> 3
+        DaylineScreen.TASKS -> 4
+        DaylineScreen.SEARCH -> 5
+        DaylineScreen.SPACES -> 6
+        DaylineScreen.SETTINGS -> 7
     }
 private data class AddRequest(val date: LocalDate, val kind: AgendaKind, val time: LocalTime? = null)
 private data class PendingRecurringGestureEdit(
@@ -110,6 +112,7 @@ fun DaylineApp(
 
     var items by remember { mutableStateOf(store.loadItems()) }
     var spaces by remember { mutableStateOf(store.loadSpaces()) }
+    var plans by remember { mutableStateOf(store.loadPlans()) }
     var templates by remember { mutableStateOf(store.loadTemplates()) }
     var appearance by remember { mutableStateOf(store.loadAppearance()) }
     var fontChoice by remember { mutableStateOf(store.loadFontChoice()) }
@@ -240,7 +243,7 @@ fun DaylineApp(
     }
 
     fun reloadState() {
-        items = store.loadItems(); spaces = store.loadSpaces(); templates = store.loadTemplates()
+        items = store.loadItems(); spaces = store.loadSpaces(); plans = store.loadPlans(); templates = store.loadTemplates()
         appearance = store.loadAppearance(); fontChoice = store.loadFontChoice()
         widgetFontChoice = store.loadWidgetFontChoice(); widgetEmojiChoice = store.loadWidgetEmojiChoice(); widgetAutoSlide = store.loadWidgetAutoSlide()
         glyphPreferences = store.loadGlyphPreferences(); nowActivityEnabled = store.loadNowActivityEnabled()
@@ -303,6 +306,7 @@ fun DaylineApp(
             if (preview.events > 0) add("${preview.events} event${if (preview.events == 1) "" else "s"}")
             if (preview.tasks > 0) add("${preview.tasks} task${if (preview.tasks == 1) "" else "s"}")
             if (preview.spaces > 0) add("${preview.spaces} space${if (preview.spaces == 1) "" else "s"}")
+            if (preview.plans > 0) add("${preview.plans} plan${if (preview.plans == 1) "" else "s"}")
             if (isEmpty()) add("settings only")
         }.joinToString(" · ")
 
@@ -456,7 +460,9 @@ fun DaylineApp(
             taskDetail = null
         }
         fun goToday() {
-            if (screen != DaylineScreen.TODAY) navigationDirection = -1
+            if (screen != DaylineScreen.TODAY) {
+                navigationDirection = if (screen == DaylineScreen.UPCOMING) 1 else -1
+            }
             history = emptyList()
             taskDetail = null
             eventDetail = null
@@ -873,11 +879,34 @@ fun DaylineApp(
                     onResize = { changeWithUndo(it, "Resized ${it.title} to ${it.endTime}", displayedDate) },
                     onScheduleTask = { changeWithUndo(it, "Scheduled ${it.title} at ${it.startTime}", displayedDate) },
                     onReturnToday = ::goToday,
-                    onSwipeUpcoming = {
+                    onSwipePlans = {
                         navigationDirection = 1
                         history = emptyList()
                         taskDetail = null
+                        screen = DaylineScreen.PLANS
+                    },
+                    onSwipeUpcoming = {
+                        navigationDirection = -1
+                        history = emptyList()
+                        taskDetail = null
                         screen = DaylineScreen.UPCOMING
+                    }
+                )
+                DaylineScreen.PLANS -> PlansScreen(
+                    plans = plans,
+                    date = displayedDate,
+                    onDateChange = { displayedDate = it },
+                    onPlansChange = {
+                        plans = it
+                        store.savePlans(it)
+                    },
+                    onMenu = { menuOpen = true },
+                    onToday = ::goToday,
+                    onSwipeToday = {
+                        navigationDirection = -1
+                        history = emptyList()
+                        displayedDate = LocalDate.now()
+                        screen = DaylineScreen.TODAY
                     }
                 )
                 DaylineScreen.CALENDAR -> CalendarScreen(
@@ -894,7 +923,7 @@ fun DaylineApp(
                     items = visibleItems, spaces = spaces, onMenu = { menuOpen = true }, onToday = ::goToday,
                     onAdd = { addRequest = AddRequest(it, AgendaKind.EVENT) }, onEdit = { item, date -> openItem(item, date) }, onToggleTask = ::toggleTask,
                     onSwipeToday = {
-                        navigationDirection = -1
+                        navigationDirection = 1
                         history = emptyList()
                         displayedDate = LocalDate.now()
                         screen = DaylineScreen.TODAY

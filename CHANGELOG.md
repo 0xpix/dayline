@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.21.2.beta — Today meal summary
+
+### Added
+- Added a compact **Today's meals** card to Today when a weekly Meal Plan has food scheduled for that day.
+- Added time windows for Breakfast **06:00–09:00**, Lunch **09:00–13:00**, Snacks **15:00–17:00** and Dinner **18:00–21:00**.
+- Added current-meal highlighting and automatic fading for meals that have already passed.
+- Tapping the summary opens Plans directly.
+
+### Changed
+- Today shows only meal names, not ingredients, so the timeline stays clean and compact.
+- Weekly Plan recurrence remains the source of truth, so Monday foods automatically appear in every Monday summary.
+
+### Fixed
+- Added regression coverage for Today meal windows and weekday-specific food selection.
+- Bumped beta versionCode to **2102** and beta versionName to `0.21.2.beta`.
+
 ## 0.21.1.beta — Weekly meal plans
 
 ### Added

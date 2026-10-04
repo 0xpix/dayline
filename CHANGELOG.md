@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.21.3.beta — One meal at a time
+
+### Changed
+- Today now shows only one meal at a time instead of the full day's meal list.
+- During a meal window, the card shows that meal as **NOW**.
+- Between meal windows, the card shows only the next scheduled meal as **NEXT**.
+- After the final meal window ends, the meal glance disappears for the day.
+- The compact card still opens Plans when tapped.
+
+### Fixed
+- At 15:47, for example, Today shows only Snacks instead of Breakfast, Lunch, Snacks and Dinner together.
+- Added regression coverage for current meal, next meal and end-of-day behavior.
+- Bumped beta versionCode to **2103** and beta versionName to `0.21.3.beta`.
+
 ## 0.21.2.beta — Today meal summary
 
 ### Added

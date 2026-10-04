@@ -1,5 +1,9 @@
 package com.pix.dayline.ui.today
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -39,9 +43,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.pix.dayline.model.DaylineItem
-import com.pix.dayline.model.DaylineMealSummary
+import com.pix.dayline.model.DaylineMealGlance
+import com.pix.dayline.model.DaylineMealGlanceState
 import com.pix.dayline.model.DaylinePlan
-import com.pix.dayline.model.mealSummaryFor
+import com.pix.dayline.model.mealGlanceFor
 import com.pix.dayline.model.occursOn
 import com.pix.dayline.ui.components.DayGlyph
 import com.pix.dayline.ui.components.DayTimeline
@@ -135,7 +140,11 @@ fun TodayScreen(
 
     val dayItems = items.filter { it.occursOn(date) }
         .sortedWith(compareBy<DaylineItem> { it.startTime == null }.thenBy { it.startTime })
-    val mealSummary = remember(plans, date) { mealSummaryFor(plans, date) }
+    val mealGlance = if (date == actualToday) {
+        mealGlanceFor(plans, date, now)
+    } else {
+        null
+    }
 
     // Position the timeline with motion instead of snapping after a page/date
     // change. Keeping this keyed to the date avoids re-centering the user when
@@ -206,12 +215,10 @@ fun TodayScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .58f)
             )
 
-            if (mealSummary.isNotEmpty()) {
+            if (mealGlance != null) {
                 Spacer(Modifier.height(20.dp))
-                TodayMealSummaryCard(
-                    meals = mealSummary,
-                    date = date,
-                    now = now,
+                TodayMealGlanceCard(
+                    glance = mealGlance,
                     onOpenPlans = onOpenPlans
                 )
             }
@@ -247,14 +254,10 @@ fun TodayScreen(
 
 
 @Composable
-private fun TodayMealSummaryCard(
-    meals: List<DaylineMealSummary>,
-    date: LocalDate,
-    now: LocalTime,
+private fun TodayMealGlanceCard(
+    glance: DaylineMealGlance,
     onOpenPlans: () -> Unit
 ) {
-    val isToday = date == LocalDate.now()
-
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -262,65 +265,50 @@ private fun TodayMealSummaryCard(
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surface
     ) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "TODAY'S MEALS",
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    "OPEN ›",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .72f)
-                )
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            meals.forEachIndexed { index, meal ->
-                val current = isToday && !now.isBefore(meal.start) && now.isBefore(meal.end)
-                val past = isToday && !now.isBefore(meal.end)
-                val alpha = when {
-                    current -> 1f
-                    past -> .46f
-                    else -> .82f
-                }
-
+        AnimatedContent(
+            targetState = glance,
+            transitionSpec = {
+                fadeIn(animationSpec = tween(220)) togetherWith
+                    fadeOut(animationSpec = tween(160))
+            },
+            label = "meal-glance"
+        ) { shown ->
+            val meal = shown.meal
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
                 Row(
-                    Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                    Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        meal.start.format(MEAL_TIME_FORMAT) + "–" + meal.end.format(MEAL_TIME_FORMAT),
-                        modifier = Modifier.width(82.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha)
-                    )
-
-                    Text(
-                        meal.section + " · " + meal.titles.joinToString(" / "),
+                        shown.state.name + " · " + meal.section.uppercase(Locale.getDefault()),
                         modifier = Modifier.weight(1f),
-                        maxLines = 1,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = alpha)
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-
-                    if (current) {
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "NOW",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
+                    Text(
+                        meal.start.format(MEAL_TIME_FORMAT) + "–" + meal.end.format(MEAL_TIME_FORMAT),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .72f)
+                    )
                 }
 
-                if (index < meals.lastIndex) Spacer(Modifier.height(2.dp))
+                Spacer(Modifier.height(8.dp))
+
+                Text(
+                    meal.titles.joinToString(" / "),
+                    maxLines = 1,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
+                if (shown.state == DaylineMealGlanceState.NEXT) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Coming up",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .62f)
+                    )
+                }
             }
         }
     }

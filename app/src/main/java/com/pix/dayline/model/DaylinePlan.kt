@@ -28,6 +28,28 @@ data class DaylineMealSummary(
     val titles: List<String>
 )
 
+enum class DaylineMealGlanceState { NOW, NEXT }
+
+data class DaylineMealGlance(
+    val meal: DaylineMealSummary,
+    val state: DaylineMealGlanceState
+)
+
+fun mealGlanceFor(
+    plans: List<DaylinePlan>,
+    date: LocalDate,
+    now: LocalTime
+): DaylineMealGlance? {
+    val meals = mealSummaryFor(plans, date)
+    val current = meals.firstOrNull { !now.isBefore(it.start) && now.isBefore(it.end) }
+    if (current != null) {
+        return DaylineMealGlance(current, DaylineMealGlanceState.NOW)
+    }
+
+    val next = meals.firstOrNull { now.isBefore(it.start) } ?: return null
+    return DaylineMealGlance(next, DaylineMealGlanceState.NEXT)
+}
+
 fun mealSummaryFor(plans: List<DaylinePlan>, date: LocalDate): List<DaylineMealSummary> {
     val windows = listOf(
         Triple("Breakfast", LocalTime.of(6, 0), LocalTime.of(9, 0)),

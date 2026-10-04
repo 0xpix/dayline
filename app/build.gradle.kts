@@ -27,9 +27,9 @@ android {
             dimension = "distribution"
             applicationIdSuffix = ".beta"
             versionNameSuffix = ".beta"
-            // v0.21.2.beta: compact time-aware meal Plan summaries on Today.
-            versionCode = 2102
-            versionName = "0.21.2"
+            // v0.21.3.beta: single current-or-next meal glance on Today.
+            versionCode = 2103
+            versionName = "0.21.3"
             // Nothing's Glyph Matrix SDK 2.0 declares minSdk 33. Keep this
             // requirement isolated to the beta/Glyph build so the normal Play
             // build continues to support Dayline's global minSdk 26.

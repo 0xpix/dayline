@@ -1,16 +1,16 @@
-# Dayline v0.21.2.beta — Validation Report
+# Dayline v0.21.3.beta — Validation Report
 
-This report tracks the current **v0.21.2.beta / versionCode 2102** source. GitHub Actions remains the authoritative Android/Compose compile gate.
+This report tracks the current **v0.21.3.beta / versionCode 2103** source. GitHub Actions remains the authoritative Android/Compose compile gate.
 
 - Plans remain separate from calendar events, Quick Add, busy time and conflict detection.\n- Plans repeat by weekday; one Monday definition applies to every Monday.\n- Meal Plans store structured food names and ingredient lists instead of per-date free-text fields.\n- Today shows a compact meal summary with Breakfast 06:00–09:00, Lunch 09:00–13:00, Snacks 15:00–17:00 and Dinner 18:00–21:00.
 - Today swipe contract: left → Plans, right → Upcoming; reverse gestures return to Today.
 
 ## Release checks
 
-- Beta target: **0.21.2.beta / 2102**.
-- `docs/releases/v0.21.2.beta.md` contains concise **Added / Changed / Fixed** updater notes.
+- Beta target: **0.21.3.beta / 2103**.
+- `docs/releases/v0.21.3.beta.md` contains concise **Added / Changed / Fixed** updater notes.
 - Beta/Play flavor separation remains intact; Play stays on the stable base version and does not package the Nothing SDK.
-- Tagged builds must verify signed APK versionName/versionCode against tag `v0.21.2.beta`.
+- Tagged builds must verify signed APK versionName/versionCode against tag `v0.21.3.beta`.
 - Calendar sync regression coverage must preserve a 06:00–09:30 local event when provider end data is temporarily unavailable.
 - Static validation, recurrence/planning unit tests, Beta debug compile and Play debug compile must all pass before tagging.
 
@@ -232,3 +232,5 @@ The tag job additionally builds `:app:assembleBetaRelease`, verifies tag/APK ide
 - The animated destination host always paints MaterialTheme.colorScheme.background so dark-mode swipes never reveal a white window.
 - Today → Upcoming moves left; Upcoming → Today moves right.
 - Today waits for the measured scroll range, then animates into the current-time/useful-block position instead of snapping.
+
+- Today shows one meal glance at a time: NOW inside a meal window, otherwise the next scheduled meal; it disappears after the last meal.

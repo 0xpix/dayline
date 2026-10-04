@@ -64,6 +64,7 @@ fun TodayScreen(
     onResize: (DaylineItem) -> Unit = onReschedule,
     onScheduleTask: (DaylineItem) -> Unit = onReschedule,
     onReturnToday: () -> Unit = {},
+    onSwipePlans: () -> Unit = {},
     onSwipeUpcoming: () -> Unit = {}
 ) {
     var now by remember { mutableStateOf(LocalTime.now()) }
@@ -141,13 +142,16 @@ fun TodayScreen(
 
     Box(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
-            .pointerInput(onSwipeUpcoming) {
+            .pointerInput(onSwipePlans, onSwipeUpcoming) {
                 detectHorizontalDragGestures(
                     onDragStart = { dragTotal = 0f },
                     onHorizontalDrag = { _, amount -> dragTotal += amount },
                     onDragCancel = { dragTotal = 0f },
                     onDragEnd = {
-                        if (dragTotal < -120f) onSwipeUpcoming()
+                        when {
+                            dragTotal < -120f -> onSwipePlans()
+                            dragTotal > 120f -> onSwipeUpcoming()
+                        }
                         dragTotal = 0f
                     }
                 )
@@ -185,7 +189,7 @@ fun TodayScreen(
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                "Swipe left for Upcoming",
+                "Swipe left for Plans · right for Upcoming",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .58f)
             )

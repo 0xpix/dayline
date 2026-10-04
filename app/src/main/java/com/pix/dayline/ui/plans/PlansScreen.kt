@@ -3,6 +3,7 @@ package com.pix.dayline.ui.plans
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -280,14 +281,16 @@ private fun PlanTabs(
     onNew: () -> Unit
 ) {
     Row(
-        Modifier.fillMaxWidth(),
+        Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        plans.take(3).forEach { plan ->
+        plans.forEach { plan ->
             PlanChip(
                 label = plan.name,
                 selected = plan.id == selectedId,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.widthIn(min = 92.dp),
                 onClick = { onSelect(plan.id) }
             )
         }
@@ -696,7 +699,7 @@ private fun PlanEditorSheet(
     onDelete: (() -> Unit)?
 ) {
     val isNew = plan == null
-    var name by remember(plan?.id) { mutableStateOf(plan?.name.orEmpty()) }
+    var name by remember(plan?.id) { mutableStateOf(plan?.name ?: "Diet") }
     var useMeals by remember(plan?.id) {
         mutableStateOf(plan?.sections == DaylinePlan.MEAL_SECTIONS || isNew)
     }
@@ -754,6 +757,7 @@ private fun PlanEditorSheet(
                         onClick = {
                             useMeals = false
                             sectionsText = ""
+                            if (name == "Diet") name = ""
                         }
                     )
                 }

@@ -73,8 +73,39 @@ class DaylineStore(context: Context) {
                         }
                     }.distinct()
 
+                    val itemArray = json.optJSONArray("items") ?: JSONArray()
+                    val planItems = buildList {
+                        for (itemIndex in 0 until itemArray.length()) {
+                            val value = itemArray.optJSONObject(itemIndex) ?: continue
+                            val title = value.optString("title").trim()
+                            val section = value.optString("section").trim()
+                            if (title.isBlank() || section !in sections) continue
+
+                            val ingredientArray = value.optJSONArray("ingredients") ?: JSONArray()
+                            val ingredients = buildList {
+                                for (ingredientIndex in 0 until ingredientArray.length()) {
+                                    ingredientArray.optString(ingredientIndex).trim()
+                                        .takeIf(String::isNotBlank)
+                                        ?.let(::add)
+                                }
+                            }
+
+                            add(
+                                DaylinePlanItem(
+                                    id = value.optString("id").ifBlank { UUID.randomUUID().toString() },
+                                    title = title,
+                                    section = section,
+                                    ingredients = ingredients,
+                                    weekdays = parseInts(value.optJSONArray("weekdays"))
+                                )
+                            )
+                        }
+                    }
+
+                    // v0.21.0 compatibility: convert old date-specific free text
+                    // to weekly repeating items based on each stored date's weekday.
                     val entriesJson = json.optJSONObject("entries") ?: JSONObject()
-                    val entries = buildMap<String, Map<String, String>> {
+                    val legacyEntries = buildMap<String, Map<String, String>> {
                         val dates = entriesJson.keys()
                         while (dates.hasNext()) {
                             val dateKey = dates.next()
@@ -95,8 +126,9 @@ class DaylineStore(context: Context) {
                         id = json.optString("id").ifBlank { UUID.randomUUID().toString() },
                         name = json.optString("name").ifBlank { "Plan" },
                         sections = sections,
-                        entries = entries
-                    )
+                        items = planItems,
+                        entries = legacyEntries
+                    ).migrateLegacyEntries()
                 }.getOrNull()
                 if (plan != null) add(plan)
             }
@@ -107,6 +139,18 @@ class DaylineStore(context: Context) {
         val array = JSONArray()
         plans.forEach { plan ->
             val sections = JSONArray().apply { plan.sections.forEach(::put) }
+            val items = JSONArray().apply {
+                plan.items.forEach { item ->
+                    put(
+                        JSONObject()
+                            .put("id", item.id)
+                            .put("title", item.title)
+                            .put("section", item.section)
+                            .put("ingredients", JSONArray().apply { item.ingredients.forEach(::put) })
+                            .put("weekdays", intsArray(item.weekdays))
+                    )
+                }
+            }
             val entries = JSONObject()
             plan.entries.forEach { (dateKey, values) ->
                 val day = JSONObject()
@@ -120,6 +164,7 @@ class DaylineStore(context: Context) {
                     .put("id", plan.id)
                     .put("name", plan.name)
                     .put("sections", sections)
+                    .put("items", items)
                     .put("entries", entries)
             )
         }

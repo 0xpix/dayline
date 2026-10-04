@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.21.1.beta — Weekly meal plans
+
+### Added
+- Added structured Plan items with a name, ingredient/detail list, section and repeating weekdays.
+- Added a compact Monday–Sunday weekly selector and per-section **+ Add** actions.
+- Added multi-day recurrence so one food can repeat every Monday, or on any selected combination of weekdays.
+- Added clean food cards that show the food name with ingredients underneath.
+
+### Changed
+- Replaced the per-date Plan text boxes with a weekly list builder.
+- The Meals template now behaves like a real meal plan: Breakfast, Lunch, Dinner and Snacks each hold reusable food entries.
+- The floating + button now adds a food/item when a Plan already exists.
+
+### Fixed
+- Existing v0.21.0 date-specific Plan text is migrated into weekly repeating items based on its stored weekday.
+- Duplicate migrated foods for the same weekday/section/title are collapsed.
+- Bumped beta versionCode to **2101** and beta versionName to `0.21.1.beta`.
+
 ## 0.21.0.beta — Plans
 
 ### Added
